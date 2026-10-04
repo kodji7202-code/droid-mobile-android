@@ -164,12 +164,36 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
     }
   };
 
+  /**
+   * Re-reads the latest page for a view that is already ready, picking up turns
+   * other clients added. Older pages are dropped (the cursor restarts) so nothing
+   * is duplicated; unsent local items stay. A view that started streaming while
+   * the read was in flight is left alone.
+   */
+  const refreshLatest = async (id: string, handle: SessionHandle) => {
+    try {
+      const page = await handle.getMessages({ limit: HISTORY_PAGE_SIZE });
+      const latest = get().views[id];
+      if (!latest || latest.handle !== handle || latest.turnActive) return;
+      patch(id, {
+        items: [...itemsFromMessages(page.messages), ...localOnlyItems(latest.items)],
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
+      });
+    } catch {
+      // The cached history stays visible; the next open retries.
+    }
+  };
+
   return {
     views: {},
 
     async open(connection, id, epoch) {
       const existing = get().views[id];
       if (existing && existing.epoch === epoch && existing.status !== 'error') {
+        if (existing.status === 'ready' && existing.handle && !existing.turnActive) {
+          await refreshLatest(id, existing.handle);
+        }
         return;
       }
       set((state) => ({

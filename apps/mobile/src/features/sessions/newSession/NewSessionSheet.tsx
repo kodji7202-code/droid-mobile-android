@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DaemonConnection, SessionHandle } from '@droidmobile/daemon-client';
@@ -32,13 +32,28 @@ export function NewSessionSheet({
     void connection
       ?.getDefaultSettings()
       .then((settings) => {
-        if (!cancelled) setDefaultModel(settings.modelId ?? null);
+        // An absent modelId means the daemon applies its own configured default.
+        if (!cancelled) setDefaultModel(settings.modelId ?? '');
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, [connection]);
+
+  // Set once the sheet is dismissed or unmounted so a pending trust/create
+  // continuation neither creates a session nor navigates.
+  const dismissed = useRef(false);
+  useEffect(() => {
+    dismissed.current = false;
+    return () => {
+      dismissed.current = true;
+    };
+  }, []);
+  const dismiss = () => {
+    dismissed.current = true;
+    onClose();
+  };
 
   const valid = check.state === 'valid' ? check : null;
   const canCreate = valid !== null && !busy;
@@ -54,12 +69,19 @@ export function NewSessionSheet({
       if (valid.trustRequired) {
         await connection.trustFolder(valid.path);
       }
-      onCreated(await connection.createSession({ cwd: valid.path }));
+      if (dismissed.current) return;
+      const handle = await connection.createSession({ cwd: valid.path });
+      if (dismissed.current) {
+        void handle.close().catch(() => undefined);
+        return;
+      }
+      onCreated(handle);
     } catch {
+      if (dismissed.current) return;
       setCreateFailed(true);
       setRevision((value) => value + 1);
     } finally {
-      setBusy(false);
+      if (!dismissed.current) setBusy(false);
     }
   };
 
@@ -71,7 +93,7 @@ export function NewSessionSheet({
         : null;
 
   return (
-    <Sheet open onClose={onClose} title={t('sessions.newTitle')} testId="session-new-sheet">
+    <Sheet open onClose={dismiss} title={t('sessions.newTitle')} testId="session-new-sheet">
       <form className="field new-session" onSubmit={(event) => void create(event)}>
         <label className="field__label" htmlFor="session-new-cwd">
           {t('sessions.newDirectoryLabel')}
@@ -128,7 +150,12 @@ export function NewSessionSheet({
           </div>
         ) : null}
         <p className="field__description" data-testid="session-new-model">
-          {t('sessions.newModel', { model: defaultModel ?? t('sessions.newModelLoading') })}
+          {t('sessions.newModel', {
+            model:
+              defaultModel === null
+                ? t('sessions.newModelLoading')
+                : defaultModel || t('sessions.newModelDaemonDefault'),
+          })}
         </p>
         {createFailed ? (
           <p className="field__error" role="alert" data-testid="session-new-create-error">

@@ -90,6 +90,7 @@
     "newRecent": "Directoare recente",
     "newModel": "Model implicit: {{model}}",
     "newModelLoading": "se încarcă…",
+    "newModelDaemonDefault": "implicit al daemonului",
     "newCreateFailed": "Nu am putut crea sesiunea. Încearcă din nou.",
     "create": "Creează sesiunea",
     "trustTitle": "Ai încredere în acest dosar?",

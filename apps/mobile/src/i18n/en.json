@@ -90,6 +90,7 @@
     "newRecent": "Recent directories",
     "newModel": "Default model: {{model}}",
     "newModelLoading": "loading…",
+    "newModelDaemonDefault": "daemon default",
     "newCreateFailed": "Could not create the session. Try again.",
     "create": "Create session",
     "trustTitle": "Trust this folder?",

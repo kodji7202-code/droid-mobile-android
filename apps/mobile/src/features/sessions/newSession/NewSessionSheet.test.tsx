@@ -90,7 +90,7 @@ describe('NewSessionSheet', () => {
       trustRootPath: 'C:\\w',
       promptRequired: true,
     });
-    const { onCreated, onClose } = renderSheet(connection);
+    const { onCreated } = renderSheet(connection);
     const user = userEvent.setup();
 
     await user.click(screen.getByTestId('session-new-suggestion-0'));
@@ -98,16 +98,68 @@ describe('NewSessionSheet', () => {
     expect(trustFolder).not.toHaveBeenCalled();
     expect(createSession).not.toHaveBeenCalled();
 
-    await user.click(screen.getByTestId('session-new-sheet-close'));
-    expect(onClose).toHaveBeenCalled();
-    expect(trustFolder).not.toHaveBeenCalled();
-
     await user.click(screen.getByTestId('session-new-create'));
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
     expect(trustFolder).toHaveBeenCalledWith('C:\\w');
     expect(trustFolder.mock.invocationCallOrder[0]).toBeLessThan(
       createSession.mock.invocationCallOrder[0] ?? 0,
     );
+  });
+
+  it('shows the daemon default instead of loading forever when defaults omit modelId', async () => {
+    const fake = fakeConnection();
+    (fake.connection.getDefaultSettings as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    renderSheet(fake.connection);
+
+    await screen.findByText('Default model: daemon default');
+    expect(screen.queryByText(/loading/)).not.toBeInTheDocument();
+  });
+
+  it('never creates or navigates when dismissed during the pending trust call', async () => {
+    const fake = fakeConnection({
+      isTrusted: false,
+      trustRootPath: 'C:\\w',
+      promptRequired: true,
+    });
+    let finishTrust: () => void = () => undefined;
+    fake.trustFolder.mockImplementation(
+      () => new Promise<undefined>((resolve) => (finishTrust = () => resolve(undefined))),
+    );
+    const { onCreated, onClose } = renderSheet(fake.connection);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByTestId('session-new-suggestion-0'));
+    await waitFor(() => expect(screen.getByTestId('session-new-create')).toBeEnabled());
+    await user.click(screen.getByTestId('session-new-create'));
+    await waitFor(() => expect(fake.trustFolder).toHaveBeenCalled());
+    await user.click(screen.getByTestId('session-new-sheet-close'));
+    expect(onClose).toHaveBeenCalled();
+
+    finishTrust();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fake.createSession).not.toHaveBeenCalled();
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
+  it('closes a handle that arrives after dismissal without navigating', async () => {
+    const fake = fakeConnection();
+    const close = vi.fn(async () => undefined);
+    let finishCreate: (handle: unknown) => void = () => undefined;
+    fake.createSession.mockImplementation(
+      () => new Promise((resolve) => (finishCreate = resolve)) as never,
+    );
+    const { onCreated } = renderSheet(fake.connection);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByTestId('session-new-suggestion-0'));
+    await waitFor(() => expect(screen.getByTestId('session-new-create')).toBeEnabled());
+    await user.click(screen.getByTestId('session-new-create'));
+    await waitFor(() => expect(fake.createSession).toHaveBeenCalled());
+    await user.click(screen.getByTestId('session-new-sheet-close'));
+
+    finishCreate({ id: 'late', close });
+    await waitFor(() => expect(close).toHaveBeenCalled());
+    expect(onCreated).not.toHaveBeenCalled();
   });
 
   it('reports a failed creation inline and stays usable', async () => {
