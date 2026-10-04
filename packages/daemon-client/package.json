@@ -9,7 +9,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --root ../.. --project unit packages/daemon-client"
+    "test": "vitest run --root ../.. --project unit packages/daemon-client",
+    "test:integration": "vitest run --root ../.. --project integration packages/daemon-client"
   },
   "dependencies": {
     "@factory/droid-sdk": "0.9.1"
