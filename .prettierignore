@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+coverage/
+.tmp/
+apps/mobile/android/
+package-lock.json
+secrets/
+.env*
+*.log

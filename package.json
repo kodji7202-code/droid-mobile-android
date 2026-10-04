@@ -1,0 +1,34 @@
+{
+  "name": "droid-mobile",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Unofficial Android client for Factory Droid (Capacitor + React + TypeScript).",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "server/*",
+    "tools/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "vitest run --project unit --maxWorkers=4",
+    "test:integration": "vitest run --project integration --maxWorkers=4 --passWithNoTests",
+    "build": "npm run build --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.12.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0",
+    "vitest": "5.0.3"
+  }
+}

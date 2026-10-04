@@ -1,0 +1,35 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+build/
+.gradle/
+.idea/
+*.iml
+local.properties
+*.keystore
+*.jks
+keystore.properties
+google-services.json
+firebase-service-account*.json
+apps/mobile/android/app/release/
+.tools/
+coverage/
+*.log
+secrets/
+.tmp/
+
+# vite/typescript/eslint caches
+.vite/
+*.tsbuildinfo
+.eslintcache
+
+# android native build extras (outputs are build/ dirs; keep sources committed)
+.cxx/
+*.apk
+*.aab
+
+# os
+Thumbs.db
+.DS_Store
