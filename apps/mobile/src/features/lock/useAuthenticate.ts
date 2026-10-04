@@ -10,7 +10,7 @@ export function useAuthenticate(): (reason: AuthReason) => Promise<BiometricOutc
   const { t } = useTranslation();
   const authenticate = useLockStore((state) => state.authenticate);
   return useCallback(
-    (reason) => authenticate(t(`lock.reason.${reason}`), t('common.cancel')),
+    (reason) => authenticate(t(`lock.reason.${reason}`), t('common.cancel'), t('lock.promptTitle')),
     [authenticate, t],
   );
 }

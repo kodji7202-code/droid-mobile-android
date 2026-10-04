@@ -23,7 +23,7 @@ export interface QrScannerApi {
 }
 
 interface Barcodes {
-  barcodes: { rawValue: string }[];
+  barcodes: { rawValue?: string }[];
 }
 
 interface ScannerPlugin {
@@ -78,21 +78,31 @@ function toUri(path: string): string {
   return path.startsWith('/') ? `file://${path}` : path;
 }
 
-function firstText(barcodes: { rawValue: string }[]): QrScanResult {
-  const text = barcodes.find((barcode) => barcode.rawValue.trim() !== '')?.rawValue;
-  return text === undefined ? { status: 'none' } : { status: 'ok', text };
+function hasText(barcode: { rawValue?: unknown }): barcode is { rawValue: string } {
+  return typeof barcode.rawValue === 'string' && barcode.rawValue.trim() !== '';
 }
 
+/** The plugin omits rawValue for binary (non-UTF-8) codes, which can never be a pairing payload. */
+function hasUnreadable(barcodes: { rawValue?: unknown }[]): boolean {
+  return barcodes.some((barcode) => typeof barcode.rawValue !== 'string');
+}
+
+function firstText(barcodes: { rawValue?: unknown }[]): QrScanResult {
+  const text = barcodes.find(hasText)?.rawValue;
+  return text === undefined ? { status: 'none' } : { status: 'ok', text };
+}
 export function createQrScanner(
   scanner: ScannerPlugin = BarcodeScanner as unknown as ScannerPlugin,
   picker: PickerPlugin = FilePicker as unknown as PickerPlugin,
   isNative: () => boolean = () => Capacitor.isNativePlatform(),
   backButton: BackButtonSource = App as unknown as BackButtonSource,
 ): QrScannerApi {
-  let finishScan: ((result: QrScanResult) => void) | null = null;
+  // The slot is claimed synchronously and only released by the operation that owns it,
+  // so a second tap cannot overlap a scan and a late cleanup cannot stop a newer one.
+  let current: { finish: (result: QrScanResult) => void; done: boolean } | null = null;
 
   const stopCamera = async () => {
-    finishScan?.({ status: 'cancelled' });
+    current?.finish({ status: 'cancelled' });
   };
 
   return {
@@ -100,45 +110,51 @@ export function createQrScanner(
     stopCamera,
     async scanCamera(onPreview) {
       if (!isNative()) return { status: 'unavailable' };
-      if (finishScan) return { status: 'cancelled' };
+      if (current) return { status: 'cancelled' };
+      let finish: (result: QrScanResult) => void = () => undefined;
+      const outcome = new Promise<QrScanResult>((resolve) => {
+        finish = resolve;
+      });
+      const op = {
+        done: false,
+        finish: (result: QrScanResult) => {
+          op.done = true;
+          finish(result);
+        },
+      };
+      current = op;
       let scanListener: { remove: () => Promise<void> } | undefined;
       let backListener: { remove: () => Promise<void> } | undefined;
       try {
         const permission = await scanner.requestPermissions();
+        if (op.done) return await outcome;
         if (permission.camera !== 'granted' && permission.camera !== 'limited') {
           return { status: 'denied' };
         }
-        const result = await new Promise<QrScanResult>((resolve, reject) => {
-          finishScan = resolve;
-          onPreview?.();
-          cameraActive = true;
-          document.body.classList.add(ACTIVE_CLASS);
-          void (async () => {
-            try {
-              scanListener = await scanner.addListener('barcodesScanned', (event) => {
-                const found = firstText(event.barcodes);
-                if (found.status === 'ok') resolve(found);
-              });
-              backListener = await backButton.addListener('backButton', () => {
-                resolve({ status: 'cancelled' });
-              });
-              await scanner.startScan({ formats: FORMATS });
-            } catch (error) {
-              reject(error);
-            }
-          })();
+        onPreview?.();
+        cameraActive = true;
+        document.body.classList.add(ACTIVE_CLASS);
+        scanListener = await scanner.addListener('barcodesScanned', (event) => {
+          const found = firstText(event.barcodes);
+          if (found.status === 'ok') op.finish(found);
+          else if (hasUnreadable(event.barcodes)) op.finish({ status: 'none' });
         });
-        return result;
+        backListener = await backButton.addListener('backButton', () => {
+          op.finish({ status: 'cancelled' });
+        });
+        if (!op.done) await scanner.startScan({ formats: FORMATS });
+        return await outcome;
       } catch (error) {
         return isCancel(error) ? { status: 'cancelled' } : { status: 'error' };
       } finally {
-        finishScan = null;
+        op.done = true;
         document.body.classList.remove(ACTIVE_CLASS);
         await scanListener?.remove().catch(() => undefined);
         await backListener?.remove().catch(() => undefined);
         await scanner.stopScan().catch(() => undefined);
+        current = null;
         setTimeout(() => {
-          cameraActive = false;
+          if (current === null) cameraActive = false;
         }, 0);
       }
     },

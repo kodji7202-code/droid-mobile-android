@@ -150,6 +150,44 @@ describe('Settings > Connection gate', () => {
     expect(authenticate).toHaveBeenCalledTimes(1);
   });
 
+  it('does not open the add form or switch when the prompt is cancelled', async () => {
+    const switchTo = vi.fn().mockResolvedValue(undefined);
+    useConnectionStore.setState({
+      savedConnections: [FIRST, { id: 'b', label: 'Second', url: 'wss://example.test' }],
+      savedActiveId: 'a',
+      status: 'ready',
+      switchTo,
+    });
+    authenticate.mockResolvedValue('cancelled');
+    renderAppAt('/settings/connection', { connection: {} as DaemonConnection });
+
+    fireEvent.click(screen.getByTestId('connection-add'));
+    expect(await screen.findByTestId('connection-reveal-error')).toBeInTheDocument();
+    expect(screen.queryByTestId('connection-form')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('connection-switch-b'));
+    await waitFor(() => expect(authenticate).toHaveBeenCalledTimes(2));
+    expect(switchTo).not.toHaveBeenCalled();
+    expect(screen.getByTestId('connection-active-marker-a')).toBeInTheDocument();
+  });
+
+  it('opens the add form and switches only after a successful prompt', async () => {
+    const switchTo = vi.fn().mockResolvedValue(undefined);
+    useConnectionStore.setState({
+      savedConnections: [FIRST, { id: 'b', label: 'Second', url: 'wss://example.test' }],
+      savedActiveId: 'a',
+      status: 'ready',
+      switchTo,
+    });
+    authenticate.mockResolvedValue('success');
+    renderAppAt('/settings/connection', { connection: {} as DaemonConnection });
+
+    fireEvent.click(screen.getByTestId('connection-add'));
+    expect(await screen.findByTestId('connection-form')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('connection-switch-b'));
+    await waitFor(() => expect(switchTo).toHaveBeenCalledWith('b'));
+  });
+
   it('shows URLs directly when the lock is off', () => {
     useLockStore.setState({ enabled: false });
     renderConnection();

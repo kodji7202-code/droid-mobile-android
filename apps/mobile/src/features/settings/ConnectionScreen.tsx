@@ -167,7 +167,7 @@ export function ConnectionScreen() {
                       className="btn btn--secondary"
                       data-testid={`connection-switch-${entry.id}`}
                       disabled={switching !== null}
-                      onClick={() => doSwitch(entry.id)}
+                      onClick={() => void withAuth(() => doSwitch(entry.id))}
                     >
                       {t('connections.switch')}
                     </button>
@@ -198,7 +198,7 @@ export function ConnectionScreen() {
             type="button"
             className="btn btn--primary"
             data-testid="connection-add"
-            onClick={() => setPanel({ kind: 'add' })}
+            onClick={() => void withAuth(() => setPanel({ kind: 'add' }))}
           >
             {t('connections.add')}
           </button>

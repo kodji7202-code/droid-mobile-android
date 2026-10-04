@@ -6,7 +6,7 @@ export type BiometricOutcome = 'success' | 'cancelled' | 'failed' | 'unavailable
 export interface BiometricApi {
   /** True when a biometric is enrolled or a screen lock (PIN, pattern, password) is set. */
   isAvailable(): Promise<boolean>;
-  authenticate(reason: string, cancelTitle: string): Promise<BiometricOutcome>;
+  authenticate(reason: string, cancelTitle: string, title?: string): Promise<BiometricOutcome>;
 }
 
 type PluginSubset = Pick<typeof BiometricAuth, 'checkBiometry' | 'authenticate'>;
@@ -44,12 +44,13 @@ export function createBiometrics(
         return false;
       }
     },
-    async authenticate(reason, cancelTitle) {
+    async authenticate(reason, cancelTitle, title) {
       if (!isNative()) return 'unavailable';
       try {
         await plugin.authenticate({
           reason,
           cancelTitle,
+          androidTitle: title,
           allowDeviceCredential: true,
         });
         return 'success';

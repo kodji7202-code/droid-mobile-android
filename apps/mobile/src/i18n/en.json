@@ -191,6 +191,7 @@
     "cancelled": "Authentication was cancelled. The app stays locked.",
     "failed": "Authentication failed. The app stays locked.",
     "unavailable": "No screen lock or biometric is set up on this device. Set one up in Android settings, then try again.",
+    "promptTitle": "Confirm it's you",
     "reason": {
       "unlock": "Unlock Droid Mobile",
       "enable": "Turn on the app lock",

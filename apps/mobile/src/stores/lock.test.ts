@@ -65,9 +65,23 @@ describe('lock store', () => {
       return Promise.resolve('success');
     });
     expect(await useLockStore.getState().authenticate('r', 'c')).toBe('success');
-    useLockStore.getState().onBackground(Date.now() + 10);
-    useLockStore.getState().onForeground(Date.now() + 500);
     expect(useLockStore.getState().locked).toBe(false);
+  });
+
+  it('still locks on a genuine background shortly after the prompt ended', async () => {
+    reset({ graceSeconds: 0 });
+    vi.mocked(biometrics.authenticate).mockResolvedValue('success');
+    await useLockStore.getState().authenticate('r', 'c');
+    const now = Date.now();
+    useLockStore.getState().onBackground(now + 100);
+    useLockStore.getState().onForeground(now + 5_000);
+    expect(useLockStore.getState().locked).toBe(true);
+  });
+
+  it('passes the localized title through to the biometric prompt', async () => {
+    vi.mocked(biometrics.authenticate).mockResolvedValue('success');
+    await useLockStore.getState().authenticate('r', 'c', 'Titlu');
+    expect(biometrics.authenticate).toHaveBeenCalledWith('r', 'c', 'Titlu');
   });
 
   it('keeps the outcome of a failed prompt', async () => {

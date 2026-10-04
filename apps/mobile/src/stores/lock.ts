@@ -8,14 +8,6 @@ export const LOCK_GRACE_KEY = 'droid.lock.graceSeconds';
 export const GRACE_OPTIONS_SECONDS = [0, 30, 60, 300] as const;
 const DEFAULT_GRACE_SECONDS = 30;
 
-/**
- * The system prompt runs in its own activity, so the app sees itself leave and
- * return while the user authenticates. Lifecycle events inside this window
- * after a prompt are ignored, otherwise a grace of 0 would re-lock the app
- * straight after a successful unlock.
- */
-const PROMPT_LIFECYCLE_WINDOW_MS = 2000;
-
 function readEnabled(): boolean {
   try {
     return window.localStorage.getItem(LOCK_ENABLED_KEY) === 'true';
@@ -59,14 +51,19 @@ interface LockStore {
   lock(): void;
   unlock(): void;
   /** Runs the system prompt; lifecycle events caused by the prompt are ignored. */
-  authenticate(reason: string, cancelTitle: string): Promise<BiometricOutcome>;
+  authenticate(reason: string, cancelTitle: string, title?: string): Promise<BiometricOutcome>;
   onBackground(now: number): void;
   onForeground(now: number): void;
 }
 
 let backgroundedAt: number | null = null;
+/**
+ * The system prompt runs in its own activity, so the app sees itself leave and
+ * return while the user authenticates. Only transitions while the prompt is
+ * showing are ignored; a background after it closed is a genuine one, even
+ * seconds after an unlock.
+ */
 let promptActive = false;
-let promptEndedAt = 0;
 
 export const useLockStore = create<LockStore>((set, get) => {
   const enabled = readEnabled();
@@ -88,19 +85,18 @@ export const useLockStore = create<LockStore>((set, get) => {
     unlock() {
       set({ locked: false });
     },
-    async authenticate(reason, cancelTitle) {
+    async authenticate(reason, cancelTitle, title) {
       promptActive = true;
       backgroundedAt = null;
       try {
-        return await biometrics.authenticate(reason, cancelTitle);
+        return await biometrics.authenticate(reason, cancelTitle, title);
       } finally {
         promptActive = false;
-        promptEndedAt = Date.now();
         backgroundedAt = null;
       }
     },
     onBackground(now) {
-      if (promptActive || now - promptEndedAt < PROMPT_LIFECYCLE_WINDOW_MS) return;
+      if (promptActive) return;
       backgroundedAt = now;
     },
     onForeground(now) {

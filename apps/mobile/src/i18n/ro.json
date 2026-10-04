@@ -191,6 +191,7 @@
     "cancelled": "Autentificarea a fost anulată. Aplicația rămâne blocată.",
     "failed": "Autentificarea a eșuat. Aplicația rămâne blocată.",
     "unavailable": "Pe acest dispozitiv nu este configurată nicio blocare a ecranului sau biometrie. Configurează una în setările Android, apoi încearcă din nou.",
+    "promptTitle": "Confirmă identitatea",
     "reason": {
       "unlock": "Deblochează Droid Mobile",
       "enable": "Pornește blocarea aplicației",

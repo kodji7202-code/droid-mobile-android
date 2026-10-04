@@ -44,6 +44,14 @@ describe('createBiometrics', () => {
     );
   });
 
+  it('passes the localized title as the Android prompt title', async () => {
+    const p = plugin();
+    await createBiometrics(p, native).authenticate('why', 'Anulează', 'Confirmă identitatea');
+    expect(p.authenticate).toHaveBeenCalledWith(
+      expect.objectContaining({ androidTitle: 'Confirmă identitatea', cancelTitle: 'Anulează' }),
+    );
+  });
+
   it.each([
     ['userCancel', 'cancelled'],
     ['systemCancel', 'cancelled'],
