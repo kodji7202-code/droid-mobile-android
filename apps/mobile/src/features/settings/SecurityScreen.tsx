@@ -75,6 +75,7 @@ export function SecurityScreen() {
             data-testid="settings-biometric-toggle"
             checked={enabled}
             aria-checked={enabled}
+            disabled={available === false && !enabled}
             aria-describedby="settings-biometric-description"
             onChange={() => void toggle()}
           />

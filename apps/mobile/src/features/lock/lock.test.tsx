@@ -96,9 +96,23 @@ describe('Settings > Security', () => {
     expect(useLockStore.getState().enabled).toBe(false);
   });
 
-  it('refuses without any enrolled credential and never prompts', async () => {
+  it('disables the toggle with the reason when nothing is enrolled', async () => {
     isAvailable.mockResolvedValue(false);
     renderSecurity();
+    expect(await screen.findByTestId('settings-biometric-unavailable')).toHaveTextContent(
+      'screen lock or biometric',
+    );
+    const toggle = screen.getByTestId('settings-biometric-toggle');
+    expect(toggle).toBeDisabled();
+    fireEvent.click(toggle);
+    expect(authenticate).not.toHaveBeenCalled();
+    expect(toggle).not.toBeChecked();
+  });
+
+  it('refuses without any enrolled credential and never prompts when enrolment vanishes', async () => {
+    isAvailable.mockResolvedValueOnce(true).mockResolvedValue(false);
+    renderSecurity();
+    await waitFor(() => expect(isAvailable).toHaveBeenCalled());
     fireEvent.click(screen.getByTestId('settings-biometric-toggle'));
     expect(await screen.findByTestId('settings-biometric-message')).toHaveTextContent(
       'screen lock or biometric',

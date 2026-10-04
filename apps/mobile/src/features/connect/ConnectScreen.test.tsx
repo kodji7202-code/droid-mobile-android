@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderAppAt } from '../../test/render-app';
 import { useConnectionStore } from '../../stores/connection';
 import { getSecureStore } from '../../platform/secureStore';
-import { loadSavedConnections } from '../../platform/savedConnections';
+import { loadSavedConnections, saveActiveConnection } from '../../platform/savedConnections';
 import { createDaemonConnection } from '@droidmobile/daemon-client';
 import { qrScanner } from '../../platform/qrScanner';
 import type { QrScanResult } from '../../platform/qrScanner';
@@ -62,6 +62,19 @@ describe('ConnectScreen', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it('lists the saved connection label while it awaits its key, without dialling', () => {
+    saveActiveConnection({ id: 'w1', label: 'Work PC', url: 'ws://127.0.0.1:3101' });
+    renderConnect();
+    expect(screen.getByTestId('connect-saved-connection')).toHaveTextContent('Work PC');
+    expect(screen.getByTestId('connect-saved-connection')).toHaveTextContent('ws://127.0.0.1:3101');
+    expect(createDaemonConnection).not.toHaveBeenCalled();
+  });
+
+  it('shows no saved connection hint when nothing is saved', () => {
+    renderConnect();
+    expect(screen.queryByTestId('connect-saved-connection')).not.toBeInTheDocument();
   });
 
   it('shows only the connect screen without a connection, redirecting shell routes', () => {

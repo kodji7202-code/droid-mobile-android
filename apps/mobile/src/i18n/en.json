@@ -32,6 +32,7 @@
     "title": "Connect to your daemon",
     "description": "Enter the daemon URL and your Factory API key.",
     "urlLabel": "Daemon URL",
+    "savedConnection": "Saved connection: {{label}} ({{url}}). Enter its API key to reconnect.",
     "keyLabel": "API key",
     "submit": "Connect",
     "submitting": "Connecting…",

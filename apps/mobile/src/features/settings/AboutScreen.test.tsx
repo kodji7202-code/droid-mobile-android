@@ -1,6 +1,10 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ConnectionStatus, DaemonConnection, DaemonIdentity } from '@droidmobile/daemon-client';
+import type {
+  ConnectionStatus,
+  DaemonConnection,
+  DaemonIdentity,
+} from '@droidmobile/daemon-client';
 import { renderAppAt } from '../../test/render-app';
 import { useConnectionStore } from '../../stores/connection';
 import { version as packageVersion } from '../../../package.json';
@@ -24,15 +28,15 @@ describe('AboutScreen', () => {
   });
 
   it('reads the daemon protocol version on demand while ready', async () => {
-    const getDaemonIdentity = vi.fn(
-      async (): Promise<DaemonIdentity> => ({
-        userId: 'user-1',
-        orgId: 'org-1',
-        daemonProtocolVersion: '1.244.0',
-      }),
-    );
+    const getDaemonIdentity = vi.fn(async (): Promise<DaemonIdentity> => ({
+      userId: 'user-1',
+      orgId: 'org-1',
+      daemonProtocolVersion: '1.244.0',
+    }));
     renderAbout({ getDaemonIdentity } as Partial<DaemonConnection>, 'ready');
-    await waitFor(() => expect(screen.getByTestId('about-protocol-version')).toHaveTextContent('1.244.0'));
+    await waitFor(() =>
+      expect(screen.getByTestId('about-protocol-version')).toHaveTextContent('1.244.0'),
+    );
     expect(getDaemonIdentity).toHaveBeenCalledTimes(1);
   });
 

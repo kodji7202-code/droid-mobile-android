@@ -32,6 +32,7 @@
     "title": "Conectare la daemon",
     "description": "Introdu URL-ul daemonului și cheia API Factory.",
     "urlLabel": "URL daemon",
+    "savedConnection": "Conexiune salvată: {{label}} ({{url}}). Introdu cheia API pentru a te reconecta.",
     "keyLabel": "Cheie API",
     "submit": "Conectare",
     "submitting": "Se conectează…",

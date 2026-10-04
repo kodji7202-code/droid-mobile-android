@@ -7,6 +7,7 @@ import { messageKeyFor } from './errors';
 import type { ConnectErrorKey } from './errors';
 import { isDebugBuild } from '../../platform/buildFlavor';
 import { loadSavedConnections } from '../../platform/savedConnections';
+import type { SavedConnection } from '../../platform/savedConnections';
 import { qrScanner } from '../../platform/qrScanner';
 import type { QrScanResult } from '../../platform/qrScanner';
 import { getSecureStore } from '../../platform/secureStore';
@@ -14,9 +15,13 @@ import { parsePairingCode, PENDING_BRIDGE_SECRET_ID } from './pairing';
 import type { PairingPayload } from './pairing';
 import { checkDaemonUrl, isApiKeyFormat, isCleartextUrl } from './validation';
 
-function initialUrl(): string {
+function savedActive(): SavedConnection | undefined {
   const { activeId, connections } = loadSavedConnections();
-  return connections.find((entry) => entry.id === activeId)?.url ?? '';
+  return connections.find((entry) => entry.id === activeId);
+}
+
+function initialUrl(): string {
+  return savedActive()?.url ?? '';
 }
 
 /**
@@ -29,6 +34,7 @@ export function ConnectScreen() {
   const navigate = useNavigate();
   const connect = useConnectionStore((state) => state.connect);
   const [url, setUrl] = useState(initialUrl);
+  const [saved] = useState(savedActive);
   // Uncontrolled: React mirrors a controlled input's value into its `value`
   // attribute, which would put the key into the serialized DOM.
   const keyInput = useRef<HTMLInputElement>(null);
@@ -161,6 +167,11 @@ export function ConnectScreen() {
     >
       <h1 id="connect-title">{t('connect.title')}</h1>
       <p className="screen__description">{t('connect.description')}</p>
+      {saved ? (
+        <p className="field__description" data-testid="connect-saved-connection">
+          {t('connect.savedConnection', { label: saved.label, url: saved.url })}
+        </p>
+      ) : null}
       <form className="connect-form" onSubmit={onSubmit} noValidate>
         <div className="field">
           <label className="field__label" htmlFor="connect-url">
