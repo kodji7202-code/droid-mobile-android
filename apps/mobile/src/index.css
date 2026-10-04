@@ -561,3 +561,29 @@ p {
   justify-content: center;
   align-items: stretch;
 }
+
+/* ---- QR camera preview ------------------------------------------------ */
+
+/* The camera renders behind the WebView, so everything except the overlay must be see-through. */
+body.barcode-scanner-active,
+body.barcode-scanner-active * {
+  background: transparent !important;
+}
+
+body.barcode-scanner-active .connect-screen > *:not(.qr-scan-overlay) {
+  visibility: hidden;
+}
+
+.qr-scan-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+body.barcode-scanner-active .qr-scan-overlay__cancel {
+  background: var(--color-surface) !important;
+  min-height: 48px;
+}

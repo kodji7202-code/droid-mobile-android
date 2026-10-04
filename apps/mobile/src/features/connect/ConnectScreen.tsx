@@ -7,8 +7,15 @@ import { messageKeyFor } from './errors';
 import type { ConnectErrorKey } from './errors';
 import { isDebugBuild } from '../../platform/buildFlavor';
 import { loadSavedConnections } from '../../platform/savedConnections';
+import { qrScanner } from '../../platform/qrScanner';
+import type { QrScanResult } from '../../platform/qrScanner';
+import { getSecureStore } from '../../platform/secureStore';
 import { parsePairingCode } from './pairing';
+import type { PairingPayload } from './pairing';
 import { checkDaemonUrl, isApiKeyFormat, isCleartextUrl } from './validation';
+
+/** Holds bridge info from a pairing code until the FCM registration consumes it; never rendered. */
+export const PENDING_BRIDGE_SECRET_ID = 'pairing.pendingBridge';
 
 function initialUrl(): string {
   const { activeId, connections } = loadSavedConnections();
@@ -31,7 +38,8 @@ export function ConnectScreen() {
   const [hasKey, setHasKey] = useState(false);
   const [pairing, setPairing] = useState('');
   const [pairingError, setPairingError] = useState(false);
-  const [scanNotice, setScanNotice] = useState(false);
+  const [scanNotice, setScanNotice] = useState<'unavailable' | 'denied' | 'failed' | null>(null);
+  const [scanning, setScanning] = useState(false);
   const [errorKey, setErrorKey] = useState<ConnectErrorKey | null>(null);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
@@ -49,9 +57,26 @@ export function ConnectScreen() {
     setErrorKey(null);
   };
 
+  const applyPayload = (payload: PairingPayload) => {
+    setUrl(payload.url);
+    if (payload.key !== undefined && keyInput.current) {
+      keyInput.current.value = payload.key;
+      setHasKey(true);
+    }
+    if (payload.bridge !== undefined && payload.bridgeSecret !== undefined) {
+      const bridge = JSON.stringify({ bridge: payload.bridge, bridgeSecret: payload.bridgeSecret });
+      getSecureStore()
+        .setSecret(PENDING_BRIDGE_SECRET_ID, bridge)
+        .catch(() => undefined);
+    }
+    setPairing('');
+    setPairingError(false);
+    setErrorKey(null);
+  };
+
   const onPairingChange = (event: ChangeEvent<HTMLInputElement>) => {
     const text = event.target.value;
-    setScanNotice(false);
+    setScanNotice(null);
     if (text.trim() === '') {
       setPairing('');
       setPairingError(false);
@@ -63,16 +88,44 @@ export function ConnectScreen() {
       setPairingError(true);
       return;
     }
-    setUrl(payload.url);
-    if (payload.key !== undefined && keyInput.current) {
-      keyInput.current.value = payload.key;
-      setHasKey(true);
-    }
-    setPairing('');
-    setPairingError(false);
-    setErrorKey(null);
+    applyPayload(payload);
   };
 
+  const onScanResult = (result: QrScanResult) => {
+    switch (result.status) {
+      case 'ok': {
+        const payload = parsePairingCode(result.text);
+        if (payload === null) {
+          setPairingError(true);
+          return;
+        }
+        applyPayload(payload);
+        return;
+      }
+      case 'none':
+        setPairingError(true);
+        return;
+      case 'unavailable':
+        setScanNotice('unavailable');
+        return;
+      case 'denied':
+        setScanNotice('denied');
+        return;
+      case 'error':
+        setScanNotice('failed');
+        return;
+      case 'cancelled':
+        return;
+    }
+  };
+
+  const onScan = (scan: () => Promise<QrScanResult>) => {
+    setScanNotice(null);
+    setPairingError(false);
+    scan()
+      .then(onScanResult, () => setScanNotice('failed'))
+      .finally(() => setScanning(false));
+  };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (inFlight.current || !canSubmit) return;
@@ -165,6 +218,18 @@ export function ConnectScreen() {
           {busy ? t('connect.submitting') : t('connect.submit')}
         </button>
       </form>
+      {scanning ? (
+        <div className="qr-scan-overlay">
+          <button
+            type="button"
+            className="btn btn--secondary qr-scan-overlay__cancel"
+            data-testid="connect-scan-cancel"
+            onClick={() => void qrScanner.stopCamera()}
+          >
+            {t('connect.scanCancel')}
+          </button>
+        </div>
+      ) : null}
       <div className="connect-pairing">
         <div className="field">
           <label className="field__label" htmlFor="connect-pairing">
@@ -196,13 +261,25 @@ export function ConnectScreen() {
           type="button"
           className="btn btn--secondary"
           data-testid="connect-scan-qr"
-          onClick={() => setScanNotice(true)}
+          onClick={() => onScan(() => qrScanner.scanCamera(() => setScanning(true)))}
         >
           {t('connect.scanQr')}
         </button>
+        <button
+          type="button"
+          className="btn btn--secondary"
+          data-testid="connect-scan-image"
+          onClick={() => onScan(() => qrScanner.scanImage())}
+        >
+          {t('connect.scanImage')}
+        </button>
         {scanNotice ? (
           <p className="field__description" data-testid="connect-scan-notice" role="status">
-            {t('connect.scanUnavailable')}
+            {scanNotice === 'denied'
+              ? t('connect.scanDenied')
+              : scanNotice === 'failed'
+                ? t('connect.scanFailed')
+                : t('connect.scanUnavailable')}
           </p>
         ) : null}
       </div>
