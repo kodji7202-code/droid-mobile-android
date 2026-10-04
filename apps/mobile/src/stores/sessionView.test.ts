@@ -303,3 +303,64 @@ describe('early Stop on a restored dialog', () => {
     expect(useSessionViewStore.getState().views['s1']?.status).toBe('error');
   });
 });
+
+describe('send gate while history loads', () => {
+  beforeEach(() => {
+    useSessionViewStore.getState().reset();
+    useConnectionStore.setState({ connection: null, status: 'offline' });
+  });
+
+  it('refuses retry until reconnect history settles, then retries once without a stale failed bubble', async () => {
+    const { connection, resumeSession } = setup([[message('u0', 'user', 1, 'first')]]);
+    type Page = { messages: SessionMessage[]; hasMore: boolean; nextCursor: undefined };
+    let resolveHistory: (page: Page) => void = () => undefined;
+    const sendMessage = vi.fn(async () => undefined);
+    const handle = {
+      id: 's1',
+      settings: { modelId: 'm' },
+      cwd: 'C:\\w',
+      getMessages: vi.fn(() => new Promise<Page>((resolve) => (resolveHistory = resolve))),
+      interrupt: vi.fn(async () => undefined),
+      send: sendMessage,
+    };
+    resumeSession.mockResolvedValue(handle as never);
+    useConnectionStore.setState({ connection, status: 'ready' });
+    useSessionViewStore.setState({
+      views: {
+        s1: {
+          id: 's1',
+          status: 'ready',
+          items: [
+            { kind: 'user', id: 'u0', text: 'first', delivery: 'sent' },
+            { kind: 'user', id: 'local-1', text: 'hello', delivery: 'failed' },
+          ],
+          turnActive: false,
+          workingState: 'idle',
+          stopRequested: false,
+          interrupted: false,
+          hasMore: false,
+          loadingOlder: false,
+          epoch: 1,
+        },
+      },
+    });
+
+    const opening = useSessionViewStore.getState().open(connection, 's1', 2);
+    await vi.waitFor(() => expect(handle.getMessages).toHaveBeenCalled());
+    await useSessionViewStore.getState().retry('s1', 'local-1');
+    await useSessionViewStore.getState().send('s1', 'other');
+    expect(texts()).toEqual(['first', 'hello']);
+    expect(useSessionViewStore.getState().views['s1']?.turnActive).toBe(false);
+
+    resolveHistory({
+      messages: [message('u1', 'user', 2, 'hello'), message('u0', 'user', 1, 'first')],
+      hasMore: false,
+      nextCursor: undefined,
+    });
+    await opening;
+
+    const items = useSessionViewStore.getState().views['s1']!.items;
+    expect(items.filter((item) => item.kind === 'user' && item.delivery === 'failed')).toEqual([]);
+    expect(texts()).toEqual(['first', 'hello']);
+  });
+});

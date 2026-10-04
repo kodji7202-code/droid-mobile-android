@@ -166,7 +166,11 @@ export function SessionScreen() {
         ) : null}
 
         {items && itemCount > 0 ? (
-          <Transcript items={items} onRetry={(itemId) => void retry(id, itemId)} />
+          <Transcript
+            items={items}
+            retryDisabled={view?.status !== 'ready'}
+            onRetry={(itemId) => void retry(id, itemId)}
+          />
         ) : null}
 
         {view?.interrupted ? (

@@ -294,7 +294,14 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
     async send(id, text) {
       const view = get().views[id];
       const prompt = text.trim();
-      if (!view?.handle || view.turnActive || prompt === '' || hasPending(id)) {
+      // A late history response would overwrite the new bubble or resurrect a delivered one.
+      if (
+        !view?.handle ||
+        view.status === 'loading' ||
+        view.turnActive ||
+        prompt === '' ||
+        hasPending(id)
+      ) {
         return;
       }
       localSeq += 1;
@@ -313,7 +320,13 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
     async retry(id, itemId) {
       const view = get().views[id];
       const failed = view?.items.find((item) => item.id === itemId && item.kind === 'user');
-      if (!view?.handle || view.turnActive || hasPending(id) || failed?.kind !== 'user') {
+      if (
+        !view?.handle ||
+        view.status === 'loading' ||
+        view.turnActive ||
+        hasPending(id) ||
+        failed?.kind !== 'user'
+      ) {
         return;
       }
       patch(id, { items: removeItem(view.items, itemId) });

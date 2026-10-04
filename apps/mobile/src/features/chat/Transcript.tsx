@@ -5,10 +5,11 @@ import { ToolCallCard } from './ToolCallCard';
 interface TranscriptProps {
   items: readonly TranscriptItem[];
   onRetry(itemId: string): void;
+  retryDisabled?: boolean;
 }
 
 /** Renders the conversation; `msg-*-<n>` numbers user and assistant bubbles in order. */
-export function Transcript({ items, onRetry }: TranscriptProps) {
+export function Transcript({ items, onRetry, retryDisabled = false }: TranscriptProps) {
   const { t } = useTranslation();
   let bubble = 0;
   let errors = 0;
@@ -51,6 +52,7 @@ export function Transcript({ items, onRetry }: TranscriptProps) {
                       type="button"
                       className="btn btn--secondary"
                       data-testid={`msg-retry-${n}`}
+                      disabled={retryDisabled}
                       onClick={() => onRetry(item.id)}
                     >
                       {t('common.retry')}
