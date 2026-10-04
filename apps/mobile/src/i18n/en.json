@@ -17,7 +17,16 @@
       "reconnecting": "Reconnecting…",
       "offline": "Offline",
       "error": "Connection error"
-    }
+    },
+    "retry": "Retry now",
+    "banner": {
+      "connecting": "Connecting to the daemon…",
+      "reconnecting": "Connection lost. Reconnecting automatically…",
+      "offline": "No connection to the daemon. If it is stopped, start it and retry.",
+      "error": "The connection failed. Check the daemon address and try again.",
+      "keyRejected": "The daemon rejected the saved API key. Enter a valid key on the Connect screen."
+    },
+    "versionWarning": "Protocol mismatch: the daemon speaks {{peer}} while this app expects {{local}}. Some calls may fail."
   },
   "connect": {
     "title": "Connect to your daemon",
@@ -48,10 +57,18 @@
     "appearanceDescription": "Choose light, dark, or follow the system setting.",
     "language": "Language",
     "languageDescription": "Choose the language used across the app.",
+    "about": "About",
     "theme": "Theme",
     "themeLight": "Light",
     "themeDark": "Dark",
     "themeSystem": "System"
+  },
+  "about": {
+    "title": "About",
+    "appVersion": "App version",
+    "sdkVersion": "SDK version",
+    "protocolVersion": "Daemon protocol version",
+    "unknown": "Unknown"
   },
   "language": {
     "english": "English",

@@ -1,27 +1,15 @@
 import { create } from 'zustand';
 import { createDaemonConnection } from '@droidmobile/daemon-client';
-import type { ConnectionStatus, DaemonConnection } from '@droidmobile/daemon-client';
+import { createConnectionManager, TransportPolicyError } from '../app/connectionManager';
+import type { ConnectionManagerState } from '../app/connectionManager';
 import { checkDaemonUrl } from '../features/connect/validation';
 import { isDebugBuild } from '../platform/buildFlavor';
 import { getSecureStore } from '../platform/secureStore';
 import { loadSavedConnections, saveActiveConnection } from '../platform/savedConnections';
 
-/** Thrown before any socket exists when the address breaks the transport policy. */
-export class TransportPolicyError extends Error {
-  readonly reason: 'malformed' | 'insecure';
+export { TransportPolicyError };
 
-  constructor(reason: 'malformed' | 'insecure') {
-    super(`Daemon URL rejected: ${reason}`);
-    this.name = 'TransportPolicyError';
-    this.reason = reason;
-  }
-}
-
-interface ConnectionStore {
-  connection: DaemonConnection | null;
-  activeConnectionId: string | null;
-  /** Mirrors the active daemon-client connection status; offline until one exists. */
-  status: ConnectionStatus;
+interface ConnectionStore extends ConnectionManagerState {
   /**
    * Applies the transport policy, establishes a daemon connection (one
    * WebSocket, one authenticate frame) and mirrors its status. Only after a
@@ -30,56 +18,36 @@ interface ConnectionStore {
    * Rethrows the classified error and discards the failed connection.
    */
   connect(url: string, apiKey: string): Promise<void>;
+  /**
+   * Launch path: restores the saved active connection when its key is
+   * available (native Keystore; on the web the key is memory-only so this is
+   * a no-op after a reload) and keeps it while the daemon is down.
+   */
+  restore(): Promise<void>;
+  /** Manual retry control: immediate attempt, or restore when nothing is loaded. */
+  retry(): void;
   /** Tears the current connection down (if any) and returns to offline. */
   close(): void;
+  /** Consumes the pending protocol-version warning after showing it. */
+  clearVersionWarning(): void;
 }
 
-function labelFor(url: string): string {
-  return new URL(url).host;
-}
-
-let pending: Promise<void> | null = null;
-
-export const useConnectionStore = create<ConnectionStore>((set, get) => {
-  async function establish(url: string, apiKey: string): Promise<void> {
-    const policy = checkDaemonUrl(url, isDebugBuild());
-    if (!policy.ok) throw new TransportPolicyError(policy.reason);
-
-    get().close();
-    const connection = createDaemonConnection({ url: policy.url, apiKey });
-    const unsubscribe = connection.onStatus((status) => set({ status }));
-    set({ connection, status: connection.getStatus() });
-    try {
-      await connection.connect();
-    } catch (error) {
-      unsubscribe();
-      set({ connection: null, status: 'offline' });
-      throw error;
-    }
-
-    const existing = loadSavedConnections().connections.find((entry) => entry.url === policy.url);
-    const id = existing?.id ?? crypto.randomUUID();
-    await getSecureStore().setSecret(id, apiKey);
-    saveActiveConnection({ id, label: existing?.label ?? labelFor(policy.url), url: policy.url });
-    set({ activeConnectionId: id });
-  }
+export const useConnectionStore = create<ConnectionStore>((set) => {
+  const manager = createConnectionManager({
+    createConnection: (options) => createDaemonConnection(options),
+    loadSavedConnections,
+    saveActiveConnection,
+    getSecureStore,
+    checkUrl: (rawUrl) => checkDaemonUrl(rawUrl, isDebugBuild()),
+    onChange: (state) => set(state),
+  });
 
   return {
-    connection: null,
-    activeConnectionId: null,
-    status: 'offline',
-    connect: (url, apiKey) => {
-      pending ??= establish(url, apiKey).finally(() => {
-        pending = null;
-      });
-      return pending;
-    },
-    close: () => {
-      const existing = get().connection;
-      if (existing) {
-        existing.disconnect();
-      }
-      set({ connection: null, status: 'offline' });
-    },
+    ...manager.getState(),
+    connect: (url, apiKey) => manager.connect(url, apiKey),
+    restore: () => manager.restore(),
+    retry: () => manager.retry(),
+    close: () => manager.close(),
+    clearVersionWarning: () => manager.clearVersionWarning(),
   };
 });

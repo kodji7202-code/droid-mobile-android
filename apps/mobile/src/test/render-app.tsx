@@ -12,13 +12,15 @@ import { useConnectionStore } from '../stores/connection';
  * providers. Component tests use the same routes as the production app, only
  * the history implementation differs (memory instead of hash). The shell is
  * only reachable with a connection, so one is seeded unless `connected` is
- * false.
+ * false; pass `connection` to seed a specific stand-in instead.
  */
 export function renderAppAt(
   path: string,
-  { connected = true }: { connected?: boolean } = {},
+  { connected = true, connection }: { connected?: boolean; connection?: DaemonConnection } = {},
 ): ReturnType<typeof render> {
-  if (connected) {
+  if (connection) {
+    useConnectionStore.setState({ connection });
+  } else if (connected) {
     // Shell tests never call into the connection; an empty stand-in is enough.
     useConnectionStore.setState({ connection: {} as DaemonConnection });
   }

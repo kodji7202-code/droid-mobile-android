@@ -6,7 +6,7 @@ import {
   MethodUnavailableError,
   ProtocolError,
 } from './errors';
-import { classifyConnectFailure, classifyJsonRpcError } from './classify';
+import { classifyConnectFailure, classifyJsonRpcError, versionWarningOf } from './classify';
 
 const KEY = 'fk-super-secret-key-value';
 
@@ -104,6 +104,50 @@ describe('classifyJsonRpcError', () => {
         expect(result.error.message).toContain('[REDACTED]');
       }
     }
+  });
+});
+
+describe('versionWarningOf', () => {
+  it('finds the version-mismatch warning in a raw SDK failure cause chain', () => {
+    const rpcError = Object.assign(new Error('Method not found: daemon.list_models'), {
+      error: {
+        code: -32601,
+        message: 'Method not found: daemon.list_models',
+        data: {
+          protocolVersionMismatch: {
+            localFactoryProtocolVersion: '1.201.1',
+            peerFactoryProtocolVersion: '1.244.0',
+            method: 'daemon.list_models',
+          },
+        },
+      },
+    });
+    const outer = new Error('request failed', { cause: rpcError });
+    const warning = versionWarningOf(outer);
+    expect(warning?.peerFactoryProtocolVersion).toBe('1.244.0');
+    expect(warning?.method).toBe('daemon.list_models');
+  });
+
+  it('returns null for a wrong-key failure even when mismatch data is attached', () => {
+    const rpcError = Object.assign(new Error('Internal error'), {
+      error: {
+        code: -32001,
+        message: 'Internal error',
+        data: {
+          protocolVersionMismatch: {
+            localFactoryProtocolVersion: '1.201.1',
+            peerFactoryProtocolVersion: '1.244.0',
+          },
+        },
+      },
+    });
+    expect(versionWarningOf(rpcError)).toBeNull();
+  });
+
+  it('returns null for transport failures and for already classified errors', () => {
+    expect(versionWarningOf(new Error('connect ECONNREFUSED'))).toBeNull();
+    expect(versionWarningOf(undefined)).toBeNull();
+    expect(versionWarningOf(new ConnectionError('lost'))).toBeNull();
   });
 });
 

@@ -12,14 +12,19 @@ const connectMock = vi.fn();
 const disconnectMock = vi.fn();
 const onStatusMock = vi.fn(() => () => undefined);
 
-vi.mock('@droidmobile/daemon-client', () => ({
-  createDaemonConnection: vi.fn(() => ({
-    connect: (...args: unknown[]) => connectMock(...args),
-    disconnect: disconnectMock,
-    onStatus: onStatusMock,
-    getStatus: () => 'connecting',
-  })),
-}));
+vi.mock('@droidmobile/daemon-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@droidmobile/daemon-client')>();
+  return {
+    ...actual,
+    createDaemonConnection: vi.fn(() => ({
+      connect: (...args: unknown[]) => connectMock(...args),
+      disconnect: disconnectMock,
+      onStatus: onStatusMock,
+      onWarning: () => () => undefined,
+      getStatus: () => 'connecting',
+    })),
+  };
+});
 
 function renderConnect() {
   return renderAppAt('/connect', { connected: false });

@@ -152,6 +152,59 @@ p {
   background: var(--color-danger);
 }
 
+/* ---- Connection banner (non-ready states) -------------------------------- */
+
+.connection-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-warning, #b26a00) 12%, var(--color-surface));
+}
+
+.connection-banner[data-status='offline'],
+.connection-banner[data-status='error'] {
+  background: color-mix(in srgb, var(--color-danger, #b3261e) 12%, var(--color-surface));
+}
+
+.connection-banner__message {
+  flex: 1;
+  min-width: 0;
+}
+
+.connection-banner__retry {
+  flex: none;
+}
+
+/* ---- About rows ----------------------------------------------------------- */
+
+.about-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.about-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 48px;
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.about-row dt {
+  color: var(--color-fg-muted);
+}
+
+.about-row dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- Screens ------------------------------------------------------------ */
 
 .screen {

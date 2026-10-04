@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderAppAt } from '../test/render-app';
 import { stubMatchMedia } from '../test/match-media';
+import { useConnectionStore } from '../stores/connection';
 
 const NAV_TEST_IDS = ['nav-sessions', 'nav-workspace', 'nav-extensions', 'nav-settings'];
 
@@ -55,6 +56,22 @@ describe('AppShell (phone width)', () => {
     renderAppAt('/does-not-exist');
     expect(screen.getByText('Page not found')).toBeInTheDocument();
     expect(screen.getByTestId('connection-status')).toBeInTheDocument();
+  });
+
+  it('keeps the shell usable with an explanatory banner and retry control when not ready', () => {
+    useConnectionStore.setState({ status: 'offline', lastErrorKind: 'connection' });
+    renderAppAt('/sessions');
+    expect(screen.getByTestId('sessions-screen')).toBeInTheDocument();
+    expect(screen.getByTestId('connection-banner')).toHaveAttribute('data-status', 'offline');
+    expect(screen.getByTestId('connection-retry')).toBeInTheDocument();
+    expect(screen.getByTestId('connection-status')).toHaveAttribute('data-status', 'offline');
+  });
+
+  it('hides the banner while ready', () => {
+    useConnectionStore.setState({ status: 'ready' });
+    renderAppAt('/settings');
+    expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('settings-about')).toBeInTheDocument();
   });
 });
 

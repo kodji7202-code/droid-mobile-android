@@ -145,6 +145,19 @@ function findRpcError(err: unknown, depth = 0): JsonRpcErrorShape | null {
 }
 
 /**
+ * Returns the version-mismatch warning carried by a raw SDK failure, or null
+ * when the failure is unrelated. The adapter uses this to emit a non-blocking
+ * warning (the caller still receives a typed error for the failed call).
+ */
+export function versionWarningOf(err: unknown): VersionMismatchWarning | null {
+  if (err instanceof DaemonClientError) return null;
+  const rpc = findRpcError(err);
+  if (!rpc) return null;
+  const classified = classifyJsonRpcError(rpc);
+  return classified.kind === 'version-warning' ? classified.warning : null;
+}
+
+/**
  * Classifies a failure thrown by the SDK during connect (or carried in an
  * onError event) into the adapter's typed errors. Anything that is not an
  * auth rejection is a failure to reach or complete the daemon handshake:

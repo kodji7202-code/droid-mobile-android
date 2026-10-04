@@ -9,6 +9,7 @@ import { ExtensionsScreen } from '../features/extensions/ExtensionsScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { AppearanceScreen } from '../features/settings/AppearanceScreen';
 import { LanguageScreen } from '../features/settings/LanguageScreen';
+import { AboutScreen } from '../features/settings/AboutScreen';
 
 /**
  * Route table shared by the production app (hash on web, memory on native)
@@ -29,6 +30,7 @@ export function createAppRoutes(): RouteObject[] {
         { path: 'settings', element: <SettingsScreen /> },
         { path: 'settings/appearance', element: <AppearanceScreen /> },
         { path: 'settings/language', element: <LanguageScreen /> },
+        { path: 'settings/about', element: <AboutScreen /> },
         { path: '*', element: <NotFoundScreen /> },
       ],
     },

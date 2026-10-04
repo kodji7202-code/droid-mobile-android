@@ -122,12 +122,19 @@ describe('daemon connection reconnect (throwaway daemon 3105)', () => {
       }
       expect(conn.getStatus()).not.toBe('ready');
 
-      // Restart on the SAME port: the adapter must return to ready within 60 s
-      // on its own and re-resume the opened session.
+      // Manual retry while the daemon is still down: forces an attempt without
+      // throwing and leaves the connection non-ready (no false ready).
+      conn.retryNow();
+      await new Promise((r) => setTimeout(r, 2000));
+      expect(conn.getStatus()).not.toBe('ready');
+
+      // Restart on the SAME port: the manual retry must cut the backoff short
+      // and reach ready well inside the 60 s automatic budget.
       await startThrowawayDaemon();
       const restartTime = Date.now();
-      while (conn.getStatus() !== 'ready' && Date.now() - restartTime < 60_000) {
-        await new Promise((r) => setTimeout(r, 500));
+      conn.retryNow();
+      while (conn.getStatus() !== 'ready' && Date.now() - restartTime < 20_000) {
+        await new Promise((r) => setTimeout(r, 250));
       }
       expect(conn.getStatus()).toBe('ready');
       expect(statuses).toContain('reconnecting');

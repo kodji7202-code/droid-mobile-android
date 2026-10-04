@@ -1,5 +1,7 @@
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { ConnectionBanner } from '../components/ConnectionBanner';
+import { ConnectionNotices } from '../components/ConnectionNotices';
 import { ConnectionStatusIndicator } from '../components/ConnectionStatusIndicator';
 import { NavigationBar, NavigationRail } from '../components/NavItems';
 import { useConnectionStore } from '../stores/connection';
@@ -37,6 +39,7 @@ export function AppShell() {
         <h1 className="app-header__title">{t('app.title')}</h1>
         <ConnectionStatusIndicator />
       </header>
+      <ConnectionBanner />
       <div className="app-body">
         {isWideViewport ? <NavigationRail /> : null}
         <main className="app-main" id="main">
@@ -44,6 +47,7 @@ export function AppShell() {
         </main>
       </div>
       {isWideViewport ? null : <NavigationBar />}
+      <ConnectionNotices />
     </div>
   );
 }

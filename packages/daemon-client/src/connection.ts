@@ -29,8 +29,9 @@ import type {
 } from '@factory/droid-sdk';
 import { backoffDelay } from './backoff';
 import type { BackoffOptions } from './backoff';
-import { classifyConnectFailure } from './classify';
+import { classifyConnectFailure, versionWarningOf } from './classify';
 import { AuthError, ConnectionError } from './errors';
+import type { VersionMismatchWarning } from './errors';
 import { toPage } from './paging';
 import type { SessionMessagesPage } from './paging';
 import { probeDaemonIdentity } from './probe';
@@ -71,8 +72,19 @@ export interface DaemonConnection {
   whenReady(timeoutMs?: number): Promise<void>;
   /** Runs (or awaits) the initial connect attempt. Idempotent. */
   connect(): Promise<void>;
+  /**
+   * Forces an immediate reconnect attempt (the manual retry control): cuts a
+   * pending backoff wait short and resets the backoff sequence. No-op while
+   * ready or while an attempt is already in flight.
+   */
+  retryNow(): void;
   /** Stops reconnecting and closes the socket. connect() may be called again. */
   disconnect(): void;
+  /**
+   * Non-blocking protocol-version warnings emitted when a call fails with a
+   * version-related error (the call still rejects; the warning is advisory).
+   */
+  onWarning(listener: (warning: VersionMismatchWarning) => void): () => void;
   /** On-demand identity probe (opens a second, short-lived WebSocket). */
   getDaemonIdentity(): Promise<DaemonIdentity>;
   /** Session ids opened through this connection and still tracked. */
@@ -106,6 +118,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
   };
 
   const listeners = new Set<(status: ConnectionStatus) => void>();
+  const warningListeners = new Set<(warning: VersionMismatchWarning) => void>();
   const handles = new Map<string, SessionHandle>();
 
   let machine: ConnectionMachineState = { ...INITIAL_CONNECTION_STATE };
@@ -116,10 +129,39 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
   let reconnectGeneration = 0;
   let disposed = false;
   let lastFailure: Error | null = null;
+  /** Set by retryNow(): the next reconnect wait is skipped and the backoff resets. */
+  let forceRetry = false;
+  /** Resolver of the sleep currently pending inside the reconnect loop. */
+  let wakeReconnect: (() => void) | null = null;
 
   function emitStatus(event: ConnectionMachineEvent): void {
     machine = reduceConnectionState(machine, event);
     for (const listener of listeners) listener(machine.status);
+  }
+
+  function emitWarning(warning: VersionMismatchWarning): void {
+    for (const listener of warningListeners) listener(warning);
+  }
+
+  /** Resolves a pending reconnect sleep early (manual retry / disconnect). */
+  function wakeReconnectSleep(): void {
+    const wake = wakeReconnect;
+    wakeReconnect = null;
+    wake?.();
+  }
+
+  /** Sleeps for the backoff delay unless retryNow()/disconnect() cut it short. */
+  function sleepWithWake(ms: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        wakeReconnect = null;
+        resolve();
+      }, ms);
+      wakeReconnect = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
   }
 
   function teardownDroid(): void {
@@ -258,13 +300,33 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
               lastFailure = classified;
               return; // status error; the loop stops until connect() is called again
             }
-            await sleep(backoffDelay(attempt, backoff));
+            const skipWait = forceRetry;
+            if (skipWait) {
+              forceRetry = false;
+              attempt = 0;
+            }
+            await sleepWithWake(skipWait ? 0 : backoffDelay(attempt, backoff));
           }
         }
       } finally {
         reconnectLoopRunning = false;
       }
     })();
+  }
+
+  /**
+   * Manual retry: attempts again immediately instead of waiting for the
+   * jittered backoff (the loop then continues normally if it fails again).
+   */
+  function retryNow(): void {
+    if (currentDroid || connectPromise) return; // connected or already dialling
+    disposed = false;
+    forceRetry = true;
+    if (reconnectLoopRunning) {
+      wakeReconnectSleep();
+      return;
+    }
+    startReconnectLoop();
   }
 
   async function connect(): Promise<void> {
@@ -318,6 +380,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
   function disconnect(): void {
     disposed = true;
     reconnectGeneration += 1;
+    wakeReconnectSleep();
     teardownDroid();
     emitStatus({ type: 'disconnected' });
   }
@@ -334,8 +397,12 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     try {
       return await op();
     } catch (err) {
+      // A version-related failure is surfaced as a non-blocking warning; it is
+      // not a transport problem, so it must not trigger a reconnect.
+      const warning = versionWarningOf(err);
+      if (warning) emitWarning(warning);
       const classified = classifyConnectFailure(err);
-      if (classified.kind === 'connection') void handlePossibleDisconnect();
+      if (classified.kind === 'connection' && !warning) void handlePossibleDisconnect();
       throw classified;
     }
   }
@@ -388,7 +455,12 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     statusStream,
     whenReady,
     connect,
+    retryNow,
     disconnect,
+    onWarning(listener) {
+      warningListeners.add(listener);
+      return () => warningListeners.delete(listener);
+    },
     getDaemonIdentity: () => mapSdkError(() => probeDaemonIdentity(url, apiKey)),
     openedSessionIds: () => [...handles.keys()],
 
@@ -473,8 +545,4 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
   // No auto-connect: the caller (connection manager / connect screen) decides
   // when to open the socket, so a fresh page load never dials out on its own.
   return connection;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

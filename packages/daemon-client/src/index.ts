@@ -15,8 +15,9 @@ export type { SessionHost, StreamOptions } from './session-handle';
 export type { SessionMessagesPage } from './paging';
 export type { NormalizedEvent } from './normalize';
 export { normalizeStreamEvent } from './normalize';
-export { classifyJsonRpcError, classifyConnectFailure, extractVersionMismatch } from './classify';
+export { classifyJsonRpcError, classifyConnectFailure, extractVersionMismatch, versionWarningOf } from './classify';
 export type { ErrorClassification, JsonRpcErrorShape } from './classify';
+export { SDK_PACKAGE_VERSION } from './version';
 export {
   AuthError,
   ConnectionError,

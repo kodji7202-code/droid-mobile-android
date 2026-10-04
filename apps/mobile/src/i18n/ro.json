@@ -17,7 +17,16 @@
       "reconnecting": "Se reconectează…",
       "offline": "Offline",
       "error": "Eroare de conexiune"
-    }
+    },
+    "retry": "Reîncearcă acum",
+    "banner": {
+      "connecting": "Se conectează la daemon…",
+      "reconnecting": "Conexiunea s-a pierdut. Se reconectează automat…",
+      "offline": "Nu există conexiune la daemon. Dacă este oprit, pornește-l și încearcă din nou.",
+      "error": "Conexiunea a eșuat. Verifică adresa daemonului și încearcă din nou.",
+      "keyRejected": "Daemonul a respins cheia API salvată. Introdu o cheie validă pe ecranul de conectare."
+    },
+    "versionWarning": "Nepotrivire de protocol: daemonul folosește {{peer}}, iar aplicația așteaptă {{local}}. Unele apeluri pot eșua."
   },
   "connect": {
     "title": "Conectare la daemon",
@@ -48,10 +57,18 @@
     "appearanceDescription": "Alege deschis, închis sau conform setării sistemului.",
     "language": "Limbă",
     "languageDescription": "Alege limba folosită în aplicație.",
+    "about": "Despre",
     "theme": "Temă",
     "themeLight": "Deschisă",
     "themeDark": "Închisă",
     "themeSystem": "Sistem"
+  },
+  "about": {
+    "title": "Despre",
+    "appVersion": "Versiune aplicație",
+    "sdkVersion": "Versiune SDK",
+    "protocolVersion": "Versiune protocol daemon",
+    "unknown": "Necunoscut"
   },
   "language": {
     "english": "English",
