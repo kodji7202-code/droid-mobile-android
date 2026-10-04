@@ -315,6 +315,13 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
     const saved = deps.loadSavedConnections();
     const wasActive = state.activeConnectionId === id || saved.activeId === id;
     let successor: string | null = null;
+    // The Connect screen reads the saved list when it mounts (on close), so the
+    // entry must be gone by then or the form would be prefilled with its URL.
+    const dropAndClose = async (): Promise<void> => {
+      await deps.getSecureStore().deleteSecret(id);
+      deps.removeSavedConnection(id);
+      close();
+    };
     if (wasActive) {
       for (const candidate of saved.connections) {
         if (candidate.id !== id && (await deps.getSecureStore().getSecret(candidate.id))) {
@@ -325,10 +332,10 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
       // Switching first keeps the shell mounted (no flash through the Connect screen).
       try {
         if (successor) await activate(successor);
-        else close();
+        else await dropAndClose();
       } catch {
         successor = null;
-        close();
+        await dropAndClose();
       }
     }
     await deps.getSecureStore().deleteSecret(id);

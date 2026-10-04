@@ -75,6 +75,11 @@ describe('capacitor config variant selection', () => {
     expect(config.server?.cleartext).toBeUndefined();
   });
 
+  it('never logs plugin payloads (secure-storage writes carry the API key)', () => {
+    expect(buildConfig('debug').loggingBehavior).toBe('none');
+    expect(buildConfig('release').loggingBehavior).toBe('none');
+  });
+
   it('follows CAPACITOR_VARIANT, failing secure to release', async () => {
     vi.resetModules();
     process.env.CAPACITOR_VARIANT = 'debug';

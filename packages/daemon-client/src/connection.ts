@@ -55,6 +55,8 @@ export interface DaemonConnectionOptions {
   apiKey: string;
   /** Overrides for the reconnect backoff (jittered exponential). */
   backoff?: Partial<BackoffOptions>;
+  /** Interval of the liveness probe while ready; 0 disables it. */
+  keepAliveMs?: number;
 }
 
 /**
@@ -99,13 +101,17 @@ export interface DaemonConnection {
   renameSession(sessionId: string, title: string): Promise<void>;
   archiveSession(sessionId: string, options?: ArchiveSessionOptions): Promise<void>;
   unarchiveSession(sessionId: string): Promise<void>;
-  getMessagesPage(sessionId: string, options?: { limit?: number; cursor?: string }): Promise<SessionMessagesPage>;
+  getMessagesPage(
+    sessionId: string,
+    options?: { limit?: number; cursor?: string },
+  ): Promise<SessionMessagesPage>;
   /** Walks all pages (newest first) up to maxMessages. */
   listAllMessages(sessionId: string, options?: { maxMessages?: number }): Promise<SessionMessage[]>;
 }
 
 const DEFAULT_PAGE_LIMIT = 50;
 const RECONNECT_READY_TIMEOUT_MS = 30_000;
+const DEFAULT_KEEP_ALIVE_MS = 10_000;
 
 export function createDaemonConnection(options: DaemonConnectionOptions): DaemonConnection {
   const url = options.url;
@@ -116,6 +122,10 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     factor: options.backoff?.factor ?? 2,
     jitterFraction: options.backoff?.jitterFraction ?? 0.25,
   };
+
+  const keepAliveMs = options.keepAliveMs ?? DEFAULT_KEEP_ALIVE_MS;
+  let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+  let probing = false;
 
   const listeners = new Set<(status: ConnectionStatus) => void>();
   const warningListeners = new Set<(warning: VersionMismatchWarning) => void>();
@@ -164,7 +174,29 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     });
   }
 
+  /**
+   * An idle TCP socket stays "open" after the network goes away (airplane mode,
+   * Wi-Fi loss) because no RST ever arrives, so liveness is probed periodically.
+   */
+  function startKeepAlive(): void {
+    stopKeepAlive();
+    if (keepAliveMs <= 0) return;
+    keepAliveTimer = setInterval(() => {
+      if (probing || !currentDroid || machine.status !== 'ready') return;
+      probing = true;
+      void handlePossibleDisconnect().finally(() => {
+        probing = false;
+      });
+    }, keepAliveMs);
+  }
+
+  function stopKeepAlive(): void {
+    if (keepAliveTimer !== null) clearInterval(keepAliveTimer);
+    keepAliveTimer = null;
+  }
+
   function teardownDroid(): void {
+    stopKeepAlive();
     const droid = currentDroid;
     currentDroid = null;
     if (!droid) return;
@@ -212,11 +244,15 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       currentDroid = droid;
       await rebindOpenedSessions(droid, token);
       emitStatus({ type: 'ready' });
+      startKeepAlive();
     } catch (err) {
       const classified = classifyConnectFailure(err);
       lastFailure = classified;
       if (!disposed) {
-        emitStatus({ type: 'attempt-failed', failureKind: classified.kind === 'auth' ? 'auth' : 'transient' });
+        emitStatus({
+          type: 'attempt-failed',
+          failureKind: classified.kind === 'auth' ? 'auth' : 'transient',
+        });
       }
       throw classified;
     }
@@ -295,7 +331,8 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
             return;
           } catch (err) {
             if (generation !== reconnectGeneration) return;
-            const classified = err instanceof Error && err instanceof AuthError ? err : classifyConnectFailure(err);
+            const classified =
+              err instanceof Error && err instanceof AuthError ? err : classifyConnectFailure(err);
             if (classified instanceof AuthError) {
               lastFailure = classified;
               return; // status error; the loop stops until connect() is called again
@@ -355,7 +392,9 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         unsubscribe();
-        reject(new ConnectionError(`The daemon connection did not become ready within ${timeoutMs}ms.`));
+        reject(
+          new ConnectionError(`The daemon connection did not become ready within ${timeoutMs}ms.`),
+        );
       }, timeoutMs);
       const unsubscribe = onStatus((status) => {
         if (status === 'ready') {

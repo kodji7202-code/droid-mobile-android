@@ -249,6 +249,17 @@ describe('forget', () => {
     expect(secrets.size).toBe(0);
   });
 
+  it('removes the saved entry before closing so the Connect screen mounts empty', async () => {
+    const { manager, saved, created } = setup({ connections: [A], keys: ['a'] });
+    await manager.switchTo('a');
+    let savedAtClose = -1;
+    created[0]!.disconnect.mockImplementation(() => {
+      savedAtClose = saved.connections.length;
+    });
+    await manager.forget('a');
+    expect(savedAtClose).toBe(0);
+  });
+
   it('forgetting the active connection falls back to another one that has a key', async () => {
     const { manager, saved, created } = setup();
     await manager.switchTo('a');

@@ -16,6 +16,8 @@ export function buildConfig(variant: CapacitorVariant): CapacitorConfig {
     appId: 'com.droidmobile.client',
     appName: 'Droid Mobile',
     webDir: 'dist',
+    // Capacitor otherwise logs every plugin call payload (including secrets) in debug builds.
+    loggingBehavior: 'none',
   };
   if (variant === 'debug') {
     return {
