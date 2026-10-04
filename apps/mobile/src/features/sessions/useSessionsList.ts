@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DaemonConnection } from '@droidmobile/daemon-client';
-import { mergeRows, nextEndBefore, PAGE_SIZE, toRow } from './sessionsPaging';
-import type { SessionRowData } from './sessionsPaging';
+import { mergeRows, nextCursor, PAGE_SIZE, toRow } from './sessionsPaging';
+import type { PageCursor, SessionRowData } from './sessionsPaging';
 
 /** Polling cadence while the list is visible (contract: changes appear within 15 s). */
 export const POLL_INTERVAL_MS = 10_000;
@@ -10,7 +10,7 @@ const MAX_REFRESH_PAGES = 40;
 interface LoadedPages {
   rows: SessionRowData[];
   hasMore: boolean;
-  endBefore: number | undefined;
+  cursor: PageCursor | undefined;
 }
 
 /**
@@ -21,11 +21,11 @@ interface LoadedPages {
  */
 async function loadPages(
   connection: DaemonConnection,
-  start: Pick<LoadedPages, 'rows' | 'endBefore'>,
+  start: Pick<LoadedPages, 'rows' | 'cursor'>,
   options: { minPages: number; coverMs?: number; archived: boolean },
 ): Promise<LoadedPages> {
   let rows = start.rows;
-  let endBefore = start.endBefore;
+  let cursor = start.cursor;
   let hasMore = true;
   // The daemon has no archived-only list: archived rows are picked out of
   // includeArchived pages, so keep reading until a page's worth turned up.
@@ -39,29 +39,30 @@ async function loadPages(
       break;
     }
     const page = await connection.listSessions({
-      limit: PAGE_SIZE,
+      limit: cursor?.limit ?? PAGE_SIZE,
       ...(options.archived ? { includeArchived: true } : {}),
-      ...(endBefore !== undefined ? { endBefore } : {}),
+      ...(cursor !== undefined ? { endBefore: cursor.endBefore } : {}),
     });
     const pageRows = page.map(toRow);
     rows = mergeRows(rows, options.archived ? pageRows.filter((row) => row.archived) : pageRows);
-    hasMore = page.length >= PAGE_SIZE;
-    endBefore = nextEndBefore(pageRows, endBefore);
+    hasMore = page.length >= (cursor?.limit ?? PAGE_SIZE);
+    cursor = nextCursor(pageRows, cursor);
   }
   if (options.coverMs === undefined) {
-    return { rows, hasMore: hasMore && endBefore !== undefined, endBefore };
+    return { rows, hasMore: hasMore && cursor !== undefined, cursor };
   }
   const { coverMs } = options;
   const kept = rows.filter((row) => row.modifiedMs >= coverMs);
   if (kept.length === rows.length) {
-    return { rows, hasMore: hasMore && endBefore !== undefined, endBefore };
+    return { rows, hasMore: hasMore && cursor !== undefined, cursor };
   }
-  return { rows: kept, hasMore: true, endBefore: nextEndBefore(kept, undefined) };
+  return { rows: kept, hasMore: true, cursor: nextCursor(kept, undefined) };
 }
 
 function oldestMs(rows: SessionRowData[]): number {
   return rows.length === 0 ? Infinity : Math.min(...rows.map((row) => row.modifiedMs));
 }
+
 export interface SessionsListState {
   rows: SessionRowData[];
   /** True until the first page settled (success or failure). */
@@ -109,8 +110,13 @@ export function useSessionsList({
   const [loadedAt, setLoadedAt] = useState(() => Date.now());
 
   const rowsRef = useRef<SessionRowData[]>([]);
-  const cursorRef = useRef<number | undefined>(undefined);
+  const cursorRef = useRef<PageCursor | undefined>(undefined);
   const busyRef = useRef(false);
+  // A refresh requested while another load was running; it runs once that load ends.
+  const pendingRefreshRef = useRef(false);
+  // Bumped by local rename/archive so a read that started earlier cannot overwrite the change.
+  const mutationRef = useRef(0);
+  const refreshRef = useRef<() => Promise<void>>(async () => undefined);
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
   const archivedRef = useRef(archived);
@@ -120,26 +126,38 @@ export function useSessionsList({
 
   const apply = useCallback((loaded: LoadedPages) => {
     rowsRef.current = loaded.rows;
-    cursorRef.current = loaded.endBefore;
+    cursorRef.current = loaded.cursor;
     setRows(loaded.rows);
     setHasMore(loaded.hasMore);
     setFailed(false);
     setLoadedAt(Date.now());
   }, []);
 
+  const runPendingRefresh = useCallback(() => {
+    if (pendingRefreshRef.current) {
+      pendingRefreshRef.current = false;
+      void refreshRef.current();
+    }
+  }, []);
+
   const refresh = useCallback(async () => {
     const active = connectionRef.current;
-    if (!active || busyRef.current) {
+    if (!active) {
+      return;
+    }
+    if (busyRef.current) {
+      pendingRefreshRef.current = true;
       return;
     }
     busyRef.current = true;
     const generation = generationRef.current;
+    const mutation = mutationRef.current;
     setRefreshing(true);
     try {
       const loaded = rowsRef.current;
       const next = await loadPages(
         active,
-        { rows: [], endBefore: undefined },
+        { rows: [], cursor: undefined },
         {
           minPages: 1,
           coverMs: loaded.length > 0 ? oldestMs(loaded) : undefined,
@@ -147,7 +165,11 @@ export function useSessionsList({
         },
       );
       if (generation === generationRef.current) {
-        apply(next);
+        if (mutation === mutationRef.current) {
+          apply(next);
+        } else {
+          pendingRefreshRef.current = true;
+        }
       }
     } catch {
       if (generation === generationRef.current) {
@@ -158,9 +180,11 @@ export function useSessionsList({
         busyRef.current = false;
         setRefreshing(false);
         setLoading(false);
+        runPendingRefresh();
       }
     }
-  }, [apply]);
+  }, [apply, runPendingRefresh]);
+  refreshRef.current = refresh;
 
   const loadMore = useCallback(async () => {
     const active = connectionRef.current;
@@ -169,15 +193,20 @@ export function useSessionsList({
     }
     busyRef.current = true;
     const generation = generationRef.current;
+    const mutation = mutationRef.current;
     setLoadingMore(true);
     try {
       const next = await loadPages(
         active,
-        { rows: rowsRef.current, endBefore: cursorRef.current },
+        { rows: rowsRef.current, cursor: cursorRef.current },
         { minPages: 1, archived: archivedRef.current },
       );
       if (generation === generationRef.current) {
-        apply(next);
+        if (mutation === mutationRef.current) {
+          apply(next);
+        } else {
+          pendingRefreshRef.current = true;
+        }
       }
     } catch {
       if (generation === generationRef.current) {
@@ -187,9 +216,10 @@ export function useSessionsList({
       if (generation === generationRef.current) {
         busyRef.current = false;
         setLoadingMore(false);
+        runPendingRefresh();
       }
     }
-  }, [apply]);
+  }, [apply, runPendingRefresh]);
 
   const previousArchived = useRef(archived);
   useEffect(() => {
@@ -199,6 +229,7 @@ export function useSessionsList({
     previousArchived.current = archived;
     generationRef.current += 1;
     busyRef.current = false;
+    pendingRefreshRef.current = false;
     rowsRef.current = [];
     cursorRef.current = undefined;
     setRows([]);
@@ -238,11 +269,13 @@ export function useSessionsList({
   }, [ready, refresh]);
 
   const removeLocally = useCallback((id: string) => {
+    mutationRef.current += 1;
     rowsRef.current = rowsRef.current.filter((row) => row.id !== id);
     setRows(rowsRef.current);
   }, []);
 
   const renameLocally = useCallback((id: string, title: string) => {
+    mutationRef.current += 1;
     rowsRef.current = rowsRef.current.map((row) => (row.id === id ? { ...row, title } : row));
     setRows(rowsRef.current);
   }, []);

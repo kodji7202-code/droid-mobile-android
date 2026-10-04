@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { formatModified, mergeRows, nextEndBefore, toRow, toSearchRow } from './sessionsPaging';
+﻿import { describe, expect, it } from 'vitest';
+import {
+  formatModified,
+  mergeRows,
+  nextCursor,
+  PAGE_SIZE,
+  toRow,
+  toSearchRow,
+} from './sessionsPaging';
 import type { DaemonSearchSummary, DaemonSessionSummary, SessionRowData } from './sessionsPaging';
 
 const row = (id: string, modifiedMs: number, title = id): SessionRowData => ({
@@ -16,20 +23,32 @@ describe('mergeRows', () => {
   });
 });
 
-describe('nextEndBefore', () => {
+describe('nextCursor', () => {
   it('is undefined for an empty page', () => {
-    expect(nextEndBefore([], undefined)).toBeUndefined();
+    expect(nextCursor([], undefined)).toBeUndefined();
   });
 
   it('uses the oldest second + 1 so same-second siblings are not skipped', () => {
-    expect(nextEndBefore([row('a', 5_000), row('b', 3_500)], undefined)).toBe(4);
+    expect(nextCursor([row('a', 5_000), row('b', 3_500)], undefined)).toEqual({
+      endBefore: 4,
+      limit: PAGE_SIZE,
+    });
   });
 
-  it('falls back to the exclusive bound when the cursor would not move', () => {
-    expect(nextEndBefore([row('a', 3_200)], 4)).toBe(3);
+  it('widens the page instead of skipping the second when the cursor would not move', () => {
+    expect(nextCursor([row('a', 3_200)], { endBefore: 4, limit: PAGE_SIZE })).toEqual({
+      endBefore: 4,
+      limit: PAGE_SIZE * 2,
+    });
+  });
+
+  it('caps the widened page at the daemon maximum, then steps past the second', () => {
+    expect(nextCursor([row('a', 3_200)], { endBefore: 4, limit: 100 })).toEqual({
+      endBefore: 3,
+      limit: PAGE_SIZE,
+    });
   });
 });
-
 describe('row mapping', () => {
   it('marks list rows archived from archivedTime', () => {
     const base = { id: 'a', messageCount: 3, modifiedTime: new Date(5_000) };

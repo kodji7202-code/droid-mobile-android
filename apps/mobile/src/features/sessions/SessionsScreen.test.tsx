@@ -329,3 +329,156 @@ describe('SessionsScreen row actions', () => {
     );
   });
 });
+
+describe('SessionsScreen same-second boundary', () => {
+  it('reaches every session when more than a page shares one modified second', async () => {
+    const all = Array.from({ length: PAGE_SIZE * 2 + 7 }, (_, index) =>
+      summary(index, { modifiedTime: new Date(BASE_SECONDS * 1000) }),
+    );
+    renderScreen(all);
+    const user = userEvent.setup();
+    await screen.findByTestId('session-item-s000');
+    for (let clicks = 0; clicks < 8 && screen.queryByTestId('sessions-load-more'); clicks += 1) {
+      await user.click(screen.getByTestId('sessions-load-more'));
+      await waitFor(() => expect(screen.getByTestId('sessions-load-more')).toBeEnabled()).catch(
+        () => undefined,
+      );
+    }
+    await waitFor(() => expect(screen.getAllByTestId(/^session-item-/)).toHaveLength(all.length));
+    const ids = screen.getAllByTestId(/^session-item-/).map((el) => el.getAttribute('data-testid'));
+    expect(new Set(ids).size).toBe(all.length);
+  });
+});
+
+describe('SessionsScreen infinite scroll after search', () => {
+  it('observes the recreated sentinel once the search is cleared', async () => {
+    const observed: Array<{ target: Element | null; disconnected: boolean; fire(): void }> = [];
+    class FakeObserver {
+      private record: { target: Element | null; disconnected: boolean; fire(): void };
+      constructor(callback: IntersectionObserverCallback) {
+        this.record = {
+          target: null,
+          disconnected: false,
+          fire: () =>
+            callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never),
+        };
+        observed.push(this.record);
+      }
+      observe(target: Element) {
+        this.record.target = target;
+      }
+      disconnect() {
+        this.record.disconnected = true;
+      }
+      unobserve() {}
+      takeRecords() {
+        return [];
+      }
+    }
+    vi.stubGlobal('IntersectionObserver', FakeObserver);
+    try {
+      const all = Array.from({ length: PAGE_SIZE + 10 }, (_, index) => summary(index));
+      const { listSessions } = renderScreen(all);
+      const user = userEvent.setup();
+      await screen.findByTestId('session-item-s000');
+      const input = screen.getByTestId('session-search-input');
+      await user.type(input, 'Session 1');
+      await screen.findByTestId('sessions-list');
+      await waitFor(() =>
+        expect(screen.queryByTestId('sessions-load-more')).not.toBeInTheDocument(),
+      );
+      await user.clear(input);
+      await screen.findByTestId('sessions-load-more');
+      const live = observed.filter(
+        (record) => !record.disconnected && record.target?.isConnected === true,
+      );
+      expect(live).toHaveLength(1);
+      const before = listSessions.mock.calls.length;
+      act(() => live[0]?.fire());
+      await waitFor(() => expect(listSessions.mock.calls.length).toBeGreaterThan(before));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('SessionsScreen in-flight reads versus local changes', () => {
+  async function startGatedRefresh(fake: ReturnType<typeof fakeConnection>) {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const original = fake.listSessions.getMockImplementation();
+    if (!original) throw new Error('missing implementation');
+    fake.listSessions.mockImplementationOnce(async (options) => {
+      const snapshot = (await original(options)).map((item) => ({ ...item }));
+      await gate;
+      return snapshot;
+    });
+    await userEvent.setup().click(screen.getByTestId('sessions-refresh'));
+    await waitFor(() => expect(fake.listSessions).toHaveBeenCalled());
+    return release;
+  }
+
+  it('does not restore the old title when a stale read resolves after a rename', async () => {
+    const fake = renderScreen([summary(0)]);
+    const user = userEvent.setup();
+    await screen.findByTestId('session-item-s000');
+    const release = await startGatedRefresh(fake);
+    const callsAfterStart = fake.listSessions.mock.calls.length;
+    await user.click(screen.getByTestId('session-more-s000'));
+    await user.click(screen.getByTestId('session-rename-s000'));
+    const input = screen.getByTestId('session-rename-input');
+    await user.clear(input);
+    await user.type(input, 'Renamed');
+    await user.click(screen.getByTestId('session-rename-save'));
+    await waitFor(() =>
+      expect(screen.getByTestId('session-title-s000')).toHaveTextContent('Renamed'),
+    );
+    await act(async () => {
+      release();
+    });
+    await waitFor(() =>
+      expect(fake.listSessions.mock.calls.length).toBeGreaterThan(callsAfterStart),
+    );
+    expect(screen.getByTestId('session-title-s000')).toHaveTextContent('Renamed');
+  });
+
+  it('does not bring back an archived row when a stale read resolves afterwards', async () => {
+    const fake = renderScreen([summary(0), summary(1)]);
+    const user = userEvent.setup();
+    await screen.findByTestId('session-item-s001');
+    const release = await startGatedRefresh(fake);
+    const callsAfterStart = fake.listSessions.mock.calls.length;
+    await user.click(screen.getByTestId('session-more-s000'));
+    await user.click(screen.getByTestId('session-archive-s000'));
+    await waitFor(() => expect(screen.queryByTestId('session-item-s000')).not.toBeInTheDocument());
+    await act(async () => {
+      release();
+    });
+    await waitFor(() =>
+      expect(fake.listSessions.mock.calls.length).toBeGreaterThan(callsAfterStart),
+    );
+    expect(screen.queryByTestId('session-item-s000')).not.toBeInTheDocument();
+    expect(screen.getByTestId('session-item-s001')).toBeInTheDocument();
+  });
+});
+
+describe('SessionsScreen archived view and search', () => {
+  it('drops the active search when entering the archived view', async () => {
+    renderScreen([
+      summary(0, { title: 'alpha' }),
+      summary(1, { title: 'alpha old', archivedTime: new Date(BASE_SECONDS * 1000) }),
+    ]);
+    const user = userEvent.setup();
+    await screen.findByTestId('session-item-s000');
+    await user.type(screen.getByTestId('session-search-input'), 'alpha');
+    await screen.findByTestId('session-item-s000');
+    await user.click(screen.getByTestId('sessions-filter-archived'));
+    await screen.findByTestId('session-item-s001');
+    expect(screen.queryByTestId('session-item-s000')).not.toBeInTheDocument();
+    expect(screen.getByTestId('session-search-input')).toHaveValue('');
+    await user.click(screen.getByTestId('session-more-s001'));
+    expect(screen.getByTestId('session-unarchive-s001')).toBeInTheDocument();
+  });
+});

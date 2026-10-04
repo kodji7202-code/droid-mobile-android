@@ -31,7 +31,17 @@ export function SessionsScreen() {
   const { rows, loading, loadingMore, hasMore, failed, refresh, loadMore } = list;
 
   const [query, setQuery] = useState('');
-  const search = useSessionSearch({ connection, ready, readyEpoch, query });
+  // sessions.search does not report archive state, so search only runs in the active view.
+  const search = useSessionSearch({
+    connection,
+    ready,
+    readyEpoch,
+    query: archivedView ? '' : query,
+  });
+  const selectView = (archived: boolean) => {
+    setQuery('');
+    setArchivedView(archived);
+  };
   const [manualRefresh, setManualRefresh] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -61,7 +71,7 @@ export function SessionsScreen() {
     });
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, loadMore, rows.length]);
+  }, [hasMore, loadMore, rows.length, searching]);
 
   const archive = async (row: SessionRowData) => {
     setMenuId(null);
@@ -169,6 +179,7 @@ export function SessionsScreen() {
         aria-label={t('sessions.searchLabel')}
         placeholder={t('sessions.searchPlaceholder')}
         value={query}
+        disabled={archivedView}
         onChange={(event) => setQuery(event.target.value)}
       />
 
@@ -178,7 +189,7 @@ export function SessionsScreen() {
           className={`btn ${archivedView ? 'btn--ghost' : 'btn--secondary'}`}
           data-testid="sessions-filter-active"
           aria-pressed={!archivedView}
-          onClick={() => setArchivedView(false)}
+          onClick={() => selectView(false)}
         >
           {t('sessions.filterActive')}
         </button>
@@ -187,7 +198,7 @@ export function SessionsScreen() {
           className={`btn ${archivedView ? 'btn--secondary' : 'btn--ghost'}`}
           data-testid="sessions-filter-archived"
           aria-pressed={archivedView}
-          onClick={() => setArchivedView(true)}
+          onClick={() => selectView(true)}
         >
           {t('sessions.filterArchived')}
         </button>

@@ -53,24 +53,44 @@ export function mergeRows(
   return merged;
 }
 
+/** Largest page sessions.list accepts. */
+export const MAX_PAGE_SIZE = 100;
+
+export interface PageCursor {
+  /** Exclusive unix-second upper bound for `modifiedTime`. */
+  endBefore: number;
+  limit: number;
+}
+
 /**
  * The daemon's `endBefore` is an exclusive unix-second bound (verified against
  * daemon 0.232.0). Using last+1 keeps rows that share the boundary second but
  * did not fit the page; merging by id removes the repeats. When that cursor
- * would not move (a whole page inside one second) it falls back to the
- * exclusive bound so paging always terminates.
+ * would not move (a whole page inside one second) the same bound is requested
+ * again with a wider page, so a crowded second is read in full. Only a second
+ * holding more than MAX_PAGE_SIZE sessions is stepped over, because the daemon
+ * cannot address rows inside one second.
  */
-export function nextEndBefore(
+export function nextCursor(
   page: SessionRowData[],
-  previous: number | undefined,
-): number | undefined {
+  previous: PageCursor | undefined,
+): PageCursor | undefined {
   if (page.length === 0) {
     return undefined;
   }
   const oldest = Math.min(...page.map((row) => row.modifiedMs));
   const lastSecond = Math.floor(oldest / 1000);
   const inclusive = lastSecond + 1;
-  return previous !== undefined && inclusive >= previous ? lastSecond : inclusive;
+  if (previous === undefined || inclusive < previous.endBefore) {
+    return { endBefore: inclusive, limit: PAGE_SIZE };
+  }
+  if (previous.limit < MAX_PAGE_SIZE) {
+    return {
+      endBefore: previous.endBefore,
+      limit: Math.min(MAX_PAGE_SIZE, previous.limit * 2),
+    };
+  }
+  return { endBefore: lastSecond, limit: PAGE_SIZE };
 }
 
 const RELATIVE_STEPS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
