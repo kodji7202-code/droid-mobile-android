@@ -26,7 +26,18 @@
     "keyLabel": "API key",
     "submit": "Connect",
     "submitting": "Connecting…",
-    "error": "Could not connect. Check the URL and API key, then try again."
+    "error": "Could not connect. Check the URL and API key, then try again.",
+    "pairingLabel": "Paste pairing code",
+    "pairingHint": "Paste a droidmobile://pair code to fill the address and key.",
+    "pairingInvalid": "This is not a valid pairing code.",
+    "scanQr": "Scan QR code",
+    "scanUnavailable": "QR scanning is only available in the Android app.",
+    "insecureBanner": "This connection is not encrypted (ws://). Use it only on a network you trust.",
+    "errorKeyFormat": "This does not look like a Factory API key. Keys start with fk-.",
+    "errorUrlFormat": "Enter a daemon address that starts with ws:// or wss://.",
+    "errorInsecure": "This build only connects over wss://. Use a secure address.",
+    "errorKeyRejected": "The daemon rejected this API key. Check the key and try again.",
+    "errorUnreachable": "Could not reach a droid daemon at this address. Check the URL and that the daemon is running."
   },
   "placeholder": {
     "message": "This screen is not built yet."

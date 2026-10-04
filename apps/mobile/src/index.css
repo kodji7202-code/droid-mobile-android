@@ -439,3 +439,19 @@ p {
     bottom: 1.5rem;
   }
 }
+
+.connect-banner {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-warning, #b26a00);
+  background: color-mix(in srgb, var(--color-warning, #b26a00) 14%, transparent);
+  color: inherit;
+}
+
+.connect-pairing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}

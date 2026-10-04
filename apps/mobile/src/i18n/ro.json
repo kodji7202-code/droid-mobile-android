@@ -26,7 +26,18 @@
     "keyLabel": "Cheie API",
     "submit": "Conectare",
     "submitting": "Se conectează…",
-    "error": "Nu s-a putut realiza conexiunea. Verifică URL-ul și cheia API, apoi încearcă din nou."
+    "error": "Nu s-a putut realiza conexiunea. Verifică URL-ul și cheia API, apoi încearcă din nou.",
+    "pairingLabel": "Lipește codul de asociere",
+    "pairingHint": "Lipește un cod droidmobile://pair ca să completezi adresa și cheia.",
+    "pairingInvalid": "Acesta nu este un cod de asociere valid.",
+    "scanQr": "Scanează codul QR",
+    "scanUnavailable": "Scanarea QR este disponibilă doar în aplicația Android.",
+    "insecureBanner": "Această conexiune nu este criptată (ws://). Folosește-o doar într-o rețea de încredere.",
+    "errorKeyFormat": "Aceasta nu seamănă cu o cheie API Factory. Cheile încep cu fk-.",
+    "errorUrlFormat": "Introdu o adresă de daemon care începe cu ws:// sau wss://.",
+    "errorInsecure": "Această versiune se conectează doar prin wss://. Folosește o adresă securizată.",
+    "errorKeyRejected": "Daemonul a respins această cheie API. Verifică cheia și încearcă din nou.",
+    "errorUnreachable": "Nu s-a putut ajunge la un daemon droid la această adresă. Verifică adresa și că daemonul rulează."
   },
   "placeholder": {
     "message": "Acest ecran nu este construit încă."

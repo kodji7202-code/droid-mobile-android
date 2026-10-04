@@ -27,6 +27,7 @@ $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path "$PSScriptRoot\..\..")
 
 if (-not $SkipWebBuild) {
+    $env:VITE_DROID_BUILD = $Variant
     npm run build -w @droidmobile/mobile
     if ($LASTEXITCODE -ne 0) { throw 'web build failed' }
 }
