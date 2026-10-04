@@ -1,9 +1,10 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderAppAt } from '../test/render-app';
 import { stubMatchMedia } from '../test/match-media';
 import { useConnectionStore } from '../stores/connection';
+import { useInteractionStore } from '../stores/interactions';
 
 const NAV_TEST_IDS = ['nav-sessions', 'nav-workspace', 'nav-extensions', 'nav-settings'];
 
@@ -92,5 +93,35 @@ describe('AppShell (>= 840 px width)', () => {
     } finally {
       restore();
     }
+  });
+});
+
+describe('AppShell while a request dialog is open', () => {
+  afterEach(() => {
+    useInteractionStore.getState().reset();
+  });
+
+  it('makes the shell navigation inert only for the session that has the dialog', () => {
+    renderAppAt('/sessions/s1');
+    expect(screen.getByTestId('nav-bar').closest('[inert]')).toBeNull();
+    act(() => {
+      void useInteractionStore.getState().requestPermission('s1', {
+        toolUses: [],
+        options: [],
+      } as never);
+    });
+    expect(screen.getByTestId('nav-bar').closest('[inert]')).not.toBeNull();
+    expect(screen.getByTestId('connection-status').closest('[inert]')).not.toBeNull();
+  });
+
+  it('keeps the shell usable when the pending request belongs to another session', () => {
+    renderAppAt('/sessions/s2');
+    act(() => {
+      void useInteractionStore.getState().requestPermission('s1', {
+        toolUses: [],
+        options: [],
+      } as never);
+    });
+    expect(screen.getByTestId('nav-bar').closest('[inert]')).toBeNull();
   });
 });

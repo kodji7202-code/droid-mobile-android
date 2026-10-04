@@ -18,6 +18,8 @@ export type PendingInteraction =
       kind: 'permission';
       id: string;
       sessionId: string;
+      /** Facade generation that delivered the request (undefined when unknown). */
+      generation?: number;
       request: PermissionRequest;
       settle: (answer: PermissionAnswer) => void;
       /** Duplicate deliveries of the same request; they get the same answer. */
@@ -27,6 +29,7 @@ export type PendingInteraction =
       kind: 'askuser';
       id: string;
       sessionId: string;
+      generation?: number;
       request: AskUserRequest;
       settle: (answer: AskUserAnswer) => void;
       twins: ((answer: AskUserAnswer) => void)[];
@@ -36,15 +39,23 @@ interface InteractionStore {
   pending: PendingInteraction[];
   /** Sessions whose request could no longer be answered (connection lost or turn over). */
   expired: Record<string, true>;
-  requestPermission(sessionId: string, request: PermissionRequest): Promise<PermissionAnswer>;
-  requestAskUser(sessionId: string, request: AskUserRequest): Promise<AskUserAnswer>;
+  requestPermission(
+    sessionId: string,
+    request: PermissionRequest,
+    generation?: number,
+  ): Promise<PermissionAnswer>;
+  requestAskUser(
+    sessionId: string,
+    request: AskUserRequest,
+    generation?: number,
+  ): Promise<AskUserAnswer>;
   answerPermission(id: string, decision: PermissionDecision): void;
   answerAskUser(id: string, answer: AskUserAnswer): void;
   /**
-   * Cancels every open request (of one session, or all) because the daemon can
+   * Cancels every open request (of one session, of one facade generation, or all) because the daemon can
    * no longer receive the answer. Marks the sessions as expired when asked.
    */
-  expire(options?: { sessionId?: string; notify?: boolean }): void;
+  expire(options?: { sessionId?: string; generation?: number; notify?: boolean }): void;
   dismissExpired(sessionId: string): void;
   reset(): void;
 }
@@ -65,7 +76,7 @@ export const useInteractionStore = create<InteractionStore>((set, get) => {
     pending: [],
     expired: {},
 
-    requestPermission(sessionId, request) {
+    requestPermission(sessionId, request, generation) {
       const key = toolUseKey(request);
       const twin = get().pending.find(
         (item) =>
@@ -84,6 +95,7 @@ export const useInteractionStore = create<InteractionStore>((set, get) => {
           kind: 'permission',
           id: `permission-${sequence}`,
           sessionId,
+          generation,
           request,
           twins,
           settle: (answer) => {
@@ -95,7 +107,7 @@ export const useInteractionStore = create<InteractionStore>((set, get) => {
       });
     },
 
-    requestAskUser(sessionId, request) {
+    requestAskUser(sessionId, request, generation) {
       const twin = get().pending.find(
         (item) =>
           item.kind === 'askuser' &&
@@ -113,6 +125,7 @@ export const useInteractionStore = create<InteractionStore>((set, get) => {
           kind: 'askuser',
           id: `askuser-${sequence}`,
           sessionId,
+          generation,
           request,
           twins,
           settle: (answer) => {
@@ -135,7 +148,9 @@ export const useInteractionStore = create<InteractionStore>((set, get) => {
 
     expire(options) {
       const affected = get().pending.filter(
-        (item) => options?.sessionId === undefined || item.sessionId === options.sessionId,
+        (item) =>
+          (options?.sessionId === undefined || item.sessionId === options.sessionId) &&
+          (options?.generation === undefined || item.generation === options.generation),
       );
       if (affected.length === 0) return;
       const ids = new Set(affected.map((item) => item.id));

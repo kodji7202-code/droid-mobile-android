@@ -185,6 +185,7 @@ export function SessionScreen() {
           turnActive={Boolean(view?.turnActive) || awaitingApproval}
           workingState={awaitingApproval ? WAITING_STATE : (view?.workingState ?? 'idle')}
           disabled={view?.status !== 'ready'}
+          stopInDialog={awaitingApproval}
           onSend={(text) => void send(id, text)}
           onInterrupt={() => void interrupt(id)}
         />

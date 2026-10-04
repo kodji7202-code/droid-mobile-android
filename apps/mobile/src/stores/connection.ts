@@ -55,10 +55,12 @@ export const useConnectionStore = create<ConnectionStore>((set) => {
     createConnection: (options) =>
       createDaemonConnection({
         ...options,
-        permissionHandler: (sessionId, request) =>
-          useInteractionStore.getState().requestPermission(sessionId, request),
-        askUserHandler: (sessionId, request) =>
-          useInteractionStore.getState().requestAskUser(sessionId, request),
+        permissionHandler: (sessionId, request, generation) =>
+          useInteractionStore.getState().requestPermission(sessionId, request, generation),
+        askUserHandler: (sessionId, request, generation) =>
+          useInteractionStore.getState().requestAskUser(sessionId, request, generation),
+        onFacadeLost: (generation) =>
+          useInteractionStore.getState().expire({ generation, notify: true }),
       }),
     loadSavedConnections,
     saveActiveConnection,

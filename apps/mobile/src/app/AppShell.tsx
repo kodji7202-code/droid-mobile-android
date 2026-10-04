@@ -1,10 +1,11 @@
-import { Navigate, Outlet, useLocation, useNavigate } from 'react-router';
+import { matchPath, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ConnectionBanner } from '../components/ConnectionBanner';
 import { ConnectionNotices } from '../components/ConnectionNotices';
 import { ConnectionStatusIndicator } from '../components/ConnectionStatusIndicator';
 import { NavigationBar, NavigationRail } from '../components/NavItems';
 import { useConnectionStore } from '../stores/connection';
+import { useInteractionStore } from '../stores/interactions';
 import { useAndroidBackHandler } from './useAndroidBackHandler';
 import { useMediaQuery } from './useMediaQuery';
 
@@ -28,6 +29,11 @@ export function AppShell() {
   const isWideViewport = useMediaQuery('(min-width: 840px)');
   useAndroidBackHandler(navigate, isRootDestination(location.pathname));
   const hasConnection = useConnectionStore((state) => state.connection !== null);
+  const openSessionId = matchPath('/sessions/:id', location.pathname)?.params.id;
+  // The request dialog of the open session is modal: only it (and Stop inside it) stays operable.
+  const modalOpen = useInteractionStore((state) =>
+    state.pending.some((item) => item.sessionId === openSessionId),
+  );
 
   if (!hasConnection) {
     return <Navigate to="/connect" replace />;
@@ -35,18 +41,28 @@ export function AppShell() {
 
   return (
     <div className="app-shell" data-testid="app-shell">
-      <header className="app-header">
+      <header className="app-header" inert={modalOpen}>
         <h1 className="app-header__title">{t('app.title')}</h1>
         <ConnectionStatusIndicator />
       </header>
-      <ConnectionBanner />
+      <div style={{ display: 'contents' }} inert={modalOpen}>
+        <ConnectionBanner />
+      </div>
       <div className="app-body">
-        {isWideViewport ? <NavigationRail /> : null}
+        {isWideViewport ? (
+          <div style={{ display: 'contents' }} inert={modalOpen}>
+            <NavigationRail />
+          </div>
+        ) : null}
         <main className="app-main" id="main">
           <Outlet />
         </main>
       </div>
-      {isWideViewport ? null : <NavigationBar />}
+      {isWideViewport ? null : (
+        <div style={{ display: 'contents' }} inert={modalOpen}>
+          <NavigationBar />
+        </div>
+      )}
       <ConnectionNotices />
     </div>
   );

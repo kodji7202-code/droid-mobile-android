@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DaemonConnection, SessionMessage } from '@droidmobile/daemon-client';
+import { useConnectionStore } from './connection';
 import { useSessionViewStore } from './sessionView';
 
 function message(id: string, role: string, createdAt: number, text: string): SessionMessage {
@@ -182,5 +183,37 @@ describe('cached refresh racing an older-page load', () => {
     expect(ids()).toHaveLength(50);
     expect(view.nextCursor).toBe('c2');
     expect(view.hasMore).toBe(true);
+  });
+});
+
+describe('sessionView across connection replacement', () => {
+  beforeEach(() => {
+    useSessionViewStore.getState().reset();
+    useConnectionStore.setState({ connection: null, status: 'offline' });
+  });
+
+  it('drops the previous daemon transcript so an old route never renders it', async () => {
+    const a = setup([[message('u1', 'user', 1, 'daemon A secret')]]);
+    useConnectionStore.setState({ connection: a.connection, status: 'ready' });
+    await useSessionViewStore.getState().open(a.connection, 's1', 1);
+    expect(texts()).toEqual(['daemon A secret']);
+
+    const b = setup([[]]);
+    b.resumeSession.mockRejectedValue(new Error('unknown session'));
+    useConnectionStore.setState({ connection: b.connection });
+    expect(useSessionViewStore.getState().views['s1']).toBeUndefined();
+
+    await useSessionViewStore.getState().open(b.connection, 's1', 2);
+    expect(useSessionViewStore.getState().views['s1']?.status).toBe('error');
+    expect(texts()).toEqual([]);
+  });
+
+  it('ignores a load that resolves after the connection was replaced', async () => {
+    const a = setup([[message('u1', 'user', 1, 'daemon A secret')]]);
+    useConnectionStore.setState({ connection: a.connection, status: 'ready' });
+    const loading = useSessionViewStore.getState().open(a.connection, 's1', 1);
+    useConnectionStore.setState({ connection: setup([[]]).connection });
+    await loading;
+    expect(useSessionViewStore.getState().views['s1']).toBeUndefined();
   });
 });

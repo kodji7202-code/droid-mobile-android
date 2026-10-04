@@ -313,3 +313,40 @@ describe('connection lifecycle', () => {
     expect(useInteractionStore.getState().expired).toEqual({ s1: true });
   });
 });
+
+describe('Stop while a request is pending', () => {
+  it('is reachable inside the dialog, outside every inert region, and interrupts the turn', async () => {
+    const { interrupt } = setup(async function* () {
+      yield { type: 'working_state', state: 'thinking' };
+    });
+    await screen.findByTestId('chat-input');
+    act(() => {
+      void useInteractionStore.getState().requestPermission('s1', permissionRequest(createDetails));
+    });
+    const dialog = await screen.findByTestId('permission-dialog');
+    const stop = screen.getByTestId('chat-interrupt');
+    expect(dialog).toContainElement(stop);
+    expect(stop.closest('[inert]')).toBeNull();
+    expect(screen.getByTestId('chat-input').closest('[inert]')).not.toBeNull();
+    await userEvent.setup().click(stop);
+    await waitFor(() => expect(interrupt).toHaveBeenCalledTimes(1));
+    expect(useInteractionStore.getState().pending).toEqual([]);
+  });
+});
+
+describe('request ownership by facade generation', () => {
+  it('expires only the requests of the abandoned generation and marks their sessions', async () => {
+    const answers: unknown[] = [];
+    const store = useInteractionStore.getState();
+    void store
+      .requestPermission('s1', permissionRequest(createDetails), 1)
+      .then((a) => answers.push(a));
+    void store
+      .requestPermission('s2', permissionRequest(createDetails), 2)
+      .then((a) => answers.push(`kept:${a}`));
+    act(() => useInteractionStore.getState().expire({ generation: 1, notify: true }));
+    await waitFor(() => expect(answers).toEqual(['cancel']));
+    expect(useInteractionStore.getState().pending.map((item) => item.sessionId)).toEqual(['s2']);
+    expect(useInteractionStore.getState().expired).toEqual({ s1: true });
+  });
+});

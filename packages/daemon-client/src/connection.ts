@@ -1,4 +1,4 @@
-﻿/**
+/**
  * createDaemonConnection: the adapter's connection core (architecture.md 3.1).
  *
  * - One WebSocket, one `daemon.authenticate`, over the SDK facade
@@ -30,6 +30,7 @@ import type {
 import { backoffDelay } from './backoff';
 import type { BackoffOptions } from './backoff';
 import { classifyConnectFailure, isNonTransportFailure, versionWarningOf } from './classify';
+import { cancelledAskUser } from './interactions';
 import type { AskUserHandler, PermissionHandler } from './interactions';
 import { AuthError, ConnectionError } from './errors';
 import type { DaemonClientError, VersionMismatchWarning } from './errors';
@@ -71,6 +72,12 @@ export interface DaemonConnectionOptions {
   permissionHandler?: PermissionHandler;
   /** Answers daemon.ask_user. Without a handler every request is cancelled. */
   askUserHandler?: AskUserHandler;
+  /**
+   * Called with the generation of every facade that is abandoned (transport
+   * lost, replaced or disconnected), including attempts that never became
+   * ready. Requests delivered by that facade can no longer be answered.
+   */
+  onFacadeLost?: (generation: number) => void;
 }
 
 /**
@@ -221,7 +228,9 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     stopKeepAlive();
     // Invalidate any in-flight attempt even when no facade is adopted yet, so a
     // pending authentication cannot adopt its droid after the teardown.
+    const abandoned = droidToken;
     droidToken += 1;
+    options.onFacadeLost?.(abandoned);
     const droid = currentDroid;
     currentDroid = null;
     if (!droid) return;
@@ -298,7 +307,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
         try {
           const session = await droid.sessions.resume(
             id,
-            handlersFor(() => id),
+            handlersFor(() => id, token),
           );
           if (token !== droidToken) return;
           handle.attach(session, token);
@@ -476,19 +485,23 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
   }
 
   /** Per-session handlers that tell the app which session a request belongs to. */
-  function handlersFor(getSessionId: () => string | undefined) {
+  function handlersFor(getSessionId: () => string | undefined, generation: number) {
     const { permissionHandler, askUserHandler } = options;
     return {
       ...(permissionHandler
         ? {
-            permissionHandler: (request: Parameters<PermissionHandler>[1]) =>
-              permissionHandler(getSessionId() ?? '', request),
+            permissionHandler: async (request: Parameters<PermissionHandler>[1]) =>
+              generation === droidToken
+                ? permissionHandler(getSessionId() ?? '', request, generation)
+                : 'cancel',
           }
         : {}),
       ...(askUserHandler
         ? {
-            askUserHandler: (request: Parameters<AskUserHandler>[1]) =>
-              askUserHandler(getSessionId() ?? '', request),
+            askUserHandler: async (request: Parameters<AskUserHandler>[1]) =>
+              generation === droidToken
+                ? askUserHandler(getSessionId() ?? '', request, generation)
+                : cancelledAskUser(),
           }
         : {}),
     };
@@ -526,7 +539,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     return mapSdkError(async () => {
       const session = await droid.sessions.resume(
         sessionId,
-        handlersFor(() => sessionId),
+        handlersFor(() => sessionId, token),
       );
       const existing = handles.get(sessionId);
       if (existing) {
@@ -594,7 +607,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       const token = droidToken;
       let createdId: string | undefined = createOptions.sessionId;
       const session = await mapSdkError(() =>
-        droid.sessions.create({ ...createOptions, ...handlersFor(() => createdId) }),
+        droid.sessions.create({ ...createOptions, ...handlersFor(() => createdId, token) }),
       );
       createdId = session.id;
       const handle = new SessionHandle(session.id, host);

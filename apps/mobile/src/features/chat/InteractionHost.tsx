@@ -16,6 +16,7 @@ export function InteractionHost({ sessionId }: { sessionId: string }) {
   const answerAskUser = useInteractionStore((state) => state.answerAskUser);
   const markDenied = useSessionViewStore((state) => state.markDenied);
   const follow = useSessionViewStore((state) => state.follow);
+  const interrupt = useSessionViewStore((state) => state.interrupt);
 
   const entry = pending.find((item) => item.sessionId === sessionId);
 
@@ -34,6 +35,7 @@ export function InteractionHost({ sessionId }: { sessionId: string }) {
         <PermissionDialog
           key={entry.id}
           entry={entry}
+          onStop={() => void interrupt(sessionId)}
           onDecide={(decision) => {
             if (decision === 'deny') {
               markDenied(
@@ -54,6 +56,7 @@ export function InteractionHost({ sessionId }: { sessionId: string }) {
         <AskUserDialog
           key={entry.id}
           entry={entry}
+          onStop={() => void interrupt(sessionId)}
           onAnswer={(answer) => {
             answerAskUser(entry.id, answer);
             void follow(sessionId);

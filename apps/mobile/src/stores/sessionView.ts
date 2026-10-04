@@ -102,6 +102,9 @@ let localSeq = 0;
 const historyWindow = new Map<string, number>();
 const bumpWindow = (id: string) => historyWindow.set(id, (historyWindow.get(id) ?? 0) + 1);
 
+/** Counts connection replacements; a load that started before one must not write its result. */
+let replacements = 0;
+
 const hasPending = (id: string) =>
   useInteractionStore.getState().pending.some((item) => item.sessionId === id);
 
@@ -214,9 +217,12 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
           [id]: { ...emptyView(id, epoch), items: existing?.items ?? [] },
         },
       }));
+      const startedUnder = replacements;
+      const current = () => startedUnder === replacements;
       try {
         const handle = await connection.resumeSession(id);
         const page = await handle.getMessages({ limit: HISTORY_PAGE_SIZE });
+        if (!current()) return;
         bumpWindow(id);
         patch(id, {
           status: 'ready',
@@ -228,6 +234,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
           cwd: handle.cwd,
         });
       } catch (err) {
+        if (!current()) return;
         patch(id, { status: 'error', error: err instanceof Error ? err.message : String(err) });
       }
     },
@@ -360,4 +367,16 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       set({ views: {} });
     },
   };
+});
+
+/**
+ * Cached transcripts belong to the daemon that served them: a replaced, forgotten
+ * or signed-out connection must never show them under the next identity.
+ */
+useConnectionStore.subscribe((state, previous) => {
+  if (state.connection !== previous.connection) {
+    replacements += 1;
+    historyWindow.clear();
+    useSessionViewStore.getState().reset();
+  }
 });

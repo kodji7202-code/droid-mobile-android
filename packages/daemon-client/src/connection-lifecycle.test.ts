@@ -219,10 +219,13 @@ describe('cancelled streams', () => {
     await connection.connect();
     const handle = await connection.createSession({} as never);
 
-    const raw = Object.assign(new Error('rejected apiKey: "abc def ghi" Authorization: Basic dXNlcjpwYXNz'), {
-      name: 'SessionError',
-      data: { token: 'zzz' },
-    });
+    const raw = Object.assign(
+      new Error('rejected apiKey: "abc def ghi" Authorization: Basic dXNlcjpwYXNz'),
+      {
+        name: 'SessionError',
+        data: { token: 'zzz' },
+      },
+    );
     session.stream.mockImplementation(async function* () {
       yield* [];
       throw raw;
@@ -318,5 +321,82 @@ describe('session errors share the connection warning mapper', () => {
     await handle.interrupt();
     expect(droid.sessions.resume).not.toHaveBeenCalled();
     expect(droid.sessions.list).not.toHaveBeenCalled();
+  });
+});
+
+describe('interaction handler ownership', () => {
+  const request = { toolUses: [], options: [] } as never;
+
+  it('tags requests with the owning facade generation and reports the facade lost, also before ready', async () => {
+    const first = fakeDroid();
+    const second = fakeDroid();
+    const seen: ConnectOptions[] = [];
+    sdk.connectToDaemon.mockImplementationOnce((opts: ConnectOptions) => {
+      seen.push(opts);
+      return Promise.resolve(first);
+    });
+    sdk.connectToDaemon.mockImplementationOnce((opts: ConnectOptions) => {
+      seen.push(opts);
+      return Promise.resolve(second);
+    });
+    const requests: Array<{ sessionId: string; generation: number }> = [];
+    const lost: number[] = [];
+    const connection = createDaemonConnection({
+      url: 'ws://127.0.0.1:1',
+      apiKey: 'fk-test',
+      backoff: { initialMs: 1, maxMs: 2, jitterFraction: 0 },
+      keepAliveMs: 0,
+      permissionHandler: (sessionId, _request, generation) => {
+        requests.push({ sessionId, generation });
+        return new Promise(() => undefined);
+      },
+      onFacadeLost: (generation) => lost.push(generation),
+    });
+    await connection.connect();
+    await connection.createSession({} as never);
+
+    const resumeGate = deferred<FakeSession>();
+    second.sessions.resume.mockReturnValueOnce(resumeGate.promise);
+    first.sessions.list.mockRejectedValue(new Error('down'));
+    seen[0]!.onError?.(new Error('x'));
+    await vi.waitFor(() => expect(second.sessions.resume).toHaveBeenCalled());
+
+    const handlers = second.sessions.resume.mock.calls[0]![1] as {
+      permissionHandler(request: never): Promise<unknown>;
+    };
+    void handlers.permissionHandler(request);
+    expect(requests).toHaveLength(1);
+    const generation = requests[0]!.generation;
+    expect(lost).not.toContain(generation);
+
+    second.sessions.list.mockRejectedValue(new Error('down again'));
+    seen[1]!.onError?.(new Error('y'));
+    await vi.waitFor(() => expect(lost).toContain(generation));
+    resumeGate.resolve(fakeSession());
+    await flush();
+    connection.disconnect();
+  });
+
+  it('cancels a request replayed by an abandoned facade at once', async () => {
+    const droid = fakeDroid();
+    sdk.connectToDaemon.mockResolvedValueOnce(droid);
+    const requests: number[] = [];
+    const connection = createDaemonConnection({
+      url: 'ws://127.0.0.1:1',
+      apiKey: 'fk-test',
+      keepAliveMs: 0,
+      permissionHandler: (_sessionId, _request, generation) => {
+        requests.push(generation);
+        return new Promise(() => undefined);
+      },
+    });
+    await connection.connect();
+    await connection.createSession({} as never);
+    const handlers = droid.sessions.create.mock.calls[0]![0] as {
+      permissionHandler(request: never): Promise<unknown>;
+    };
+    connection.disconnect();
+    await expect(handlers.permissionHandler(request)).resolves.toBe('cancel');
+    expect(requests).toEqual([]);
   });
 });

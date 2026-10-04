@@ -6,6 +6,8 @@ interface ChatComposerProps {
   turnActive: boolean;
   workingState: string;
   disabled: boolean;
+  /** Stop lives in the open request dialog, which covers the composer. */
+  stopInDialog?: boolean;
   onSend(text: string): void;
   onInterrupt(): void;
 }
@@ -17,6 +19,7 @@ export function ChatComposer({
   turnActive,
   workingState,
   disabled,
+  stopInDialog = false,
   onSend,
   onInterrupt,
 }: ChatComposerProps) {
@@ -55,7 +58,7 @@ export function ChatComposer({
           disabled={disabled}
           onChange={(event) => setText(event.target.value)}
         />
-        {turnActive ? (
+        {turnActive && !stopInDialog ? (
           <button
             type="button"
             className="btn btn--secondary chat-composer__button"

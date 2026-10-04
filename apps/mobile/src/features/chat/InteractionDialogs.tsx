@@ -15,9 +15,11 @@ type AskUserEntry = Extract<PendingInteraction, { kind: 'askuser' }>;
 export function PermissionDialog({
   entry,
   onDecide,
+  onStop,
 }: {
   entry: PermissionEntry;
   onDecide(decision: PermissionDecision): void;
+  onStop(): void;
 }) {
   const { t } = useTranslation();
   const details = describePermission(entry.request);
@@ -80,6 +82,14 @@ export function PermissionDialog({
           <button
             type="button"
             className="btn btn--secondary"
+            data-testid="chat-interrupt"
+            onClick={onStop}
+          >
+            {t('chat.interrupt')}
+          </button>{' '}
+          <button
+            type="button"
+            className="btn btn--secondary"
             data-testid="permission-deny"
             onClick={() => onDecide('deny')}
           >
@@ -112,9 +122,11 @@ export function PermissionDialog({
 export function AskUserDialog({
   entry,
   onAnswer,
+  onStop,
 }: {
   entry: AskUserEntry;
   onAnswer(answer: AskUserAnswer): void;
+  onStop(): void;
 }) {
   const { t } = useTranslation();
   const { questions } = entry.request;
@@ -187,6 +199,14 @@ export function AskUserDialog({
           })}
         </div>
         <div className="dialog__actions interaction-dialog__actions">
+          <button
+            type="button"
+            className="btn btn--secondary"
+            data-testid="chat-interrupt"
+            onClick={onStop}
+          >
+            {t('chat.interrupt')}
+          </button>{' '}
           <button
             type="button"
             className="btn btn--secondary"

@@ -17,12 +17,18 @@ export type PermissionAnswer = RequestPermissionHandlerResult;
 
 export type PermissionDecision = 'once' | 'always' | 'deny';
 
+/** generation identifies the facade that delivered the request (see onFacadeLost). */
 export type PermissionHandler = (
   sessionId: string,
   request: PermissionRequest,
+  generation: number,
 ) => Promise<PermissionAnswer>;
 
-export type AskUserHandler = (sessionId: string, request: AskUserRequest) => Promise<AskUserAnswer>;
+export type AskUserHandler = (
+  sessionId: string,
+  request: AskUserRequest,
+  generation: number,
+) => Promise<AskUserAnswer>;
 
 const ALWAYS_PREFIX = 'proceed_always';
 
