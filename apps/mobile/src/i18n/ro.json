@@ -224,16 +224,34 @@
     "working": {
       "thinking": "Se gândește…",
       "streaming_assistant_message": "Scrie…",
-      "executing_tool": "Rulează o unealtă…"
+      "executing_tool": "Rulează o unealtă…",
+      "waiting_for_tool_confirmation": "Așteaptă aprobarea…"
     },
     "tool": {
       "running": "Rulează",
       "completed": "Gata",
       "error": "Eroare",
+      "denied": "Refuzat",
       "input": "Intrare",
       "result": "Rezultat",
       "errorOutput": "Eroare",
       "noResult": "Încă fără rezultat"
+    },
+    "stopped": "Oprit",
+    "requestExpired": "Cererea a expirat înainte să primească răspuns. Daemonul nu o mai așteaptă.",
+    "permission": {
+      "title": "Este nevoie de aprobare",
+      "tool": "Unealtă",
+      "command": "Comandă",
+      "file": "Fișier",
+      "approveOnce": "Aprobă o dată",
+      "approveAlways": "Aprobă mereu",
+      "deny": "Refuză"
+    },
+    "askUser": {
+      "title": "Droid are o întrebare",
+      "multiHint": "Alege tot ce se aplică",
+      "submit": "Trimite răspunsul"
     }
   },
   "session": {

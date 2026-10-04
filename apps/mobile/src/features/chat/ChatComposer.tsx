@@ -10,7 +10,8 @@ interface ChatComposerProps {
   onInterrupt(): void;
 }
 
-const KNOWN_STATES = ['thinking', 'streaming_assistant_message', 'executing_tool'];
+export const WAITING_STATE = 'waiting_for_tool_confirmation';
+const KNOWN_STATES = ['thinking', 'streaming_assistant_message', 'executing_tool', WAITING_STATE];
 
 export function ChatComposer({
   turnActive,
@@ -33,7 +34,7 @@ export function ChatComposer({
 
   return (
     <form className="chat-composer" onSubmit={submit}>
-      {turnActive ? (
+      {turnActive || workingState === WAITING_STATE ? (
         <p
           className="chat-composer__working"
           role="status"

@@ -7,6 +7,8 @@ import {
   failPendingUser,
   itemsFromMessages,
   localOnlyItems,
+  markStopped,
+  markToolsDenied,
   prependItems,
   settleTurn,
 } from './transcript';
@@ -166,5 +168,35 @@ describe('turn bookkeeping', () => {
       msg('c', 'user', 3, text('c')),
     ]);
     expect(prependItems(loaded, older).map((item) => item.id)).toEqual(['b', 'c', 'd']);
+  });
+});
+
+describe('interrupt and denial markers', () => {
+  const assistant = (id: string, text: string): TranscriptItem => ({
+    kind: 'assistant',
+    id,
+    text,
+    streaming: false,
+  });
+
+  it('flags only the last assistant message as stopped and keeps its text', () => {
+    const items: TranscriptItem[] = [assistant('a1', '1'), assistant('a2', '1\n2')];
+    const next = markStopped(items);
+    expect(next[0]).toEqual(assistant('a1', '1'));
+    expect(next[1]).toMatchObject({ id: 'a2', text: '1\n2', stopped: true });
+    expect(markStopped([])).toEqual([]);
+  });
+
+  it('keeps the denied status when the daemon then reports an error result', () => {
+    const denied = markToolsDenied([], [{ id: 't1', name: 'Create', input: { file_path: 'x' } }]);
+    expect(denied[0]).toMatchObject({ kind: 'tool', id: 't1', status: 'denied', name: 'Create' });
+    const after = applyStreamEvent(denied, {
+      type: 'tool_result',
+      toolName: 'Create',
+      toolUseId: 't1',
+      content: 'cancelled',
+      isError: true,
+    });
+    expect(after[0]).toMatchObject({ status: 'denied', result: 'cancelled' });
   });
 });

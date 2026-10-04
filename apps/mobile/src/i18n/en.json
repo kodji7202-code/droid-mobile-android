@@ -224,16 +224,34 @@
     "working": {
       "thinking": "Thinking…",
       "streaming_assistant_message": "Writing…",
-      "executing_tool": "Running a tool…"
+      "executing_tool": "Running a tool…",
+      "waiting_for_tool_confirmation": "Waiting for approval…"
     },
     "tool": {
       "running": "Running",
       "completed": "Done",
       "error": "Error",
+      "denied": "Denied",
       "input": "Input",
       "result": "Result",
       "errorOutput": "Error",
       "noResult": "No result yet"
+    },
+    "stopped": "Stopped",
+    "requestExpired": "The request expired before it could be answered. The daemon no longer waits for it.",
+    "permission": {
+      "title": "Approval needed",
+      "tool": "Tool",
+      "command": "Command",
+      "file": "File",
+      "approveOnce": "Approve once",
+      "approveAlways": "Always approve",
+      "deny": "Deny"
+    },
+    "askUser": {
+      "title": "Droid has a question",
+      "multiHint": "Select all that apply",
+      "submit": "Send answer"
     }
   },
   "session": {

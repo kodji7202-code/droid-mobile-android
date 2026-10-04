@@ -17,6 +17,16 @@ export { SessionHandle } from './session-handle';
 export type { SessionHost, StreamOptions } from './session-handle';
 export type { SessionMessagesPage } from './paging';
 export type { SessionMessage } from '@factory/droid-sdk';
+export { canApproveAlways, cancelledAskUser, permissionAnswer } from './interactions';
+export type {
+  AskUserAnswer,
+  AskUserHandler,
+  AskUserRequest,
+  PermissionAnswer,
+  PermissionDecision,
+  PermissionHandler,
+  PermissionRequest,
+} from './interactions';
 export type { NormalizedEvent } from './normalize';
 export { normalizeStreamEvent } from './normalize';
 export {
@@ -34,6 +44,8 @@ export {
   isHiddenUserMessage,
   itemsFromMessages,
   localOnlyItems,
+  markStopped,
+  markToolsDenied,
   prependItems,
   removeItem,
   settleTurn,

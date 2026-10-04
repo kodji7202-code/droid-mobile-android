@@ -30,6 +30,7 @@ import type {
 import { backoffDelay } from './backoff';
 import type { BackoffOptions } from './backoff';
 import { classifyConnectFailure, versionWarningOf } from './classify';
+import type { AskUserHandler, PermissionHandler } from './interactions';
 import { AuthError, ConnectionError } from './errors';
 import type { VersionMismatchWarning } from './errors';
 import { toPage } from './paging';
@@ -63,6 +64,13 @@ export interface DaemonConnectionOptions {
   backoff?: Partial<BackoffOptions>;
   /** Interval of the liveness probe while ready; 0 disables it. */
   keepAliveMs?: number;
+  /**
+   * Answers daemon.request_permission. The returned promise decides when the
+   * daemon's turn continues. Without a handler every request is cancelled.
+   */
+  permissionHandler?: PermissionHandler;
+  /** Answers daemon.ask_user. Without a handler every request is cancelled. */
+  askUserHandler?: AskUserHandler;
 }
 
 /**
@@ -278,7 +286,13 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       let attached = false;
       for (let retry = 0; retry < 2 && !attached; retry += 1) {
         try {
-          handle.attach(await droid.sessions.resume(id), token);
+          handle.attach(
+            await droid.sessions.resume(
+              id,
+              handlersFor(() => id),
+            ),
+            token,
+          );
           attached = true;
         } catch {
           // The daemon may still be warming up right after a restart; one
@@ -445,6 +459,25 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     return currentDroid;
   }
 
+  /** Per-session handlers that tell the app which session a request belongs to. */
+  function handlersFor(getSessionId: () => string | undefined) {
+    const { permissionHandler, askUserHandler } = options;
+    return {
+      ...(permissionHandler
+        ? {
+            permissionHandler: (request: Parameters<PermissionHandler>[1]) =>
+              permissionHandler(getSessionId() ?? '', request),
+          }
+        : {}),
+      ...(askUserHandler
+        ? {
+            askUserHandler: (request: Parameters<AskUserHandler>[1]) =>
+              askUserHandler(getSessionId() ?? '', request),
+          }
+        : {}),
+    };
+  }
+
   /** Wraps a facade call, converting SDK failures into classified errors. */
   async function mapSdkError<T>(op: () => Promise<T>): Promise<T> {
     try {
@@ -464,7 +497,10 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     const droid = requireDroid();
     const token = droidToken;
     return mapSdkError(async () => {
-      const session = await droid.sessions.resume(sessionId);
+      const session = await droid.sessions.resume(
+        sessionId,
+        handlersFor(() => sessionId),
+      );
       const existing = handles.get(sessionId);
       if (existing) {
         existing.attach(session, token);
@@ -528,7 +564,11 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     async createSession(createOptions) {
       const droid = requireDroid();
       const token = droidToken;
-      const session = await mapSdkError(() => droid.sessions.create(createOptions));
+      let createdId: string | undefined = createOptions.sessionId;
+      const session = await mapSdkError(() =>
+        droid.sessions.create({ ...createOptions, ...handlersFor(() => createdId) }),
+      );
+      createdId = session.id;
       const handle = new SessionHandle(session.id, host);
       handle.attach(session, token);
       handles.set(session.id, handle);

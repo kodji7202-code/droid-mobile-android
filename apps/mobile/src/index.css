@@ -917,3 +917,59 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
 .app-shell:has(.app-nav-bar) .chat-composer {
   bottom: 53px;
 }
+
+/* ---- Daemon requests (permission, AskUser) and stopped turns -------------- */
+
+.interaction-dialog {
+  width: min(94vw, 560px);
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.interaction-dialog__scroll {
+  overflow-y: auto;
+  min-height: 0;
+  margin: 0.5rem 0 1rem;
+}
+
+.interaction-dialog__detail + .interaction-dialog__detail {
+  margin-top: 1rem;
+}
+
+.interaction-dialog__actions {
+  flex-wrap: wrap;
+}
+
+.interaction-dialog__actions .btn {
+  min-height: 48px;
+}
+
+.interaction-dialog__question {
+  border: 0;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.interaction-dialog__option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 48px;
+}
+
+.tool-card--denied {
+  border-color: var(--color-danger);
+}
+
+.tool-card--denied .tool-card__status {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.session-message__stopped {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+}

@@ -70,8 +70,14 @@ export function Transcript({ items, onRetry }: TranscriptProps) {
                 aria-label={t('session.roleAssistant')}
                 data-testid={`msg-assistant-${n}`}
                 data-streaming={item.streaming}
+                data-stopped={item.stopped === true}
               >
                 <p className="session-message__text">{item.text}</p>
+                {item.stopped ? (
+                  <span className="session-message__stopped" data-testid={`msg-stopped-${n}`}>
+                    {t('chat.stopped')}
+                  </span>
+                ) : null}
               </li>
             );
           }

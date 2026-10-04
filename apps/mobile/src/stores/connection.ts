@@ -7,6 +7,7 @@ import {
 } from '../app/connectionManager';
 import type { ConnectionManager, ConnectionManagerState } from '../app/connectionManager';
 import { checkDaemonUrl } from '../features/connect/validation';
+import { useInteractionStore } from './interactions';
 import { isDebugBuild } from '../platform/buildFlavor';
 import { getSecureStore } from '../platform/secureStore';
 import {
@@ -49,7 +50,14 @@ interface ConnectionStore extends ConnectionManagerState {
 
 export const useConnectionStore = create<ConnectionStore>((set) => {
   const manager = createConnectionManager({
-    createConnection: (options) => createDaemonConnection(options),
+    createConnection: (options) =>
+      createDaemonConnection({
+        ...options,
+        permissionHandler: (sessionId, request) =>
+          useInteractionStore.getState().requestPermission(sessionId, request),
+        askUserHandler: (sessionId, request) =>
+          useInteractionStore.getState().requestAskUser(sessionId, request),
+      }),
     loadSavedConnections,
     saveActiveConnection,
     addSavedConnection,

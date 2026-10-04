@@ -8,7 +8,7 @@ import type { SessionMessage } from '@factory/droid-sdk';
 import type { NormalizedEvent } from './normalize';
 
 export type UserDelivery = 'sending' | 'sent' | 'failed';
-export type ToolStatus = 'running' | 'completed' | 'error';
+export type ToolStatus = 'running' | 'completed' | 'error' | 'denied';
 
 export interface UserItem {
   kind: 'user';
@@ -22,6 +22,8 @@ export interface AssistantItem {
   id: string;
   text: string;
   streaming: boolean;
+  /** True when the user interrupted the turn that produced this message. */
+  stopped?: boolean;
   /** Partial text per content block while streaming; dropped when the final message lands. */
   blocks?: string[];
 }
@@ -234,6 +236,27 @@ export function settleTurn(items: readonly TranscriptItem[]): TranscriptItem[] {
   });
 }
 
+/** Flags the last assistant message as cut short by an interrupt. */
+export function markStopped(items: readonly TranscriptItem[]): TranscriptItem[] {
+  let index = items.length - 1;
+  while (index >= 0 && items[index]!.kind !== 'assistant') index -= 1;
+  if (index < 0) return [...items];
+  const next = items.slice();
+  next[index] = { ...(items[index] as AssistantItem), stopped: true };
+  return next;
+}
+
+/** Marks tool calls the user refused; a later error result keeps the denied status. */
+export function markToolsDenied(
+  items: readonly TranscriptItem[],
+  tools: readonly { id: string; name: string; input: Record<string, unknown> }[],
+): TranscriptItem[] {
+  return tools.reduce<TranscriptItem[]>(
+    (acc, tool) => withTool(acc, { ...tool, status: 'denied' }),
+    items as TranscriptItem[],
+  );
+}
+
 export function appendError(items: readonly TranscriptItem[], text: string): TranscriptItem[] {
   return [...items, { kind: 'error', id: `error-${items.length}`, text }];
 }
@@ -277,7 +300,12 @@ export function applyStreamEvent(
         id: event.toolUseId,
         ...(event.toolName === 'unknown' ? {} : { name: event.toolName }),
         result: resultText(event.content),
-        status: event.isError ? 'error' : 'completed',
+        status:
+          findTool(items, event.toolUseId)?.status === 'denied'
+            ? 'denied'
+            : event.isError
+              ? 'error'
+              : 'completed',
       });
     case 'error':
       return appendError(items, event.message);

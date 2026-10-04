@@ -6,8 +6,10 @@ import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Skeleton } from '../../components/Skeleton';
 import { useConnectionStore } from '../../stores/connection';
+import { useInteractionStore } from '../../stores/interactions';
 import { useSessionViewStore } from '../../stores/sessionView';
-import { ChatComposer } from '../chat/ChatComposer';
+import { ChatComposer, WAITING_STATE } from '../chat/ChatComposer';
+import { InteractionHost } from '../chat/InteractionHost';
 import { Transcript } from '../chat/Transcript';
 
 /** Last path segment of a working directory, for a compact header title. */
@@ -30,6 +32,9 @@ export function SessionScreen() {
   const send = useSessionViewStore((state) => state.send);
   const retry = useSessionViewStore((state) => state.retry);
   const interrupt = useSessionViewStore((state) => state.interrupt);
+  const awaitingApproval = useInteractionStore((state) =>
+    state.pending.some((item) => item.sessionId === id),
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
@@ -171,9 +176,11 @@ export function SessionScreen() {
 
       <div ref={bottomRef} />
 
+      <InteractionHost sessionId={id} />
+
       <ChatComposer
         turnActive={view?.turnActive ?? false}
-        workingState={view?.workingState ?? 'idle'}
+        workingState={awaitingApproval ? WAITING_STATE : (view?.workingState ?? 'idle')}
         disabled={view?.status !== 'ready'}
         onSend={(text) => void send(id, text)}
         onInterrupt={() => void interrupt(id)}

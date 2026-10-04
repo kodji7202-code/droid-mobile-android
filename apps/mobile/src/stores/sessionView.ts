@@ -6,6 +6,8 @@ import {
   failPendingUser,
   itemsFromMessages,
   localOnlyItems,
+  markStopped,
+  markToolsDenied,
   prependItems,
   redactSecrets,
   removeItem,
@@ -15,9 +17,13 @@ import {
 import type { DaemonConnection, SessionHandle, TranscriptItem } from '@droidmobile/daemon-client';
 import { runTurn } from '../features/chat/runTurn';
 import { useConnectionStore } from './connection';
+import { useInteractionStore } from './interactions';
 
 /** Messages requested per getMessages page (the daemon returns them newest first). */
 export const HISTORY_PAGE_SIZE = 50;
+
+const FOLLOW_INTERVAL_MS = 2000;
+const FOLLOW_ATTEMPTS = 60;
 
 export type SessionViewStatus = 'loading' | 'ready' | 'error';
 
@@ -35,6 +41,8 @@ export interface SessionView {
   turnActive: boolean;
   /** Last working state reported by the daemon during the active turn. */
   workingState: string;
+  /** True after the user pressed stop and until the next send. */
+  stopRequested: boolean;
   /** Set when the connection dropped mid-turn; cleared on the next send. */
   interrupted: boolean;
   hasMore: boolean;
@@ -59,6 +67,13 @@ interface SessionViewStore {
   /** Resends a message that never reached the daemon. */
   retry(id: string, itemId: string): Promise<void>;
   interrupt(id: string): Promise<void>;
+  /** Shows the tool calls of a refused permission request as denied. */
+  markDenied(id: string, tools: Parameters<typeof markToolsDenied>[1]): void;
+  /**
+   * Tracks a turn this client is not streaming (a request that was replayed after
+   * a reload): polls the stored history until the daemon is done working.
+   */
+  follow(id: string): Promise<void>;
   reset(): void;
 }
 
@@ -69,6 +84,7 @@ function emptyView(id: string, epoch: number): SessionView {
     items: [],
     turnActive: false,
     workingState: 'idle',
+    stopRequested: false,
     interrupted: false,
     hasMore: false,
     loadingOlder: false,
@@ -109,6 +125,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
         if (state.status !== 'ready') resolve('lost');
       });
     });
+    let stoppedByDaemon = false;
     try {
       const outcome = await runTurn(
         handle,
@@ -117,15 +134,19 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
           if (event.type === 'working_state') {
             update(id, () => ({ workingState: event.state }));
           } else {
+            if (event.type === 'result' && event.interrupted) stoppedByDaemon = true;
             update(id, (view) => ({ items: [...applyStreamEvent(view.items, event)] }));
           }
         },
         lost,
       );
-      update(id, (view) => ({
-        items: failPendingUser(settleTurn(view.items), localId),
-        interrupted: outcome === 'lost',
-      }));
+      update(id, (view) => {
+        const settled = failPendingUser(settleTurn(view.items), localId);
+        return {
+          items: stoppedByDaemon || view.stopRequested ? markStopped(settled) : settled,
+          interrupted: outcome === 'lost',
+        };
+      });
     } catch (err) {
       const connectionDown = err instanceof DaemonClientError && err.kind === 'connection';
       const message = redactSecrets(err instanceof Error ? err.message : String(err));
@@ -138,6 +159,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       });
     } finally {
       unsubscribe();
+      useInteractionStore.getState().expire({ sessionId: id });
       update(id, () => ({ turnActive: false, workingState: 'idle' }));
     }
   };
@@ -227,7 +249,9 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
         turnActive: true,
         workingState: 'thinking',
         interrupted: false,
+        stopRequested: false,
       });
+      useInteractionStore.getState().dismissExpired(id);
       await drive(id, view.handle, localId, prompt);
     },
 
@@ -241,7 +265,47 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       await get().send(id, failed.text);
     },
 
+    markDenied(id, tools) {
+      update(id, (view) => ({ items: markToolsDenied(view.items, tools) }));
+    },
+
+    async follow(id) {
+      const started = get().views[id];
+      if (!started?.handle || started.turnActive) return;
+      const handle = started.handle;
+      patch(id, { turnActive: true, workingState: 'thinking', stopRequested: false });
+      try {
+        for (let attempt = 0; attempt < FOLLOW_ATTEMPTS; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, FOLLOW_INTERVAL_MS));
+          const view = get().views[id];
+          if (!view || view.stopRequested || useConnectionStore.getState().status !== 'ready')
+            break;
+          if (useInteractionStore.getState().pending.some((item) => item.sessionId === id))
+            continue;
+          const page = await handle.getMessages({ limit: HISTORY_PAGE_SIZE });
+          const items = [...itemsFromMessages(page.messages), ...localOnlyItems(view.items)];
+          patch(id, { items });
+          const last = items.at(-1);
+          if (
+            last?.kind === 'assistant' &&
+            !items.some((item) => item.kind === 'tool' && item.status === 'running')
+          )
+            break;
+        }
+      } catch {
+        // The next open reloads the history; a failed poll needs no extra state.
+      } finally {
+        update(id, (view) => ({
+          turnActive: false,
+          workingState: 'idle',
+          items: view.stopRequested ? markStopped(view.items) : view.items,
+        }));
+      }
+    },
+
     async interrupt(id) {
+      patch(id, { stopRequested: true });
+      useInteractionStore.getState().expire({ sessionId: id });
       try {
         await get().views[id]?.handle?.interrupt();
       } catch {
