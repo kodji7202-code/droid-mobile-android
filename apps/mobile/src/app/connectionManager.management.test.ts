@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+﻿import { describe, expect, it, vi } from 'vitest';
 import type { ConnectionStatus, DaemonConnection } from '@droidmobile/daemon-client';
 import {
   createConnectionManager,
@@ -25,6 +25,7 @@ function setup(
     activeId?: string | null;
     keys?: string[];
     failUrls?: string[];
+    failDelete?: string[];
   } = {},
 ) {
   const saved = {
@@ -33,6 +34,11 @@ function setup(
   };
   const secrets = new Map<string, string>((options.keys ?? ['a', 'b']).map((id) => [id, KEY]));
   const created: FakeConn[] = [];
+  const failDelete = new Set(options.failDelete ?? []);
+  let releaseProbe: () => void = () => undefined;
+  const probeGate = new Promise<void>((resolve) => {
+    releaseProbe = resolve;
+  });
 
   const createConnection = vi.fn(({ url, apiKey }: { url: string; apiKey: string }) => {
     let status: ConnectionStatus = 'offline';
@@ -50,6 +56,7 @@ function setup(
             kind: apiKey === 'bad' ? 'auth' : 'connection',
           });
         }
+        if (apiKey.startsWith('fk-hold')) await probeGate;
         if (apiKey.startsWith('fk-probe')) {
           throw Object.assign(new Error('rejected'), { kind: 'auth' });
         }
@@ -100,6 +107,7 @@ function setup(
         return Promise.resolve();
       },
       deleteSecret: (id) => {
+        if (failDelete.has(id)) return Promise.reject(new Error('keystore busy'));
         secrets.delete(id);
         return Promise.resolve();
       },
@@ -108,7 +116,15 @@ function setup(
       raw.startsWith('ftp') ? { ok: false, reason: 'malformed' } : { ok: true, url: raw },
     onChange: () => undefined,
   };
-  return { manager: createConnectionManager(deps), saved, secrets, created, createConnection };
+  return {
+    manager: createConnectionManager(deps),
+    saved,
+    secrets,
+    created,
+    createConnection,
+    failDelete,
+    releaseProbe: () => releaseProbe(),
+  };
 }
 
 describe('addConnection', () => {
@@ -310,5 +326,75 @@ describe('signOut', () => {
     });
     await manager.signOut();
     expect(secrets.size).toBe(0);
+  });
+});
+
+describe('sign-out fences in-flight probes', () => {
+  it('an Add whose probe resolves after sign-out saves nothing and stores no secret', async () => {
+    const { manager, saved, secrets, releaseProbe } = setup();
+    const pending = manager.addConnection({
+      label: 'Late',
+      url: 'ws://127.0.0.1:3106',
+      apiKey: 'fk-hold-1234567890',
+    });
+    const outcome = pending.then(
+      () => 'saved',
+      () => 'rejected',
+    );
+    await manager.signOut();
+    releaseProbe();
+    expect(await outcome).toBe('rejected');
+    expect(saved.connections).toEqual([]);
+    expect(manager.getState().savedConnections).toEqual([]);
+    expect(secrets.size).toBe(0);
+  });
+
+  it('an Edit with a new key whose probe resolves after sign-out stores no secret', async () => {
+    const { manager, saved, secrets, releaseProbe } = setup();
+    const pending = manager.updateConnection('b', {
+      label: 'B',
+      url: B.url,
+      apiKey: 'fk-hold-1234567890',
+    });
+    const outcome = pending.then(
+      () => 'saved',
+      () => 'rejected',
+    );
+    await manager.signOut();
+    releaseProbe();
+    expect(await outcome).toBe('rejected');
+    expect(saved.connections).toEqual([]);
+    expect(secrets.size).toBe(0);
+  });
+});
+
+describe('failed secure delete', () => {
+  it('sign-out keeps metadata and throws, and a later attempt removes the key', async () => {
+    const { manager, saved, secrets, failDelete } = setup();
+    await manager.switchTo('a');
+    failDelete.add('b');
+    await expect(manager.signOut()).rejects.toThrow();
+    expect(secrets.has('b')).toBe(true);
+    expect(saved.connections.map((c) => c.id)).toContain('b');
+
+    failDelete.clear();
+    await manager.signOut();
+    expect(secrets.size).toBe(0);
+    expect(saved.connections).toEqual([]);
+    expect(manager.getState().connection).toBeNull();
+  });
+
+  it('forget keeps the entry when the key cannot be deleted and succeeds on retry', async () => {
+    const { manager, saved, secrets, failDelete } = setup();
+    await manager.switchTo('a');
+    failDelete.add('b');
+    await expect(manager.forget('b')).rejects.toThrow();
+    expect(secrets.has('b')).toBe(true);
+    expect(saved.connections.map((c) => c.id)).toContain('b');
+
+    failDelete.clear();
+    await manager.forget('b');
+    expect(secrets.has('b')).toBe(false);
+    expect(saved.connections.map((c) => c.id)).toEqual(['a']);
   });
 });

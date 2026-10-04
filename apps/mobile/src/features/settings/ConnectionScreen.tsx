@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsSubHeader } from './SettingsSubHeader';
 import { ConnectionForm } from './ConnectionForm';
@@ -36,6 +36,7 @@ export function ConnectionScreen() {
   const [panel, setPanel] = useState<Panel>(null);
   const [forgetTarget, setForgetTarget] = useState<SavedConnection | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
   const lockEnabled = useLockStore((state) => state.enabled);
   const authenticate = useAuthenticate();
@@ -77,12 +78,15 @@ export function ConnectionScreen() {
   const confirmForget = () => {
     const target = forgetTarget;
     setForgetTarget(null);
-    if (target) void forget(target.id);
+    if (!target) return;
+    setRemoveError(false);
+    forget(target.id).catch(() => setRemoveError(true));
   };
 
   const confirmSignOut = () => {
     setSignOutOpen(false);
-    void signOut();
+    setRemoveError(false);
+    signOut().catch(() => setRemoveError(true));
   };
 
   return (
@@ -129,6 +133,11 @@ export function ConnectionScreen() {
         {revealError ? (
           <p className="field__error" data-testid="connection-reveal-error" role="alert">
             {t(revealError)}
+          </p>
+        ) : null}
+        {removeError ? (
+          <p className="field__error" data-testid="connection-remove-error" role="alert">
+            {t('connections.errorRemoveFailed')}
           </p>
         ) : null}
         {switchError ? (

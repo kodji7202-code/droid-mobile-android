@@ -176,6 +176,7 @@
     "signOutTitle": "Te deconectezi?",
     "signOutMessage": "Elimini toate conexiunile salvate și cheile API de pe acest dispozitiv și revii la ecranul de conectare?",
     "signOutConfirm": "Deconectează-te",
+    "errorRemoveFailed": "O cheie stocată nu a putut fi eliminată de pe acest dispozitiv. Nu s-a pierdut nimic; încearcă din nou.",
     "forgetTitle": "?tergi aceast? conexiune?",
     "forgetMessage": "Elimini ?{{label}}? ?i cheia API stocat? de pe acest dispozitiv?",
     "forgetConfirm": "Uit?",

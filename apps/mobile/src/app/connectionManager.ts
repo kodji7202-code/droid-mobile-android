@@ -1,4 +1,4 @@
-/**
+﻿/**
  * App-level connection manager on top of packages/daemon-client (feature
  * connection-manager-reconnect-offline).
  *
@@ -41,6 +41,22 @@ export class MissingKeyError extends Error {
   constructor() {
     super('No API key is stored for this connection');
     this.name = 'MissingKeyError';
+  }
+}
+
+/** Thrown when a pending Add/Edit probe finishes after the user signed out. */
+export class SignedOutError extends Error {
+  constructor() {
+    super('Signed out while the connection was being verified');
+    this.name = 'SignedOutError';
+  }
+}
+
+/** Thrown when a key could not be removed from secure storage; its metadata is kept for a retry. */
+export class SecretDeleteError extends Error {
+  constructor() {
+    super('A stored key could not be removed from this device');
+    this.name = 'SecretDeleteError';
   }
 }
 
@@ -153,6 +169,9 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
   };
   let unsubscribe: (() => void) | null = null;
   let pendingConnect: Promise<void> | null = null;
+  // Bumped by signOut so probes started earlier can tell they were fenced off.
+  let signOutEpoch = 0;
+  const liveProbes = new Set<DaemonConnection>();
 
   function emit(next: Partial<ConnectionManagerState>): void {
     state = { ...state, ...next };
@@ -243,11 +262,17 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
     return policy.url;
   }
 
-  async function validateCandidate(url: string, apiKey: string): Promise<void> {
+  async function validateCandidate(url: string, apiKey: string, epoch: number): Promise<void> {
     const probe = deps.createConnection({ url, apiKey });
+    liveProbes.add(probe);
     try {
       await probe.connect();
+      if (epoch !== signOutEpoch) throw new SignedOutError();
+    } catch (error) {
+      if (epoch !== signOutEpoch) throw new SignedOutError();
+      throw error;
     } finally {
+      liveProbes.delete(probe);
       try {
         probe.disconnect();
       } catch {
@@ -262,13 +287,21 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
     apiKey: string;
   }): Promise<SavedConnection> {
     const url = checkedUrl(input.url);
-    await validateCandidate(url, input.apiKey);
+    const epoch = signOutEpoch;
+    await validateCandidate(url, input.apiKey, epoch);
     const entry: SavedConnection = {
       id: crypto.randomUUID(),
       label: input.label.trim() || labelFor(url),
       url,
     };
     await deps.getSecureStore().setSecret(entry.id, input.apiKey);
+    if (epoch !== signOutEpoch) {
+      await deps
+        .getSecureStore()
+        .deleteSecret(entry.id)
+        .catch(() => undefined);
+      throw new SignedOutError();
+    }
     deps.addSavedConnection(entry);
     emit(snapshotSaved());
     return entry;
@@ -309,13 +342,29 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
     const url = checkedUrl(input.url);
     const apiKey = input.apiKey?.trim() ? input.apiKey.trim() : null;
     if (apiKey) {
-      await validateCandidate(url, apiKey);
+      const epoch = signOutEpoch;
+      await validateCandidate(url, apiKey, epoch);
       await deps.getSecureStore().setSecret(id, apiKey);
+      if (epoch !== signOutEpoch) {
+        await deps
+          .getSecureStore()
+          .deleteSecret(id)
+          .catch(() => undefined);
+        throw new SignedOutError();
+      }
     }
     deps.updateSavedConnection(id, { label: input.label.trim() || labelFor(url), url });
     emit(snapshotSaved());
     const changed = apiKey !== null || url !== entry.url;
     if (changed && state.activeConnectionId === id) await activate(id);
+  }
+
+  async function deleteKey(id: string): Promise<void> {
+    try {
+      await deps.getSecureStore().deleteSecret(id);
+    } catch {
+      throw new SecretDeleteError();
+    }
   }
 
   async function forget(id: string): Promise<void> {
@@ -325,7 +374,7 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
     // The Connect screen reads the saved list when it mounts (on close), so the
     // entry must be gone by then or the form would be prefilled with its URL.
     const dropAndClose = async (): Promise<void> => {
-      await deps.getSecureStore().deleteSecret(id);
+      await deleteKey(id);
       deps.removeSavedConnection(id);
       close();
     };
@@ -345,7 +394,7 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
         await dropAndClose();
       }
     }
-    await deps.getSecureStore().deleteSecret(id);
+    await deleteKey(id);
     deps.removeSavedConnection(id);
     emit({
       activeConnectionId: wasActive && !successor ? null : state.activeConnectionId,
@@ -356,12 +405,22 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
     const store = deps.getSecureStore();
     const ids = new Set(deps.loadSavedConnections().connections.map((entry) => entry.id));
     if (state.activeConnectionId) ids.add(state.activeConnectionId);
+    signOutEpoch += 1;
+    for (const probe of liveProbes) {
+      try {
+        probe.disconnect();
+      } catch {
+        // a probe that never connected may not close cleanly
+      }
+    }
+    // Keys go first: metadata is the only record needed to retry a failed delete.
+    const results = await Promise.allSettled(
+      [...ids, PENDING_BRIDGE_SECRET_ID].map((id) => store.deleteSecret(id)),
+    );
+    if (results.some((result) => result.status === 'rejected')) throw new SecretDeleteError();
     // Metadata goes before close() so the Connect screen mounts with an empty form.
     deps.clearSavedConnections();
     close();
-    await Promise.all(
-      [...ids, PENDING_BRIDGE_SECRET_ID].map((id) => store.deleteSecret(id).catch(() => undefined)),
-    );
     emit({ activeConnectionId: null, ...snapshotSaved() });
   }
 

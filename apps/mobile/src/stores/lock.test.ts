@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../platform/biometrics', () => ({
   biometrics: { isAvailable: vi.fn(), authenticate: vi.fn() },
@@ -78,6 +78,40 @@ describe('lock store', () => {
     expect(useLockStore.getState().locked).toBe(true);
   });
 
+  it('counts Home during a pending prompt as a genuine background after it is cancelled', async () => {
+    reset({ graceSeconds: 30 });
+    vi.mocked(biometrics.authenticate).mockImplementation(() => {
+      useLockStore.getState().onBackground(1_000_000);
+      return Promise.resolve('cancelled');
+    });
+    await useLockStore.getState().authenticate('r', 'c');
+    useLockStore.getState().onForeground(1_040_000);
+    expect(useLockStore.getState().locked).toBe(true);
+  });
+
+  it('does not lock when the prompt background was followed by a brief foreground inside the prompt', async () => {
+    reset({ graceSeconds: 30 });
+    vi.mocked(biometrics.authenticate).mockImplementation(() => {
+      const store = useLockStore.getState();
+      store.onBackground(1_000_000);
+      store.onForeground(1_000_100);
+      return Promise.resolve('cancelled');
+    });
+    await useLockStore.getState().authenticate('r', 'c');
+    useLockStore.getState().onForeground(1_040_000);
+    expect(useLockStore.getState().locked).toBe(false);
+  });
+  it('relocks when the app returned over a pending prompt after a long absence', async () => {
+    reset({ graceSeconds: 30 });
+    vi.mocked(biometrics.authenticate).mockImplementation(() => {
+      const store = useLockStore.getState();
+      store.onBackground(1_000_000);
+      store.onForeground(1_040_000);
+      return Promise.resolve('cancelled');
+    });
+    await useLockStore.getState().authenticate('r', 'c');
+    expect(useLockStore.getState().locked).toBe(true);
+  });
   it('passes the localized title through to the biometric prompt', async () => {
     vi.mocked(biometrics.authenticate).mockResolvedValue('success');
     await useLockStore.getState().authenticate('r', 'c', 'Titlu');

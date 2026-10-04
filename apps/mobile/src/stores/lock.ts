@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { Capacitor } from '@capacitor/core';
 import { biometrics } from '../platform/biometrics';
 import type { BiometricOutcome } from '../platform/biometrics';
@@ -64,6 +64,12 @@ let backgroundedAt: number | null = null;
  * seconds after an unlock.
  */
 let promptActive = false;
+/** Set when the app went to the background while the prompt was showing and has not returned since. */
+let backgroundedDuringPrompt: number | null = null;
+/** The app returned during the prompt after an away long enough to be real inactivity. */
+let awayBeyondGraceDuringPrompt = false;
+/** Prompt-caused leave/return transitions finish well inside this window. */
+const PROMPT_TRANSITION_FLOOR_MS = 1500;
 
 export const useLockStore = create<LockStore>((set, get) => {
   const enabled = readEnabled();
@@ -88,18 +94,39 @@ export const useLockStore = create<LockStore>((set, get) => {
     async authenticate(reason, cancelTitle, title) {
       promptActive = true;
       backgroundedAt = null;
+      backgroundedDuringPrompt = null;
+      awayBeyondGraceDuringPrompt = false;
+      let outcome: BiometricOutcome | null = null;
       try {
-        return await biometrics.authenticate(reason, cancelTitle, title);
+        outcome = await biometrics.authenticate(reason, cancelTitle, title);
+        return outcome;
       } finally {
         promptActive = false;
-        backgroundedAt = null;
+        // Home pressed over the prompt: the prompt closes without the app ever
+        // returning, so that background is genuine.
+        backgroundedAt = outcome === 'success' ? null : backgroundedDuringPrompt;
+        backgroundedDuringPrompt = null;
+        if (awayBeyondGraceDuringPrompt) get().lock();
+        awayBeyondGraceDuringPrompt = false;
       }
     },
     onBackground(now) {
-      if (promptActive) return;
+      if (promptActive) {
+        backgroundedDuringPrompt ??= now;
+        return;
+      }
       backgroundedAt = now;
     },
     onForeground(now) {
+      if (promptActive) {
+        const left = backgroundedDuringPrompt;
+        backgroundedDuringPrompt = null;
+        const limitMs = Math.max(get().graceSeconds * 1000, PROMPT_TRANSITION_FLOOR_MS);
+        if (left !== null && get().enabled && now - left > limitMs) {
+          awayBeyondGraceDuringPrompt = true;
+        }
+        return;
+      }
       const since = backgroundedAt;
       backgroundedAt = null;
       if (promptActive || since === null || !get().enabled) return;
@@ -107,3 +134,4 @@ export const useLockStore = create<LockStore>((set, get) => {
     },
   };
 });
+

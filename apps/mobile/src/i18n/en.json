@@ -176,6 +176,7 @@
     "signOutTitle": "Sign out?",
     "signOutMessage": "Remove all saved connections and API keys from this device and return to the Connect screen?",
     "signOutConfirm": "Sign out",
+    "errorRemoveFailed": "A stored key could not be removed from this device. Nothing was lost; try again.",
     "forgetTitle": "Forget this connection?",
     "forgetMessage": "Remove \"{{label}}\" and its stored API key from this device?",
     "forgetConfirm": "Forget",
