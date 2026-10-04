@@ -1,6 +1,9 @@
 import type { DaemonConnection } from '@droidmobile/daemon-client';
 
 export type DaemonSessionSummary = Awaited<ReturnType<DaemonConnection['listSessions']>>[number];
+export type DaemonSearchSummary = Awaited<
+  ReturnType<DaemonConnection['searchSessions']>
+>['sessions'][number];
 
 /** sessions.list accepts at most 100 per request; a smaller page keeps the first paint fast. */
 export const PAGE_SIZE = 25;
@@ -8,9 +11,11 @@ export const PAGE_SIZE = 25;
 export interface SessionRowData {
   id: string;
   title: string;
-  messageCount: number;
+  /** Absent for search hits: sessions.search does not report a message count. */
+  messageCount?: number;
   modifiedMs: number;
   cwd?: string;
+  archived?: boolean;
 }
 
 export function toRow(summary: DaemonSessionSummary): SessionRowData {
@@ -20,6 +25,15 @@ export function toRow(summary: DaemonSessionSummary): SessionRowData {
     messageCount: summary.messageCount,
     modifiedMs: summary.modifiedTime.getTime(),
     cwd: summary.cwd,
+    archived: summary.archivedTime != null,
+  };
+}
+
+export function toSearchRow(hit: DaemonSearchSummary): SessionRowData {
+  return {
+    id: hit.id,
+    title: hit.title?.trim() ?? '',
+    modifiedMs: hit.modifiedTime?.getTime() ?? 0,
   };
 }
 
@@ -57,17 +71,6 @@ export function nextEndBefore(
   const lastSecond = Math.floor(oldest / 1000);
   const inclusive = lastSecond + 1;
   return previous !== undefined && inclusive >= previous ? lastSecond : inclusive;
-}
-
-export function filterRows(rows: SessionRowData[], query: string): SessionRowData[] {
-  const needle = query.trim().toLowerCase();
-  if (needle === '') {
-    return rows;
-  }
-  return rows.filter(
-    (row) =>
-      row.title.toLowerCase().includes(needle) || (row.cwd ?? '').toLowerCase().includes(needle),
-  );
 }
 
 const RELATIVE_STEPS: Array<[Intl.RelativeTimeFormatUnit, number]> = [

@@ -26,27 +26,53 @@ function summary(
 
 /** Stand-in for the daemon's cursor semantics: newest first, exclusive unix-second endBefore. */
 function fakeConnection(all: DaemonSessionSummary[]) {
-  const listSessions = vi.fn(async (options?: { limit?: number; endBefore?: number }) => {
-    const limit = options?.limit ?? 100;
-    const eligible = all.filter(
-      (item) =>
-        options?.endBefore === undefined ||
-        Math.floor(item.modifiedTime.getTime() / 1000) < options.endBefore,
-    );
-    return eligible.slice(0, limit);
-  });
+  const listSessions = vi.fn(
+    async (options?: { limit?: number; endBefore?: number; includeArchived?: boolean }) => {
+      const limit = options?.limit ?? 100;
+      const eligible = all.filter(
+        (item) =>
+          (options?.includeArchived === true || item.archivedTime == null) &&
+          (options?.endBefore === undefined ||
+            Math.floor(item.modifiedTime.getTime() / 1000) < options.endBefore),
+      );
+      return eligible.slice(0, limit);
+    },
+  );
+  const searchSessions = vi.fn(async ({ query }: { query: string }) => ({
+    query,
+    sessions: all
+      .filter((item) => (item.title ?? '').toLowerCase().includes(query.toLowerCase()))
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        modifiedTime: item.modifiedTime,
+        hits: [],
+      })),
+  }));
   const archiveSession = vi.fn(async (id: string) => {
-    const at = all.findIndex((item) => item.id === id);
-    if (at >= 0) all.splice(at, 1);
+    const found = all.find((item) => item.id === id);
+    if (found) found.archivedTime = new Date();
+  });
+  const unarchiveSession = vi.fn(async (id: string) => {
+    const found = all.find((item) => item.id === id);
+    if (found) delete found.archivedTime;
   });
   const renameSession = vi.fn(async (id: string, title: string) => {
     const found = all.find((item) => item.id === id);
     if (found) found.title = title;
   });
   return {
-    connection: { listSessions, archiveSession, renameSession } as unknown as DaemonConnection,
+    connection: {
+      listSessions,
+      searchSessions,
+      archiveSession,
+      unarchiveSession,
+      renameSession,
+    } as unknown as DaemonConnection,
     listSessions,
+    searchSessions,
     archiveSession,
+    unarchiveSession,
     renameSession,
   };
 }
@@ -128,8 +154,77 @@ describe('SessionsScreen list', () => {
     renderScreen([summary(0), summary(1)]);
     await screen.findByTestId('session-item-s000');
     await userEvent.setup().type(screen.getByTestId('session-search-input'), 'zzzz-no-such');
-    expect(screen.getByText(/No sessions match "zzzz-no-such"/)).toBeInTheDocument();
+    expect(await screen.findByText(/No sessions match "zzzz-no-such"/)).toBeInTheDocument();
     expect(screen.queryAllByTestId(/^session-item-/)).toHaveLength(0);
+  });
+});
+
+describe('SessionsScreen search', () => {
+  it('sends one debounced sessions.search for the full query and shows the daemon hits', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { searchSessions } = renderScreen([
+      summary(0, { title: 'alpha' }),
+      summary(1, { title: 'droidm-abc123def456' }),
+    ]);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime, delay: 50 });
+    await screen.findByTestId('session-item-s000');
+    await user.type(screen.getByTestId('session-search-input'), 'droidm-abc123def456');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+    await waitFor(() => expect(screen.getAllByTestId(/^session-item-/)).toHaveLength(1));
+    expect(screen.getByTestId('session-item-s001')).toBeInTheDocument();
+    expect(searchSessions.mock.calls.length).toBeLessThanOrEqual(3);
+    expect(searchSessions).toHaveBeenLastCalledWith({ query: 'droidm-abc123def456' });
+  });
+
+  it('restores the loaded list when the search is cleared', async () => {
+    renderScreen([summary(0, { title: 'alpha' }), summary(1, { title: 'beta' })]);
+    const user = userEvent.setup();
+    await screen.findByTestId('session-item-s001');
+    const input = screen.getByTestId('session-search-input');
+    await user.type(input, 'alpha');
+    await waitFor(() => expect(screen.queryByTestId('session-item-s001')).not.toBeInTheDocument());
+    await user.clear(input);
+    expect(await screen.findByTestId('session-item-s001')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^session-item-/)).toHaveLength(2);
+  });
+
+  it('shows an error with retry when sessions.search fails', async () => {
+    const { searchSessions } = renderScreen([summary(0)]);
+    searchSessions.mockRejectedValueOnce(new Error('boom'));
+    await screen.findByTestId('session-item-s000');
+    await userEvent.setup().type(screen.getByTestId('session-search-input'), 'x');
+    expect(await screen.findByText('Search failed. Try again.')).toBeInTheDocument();
+  });
+});
+
+describe('SessionsScreen archived filter', () => {
+  it('lists archived sessions only and unarchive moves a session back', async () => {
+    const { unarchiveSession } = renderScreen([
+      summary(0),
+      summary(1, { archivedTime: new Date(BASE_SECONDS * 1000) }),
+    ]);
+    const user = userEvent.setup();
+    await screen.findByTestId('session-item-s000');
+    expect(screen.queryByTestId('session-item-s001')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('sessions-filter-archived'));
+    await screen.findByTestId('session-item-s001');
+    expect(screen.queryByTestId('session-item-s000')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('session-more-s001'));
+    await user.click(screen.getByTestId('session-unarchive-s001'));
+    await waitFor(() => expect(screen.queryByTestId('session-item-s001')).not.toBeInTheDocument());
+    expect(unarchiveSession).toHaveBeenCalledWith('s001');
+    await user.click(screen.getByTestId('sessions-filter-active'));
+    expect(await screen.findByTestId('session-item-s001')).toBeInTheDocument();
+  });
+
+  it('shows an empty state when nothing is archived', async () => {
+    renderScreen([summary(0)]);
+    const user = userEvent.setup();
+    await screen.findByTestId('session-item-s000');
+    await user.click(screen.getByTestId('sessions-filter-archived'));
+    expect(await screen.findByText('No archived sessions')).toBeInTheDocument();
   });
 });
 
@@ -215,6 +310,7 @@ describe('SessionsScreen row actions', () => {
     await user.click(within(menu).getByTestId('session-archive-s000'));
     await waitFor(() => expect(screen.queryByTestId('session-item-s000')).not.toBeInTheDocument());
     expect(archiveSession).toHaveBeenCalledWith('s000');
+    expect(screen.getByTestId('session-item-s001')).toBeInTheDocument();
   });
 
   it('renames a session through the sheet', async () => {

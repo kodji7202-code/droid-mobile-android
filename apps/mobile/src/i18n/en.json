@@ -94,7 +94,16 @@
     "create": "Create session",
     "trustTitle": "Trust this folder?",
     "trustMessage": "The agent can read and change files in {{path}}. Only continue if you trust its contents.",
-    "trustAndCreate": "Trust and create"
+    "trustAndCreate": "Trust and create",
+    "unarchive": "Unarchive",
+    "unarchiveFailed": "Could not unarchive the session.",
+    "filterActive": "Active",
+    "filterArchived": "Archived",
+    "filterLabel": "Session filter",
+    "searching": "Searching…",
+    "searchFailed": "Search failed. Try again.",
+    "archivedEmptyTitle": "No archived sessions",
+    "archivedEmpty": "Sessions you archive appear here."
   },
   "placeholder": {
     "message": "This screen is not built yet."

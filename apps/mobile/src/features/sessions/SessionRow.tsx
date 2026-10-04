@@ -11,6 +11,7 @@ interface SessionRowProps {
   onToggleMenu(id: string): void;
   onRename(row: SessionRowData): void;
   onArchive(row: SessionRowData): void;
+  onUnarchive(row: SessionRowData): void;
 }
 
 export function SessionRow({
@@ -21,6 +22,7 @@ export function SessionRow({
   onToggleMenu,
   onRename,
   onArchive,
+  onUnarchive,
 }: SessionRowProps) {
   const { t, i18n } = useTranslation();
   const title = row.title === '' ? t('sessions.untitled') : row.title;
@@ -40,10 +42,14 @@ export function SessionRow({
           <span data-testid={`session-modified-${row.id}`}>
             {formatModified(row.modifiedMs, now, i18n.language)}
           </span>
-          <span aria-hidden="true"> · </span>
-          <span data-testid={`session-count-${row.id}`}>
-            {t('sessions.messages', { count: row.messageCount })}
-          </span>
+          {row.messageCount !== undefined ? (
+            <>
+              <span aria-hidden="true"> · </span>
+              <span data-testid={`session-count-${row.id}`}>
+                {t('sessions.messages', { count: row.messageCount })}
+              </span>
+            </>
+          ) : null}
         </span>
       </button>
       <button
@@ -72,10 +78,10 @@ export function SessionRow({
             type="button"
             role="menuitem"
             className="btn btn--ghost session-row__action"
-            data-testid={`session-archive-${row.id}`}
-            onClick={() => onArchive(row)}
+            data-testid={row.archived ? `session-unarchive-${row.id}` : `session-archive-${row.id}`}
+            onClick={() => (row.archived ? onUnarchive(row) : onArchive(row))}
           >
-            {t('sessions.archive')}
+            {row.archived ? t('sessions.unarchive') : t('sessions.archive')}
           </button>
         </div>
       ) : null}

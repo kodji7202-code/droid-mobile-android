@@ -94,7 +94,16 @@
     "create": "Creează sesiunea",
     "trustTitle": "Ai încredere în acest dosar?",
     "trustMessage": "Agentul poate citi și modifica fișiere în {{path}}. Continuă doar dacă ai încredere în conținut.",
-    "trustAndCreate": "Acordă încredere și creează"
+    "trustAndCreate": "Acordă încredere și creează",
+    "unarchive": "Dezarhivează",
+    "unarchiveFailed": "Sesiunea nu a putut fi dezarhivată.",
+    "filterActive": "Active",
+    "filterArchived": "Arhivate",
+    "filterLabel": "Filtru sesiuni",
+    "searching": "Se caută…",
+    "searchFailed": "Căutarea a eșuat. Încearcă din nou.",
+    "archivedEmptyTitle": "Nicio sesiune arhivată",
+    "archivedEmpty": "Sesiunile arhivate apar aici."
   },
   "placeholder": {
     "message": "Acest ecran nu este construit încă."

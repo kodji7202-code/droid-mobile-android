@@ -22,24 +22,29 @@ interface LoadedPages {
 async function loadPages(
   connection: DaemonConnection,
   start: Pick<LoadedPages, 'rows' | 'endBefore'>,
-  options: { minPages: number; coverMs?: number },
+  options: { minPages: number; coverMs?: number; archived: boolean },
 ): Promise<LoadedPages> {
   let rows = start.rows;
   let endBefore = start.endBefore;
   let hasMore = true;
+  // The daemon has no archived-only list: archived rows are picked out of
+  // includeArchived pages, so keep reading until a page's worth turned up.
+  const wanted = start.rows.length + (options.archived ? PAGE_SIZE : 0);
   for (let index = 0; index < MAX_REFRESH_PAGES && hasMore; index += 1) {
     const covered =
       index >= options.minPages &&
+      rows.length >= wanted &&
       (options.coverMs === undefined || oldestMs(rows) <= options.coverMs);
     if (covered) {
       break;
     }
     const page = await connection.listSessions({
       limit: PAGE_SIZE,
+      ...(options.archived ? { includeArchived: true } : {}),
       ...(endBefore !== undefined ? { endBefore } : {}),
     });
     const pageRows = page.map(toRow);
-    rows = mergeRows(rows, pageRows);
+    rows = mergeRows(rows, options.archived ? pageRows.filter((row) => row.archived) : pageRows);
     hasMore = page.length >= PAGE_SIZE;
     endBefore = nextEndBefore(pageRows, endBefore);
   }
@@ -76,6 +81,8 @@ export interface SessionsListState {
 
 interface Options {
   connection: DaemonConnection | null;
+  /** Lists archived sessions only instead of the default (non-archived) list. */
+  archived?: boolean;
   ready: boolean;
   readyEpoch: number;
 }
@@ -87,7 +94,12 @@ interface Options {
  * and on a 10 s poll while the page is visible. Nothing is requested while the
  * connection is not ready, so the loaded rows simply stay on screen.
  */
-export function useSessionsList({ connection, ready, readyEpoch }: Options): SessionsListState {
+export function useSessionsList({
+  connection,
+  ready,
+  readyEpoch,
+  archived = false,
+}: Options): SessionsListState {
   const [rows, setRows] = useState<SessionRowData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,6 +113,10 @@ export function useSessionsList({ connection, ready, readyEpoch }: Options): Ses
   const busyRef = useRef(false);
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
+  const archivedRef = useRef(archived);
+  archivedRef.current = archived;
+  // Bumped when the filter changes so an in-flight load for the old filter is dropped.
+  const generationRef = useRef(0);
 
   const apply = useCallback((loaded: LoadedPages) => {
     rowsRef.current = loaded.rows;
@@ -117,22 +133,32 @@ export function useSessionsList({ connection, ready, readyEpoch }: Options): Ses
       return;
     }
     busyRef.current = true;
+    const generation = generationRef.current;
     setRefreshing(true);
     try {
       const loaded = rowsRef.current;
-      apply(
-        await loadPages(
-          active,
-          { rows: [], endBefore: undefined },
-          { minPages: 1, coverMs: loaded.length > 0 ? oldestMs(loaded) : undefined },
-        ),
+      const next = await loadPages(
+        active,
+        { rows: [], endBefore: undefined },
+        {
+          minPages: 1,
+          coverMs: loaded.length > 0 ? oldestMs(loaded) : undefined,
+          archived: archivedRef.current,
+        },
       );
+      if (generation === generationRef.current) {
+        apply(next);
+      }
     } catch {
-      setFailed(true);
+      if (generation === generationRef.current) {
+        setFailed(true);
+      }
     } finally {
-      busyRef.current = false;
-      setRefreshing(false);
-      setLoading(false);
+      if (generation === generationRef.current) {
+        busyRef.current = false;
+        setRefreshing(false);
+        setLoading(false);
+      }
     }
   }, [apply]);
 
@@ -142,22 +168,49 @@ export function useSessionsList({ connection, ready, readyEpoch }: Options): Ses
       return;
     }
     busyRef.current = true;
+    const generation = generationRef.current;
     setLoadingMore(true);
     try {
-      apply(
-        await loadPages(
-          active,
-          { rows: rowsRef.current, endBefore: cursorRef.current },
-          { minPages: 1 },
-        ),
+      const next = await loadPages(
+        active,
+        { rows: rowsRef.current, endBefore: cursorRef.current },
+        { minPages: 1, archived: archivedRef.current },
       );
+      if (generation === generationRef.current) {
+        apply(next);
+      }
     } catch {
-      setFailed(true);
+      if (generation === generationRef.current) {
+        setFailed(true);
+      }
     } finally {
-      busyRef.current = false;
-      setLoadingMore(false);
+      if (generation === generationRef.current) {
+        busyRef.current = false;
+        setLoadingMore(false);
+      }
     }
   }, [apply]);
+
+  const previousArchived = useRef(archived);
+  useEffect(() => {
+    if (previousArchived.current === archived) {
+      return;
+    }
+    previousArchived.current = archived;
+    generationRef.current += 1;
+    busyRef.current = false;
+    rowsRef.current = [];
+    cursorRef.current = undefined;
+    setRows([]);
+    setHasMore(false);
+    setFailed(false);
+    setRefreshing(false);
+    setLoadingMore(false);
+    setLoading(true);
+    if (ready) {
+      void refresh();
+    }
+  }, [archived, ready, refresh]);
 
   useEffect(() => {
     if (ready) {

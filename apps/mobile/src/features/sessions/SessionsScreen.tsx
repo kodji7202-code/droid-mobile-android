@@ -11,9 +11,9 @@ import { useSessionViewStore } from '../../stores/sessionView';
 import { NewSessionSheet } from './newSession/NewSessionSheet';
 import { RenameSessionSheet } from './RenameSessionSheet';
 import { SessionRow } from './SessionRow';
-import { filterRows } from './sessionsPaging';
 import type { SessionRowData } from './sessionsPaging';
 import { usePullToRefresh } from './usePullToRefresh';
+import { useSessionSearch } from './useSessionSearch';
 import { useSessionsList } from './useSessionsList';
 
 const SKELETON_ROWS = 5;
@@ -26,10 +26,12 @@ export function SessionsScreen() {
   const readyEpoch = useConnectionStore((state) => state.readyEpoch);
   const ready = status === 'ready';
 
-  const list = useSessionsList({ connection, ready, readyEpoch });
+  const [archivedView, setArchivedView] = useState(false);
+  const list = useSessionsList({ connection, ready, readyEpoch, archived: archivedView });
   const { rows, loading, loadingMore, hasMore, failed, refresh, loadMore } = list;
 
   const [query, setQuery] = useState('');
+  const search = useSessionSearch({ connection, ready, readyEpoch, query });
   const [manualRefresh, setManualRefresh] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -44,14 +46,8 @@ export function SessionsScreen() {
   }, [refresh]);
   const pull = usePullToRefresh(runManualRefresh);
 
-  const searching = query.trim() !== '';
-  const visibleRows = filterRows(rows, query);
-
-  useEffect(() => {
-    if (searching && hasMore && !loadingMore && !failed) {
-      void loadMore();
-    }
-  }, [searching, hasMore, loadingMore, failed, rows.length, loadMore]);
+  const searching = search.active;
+  const visibleRows = searching ? search.rows : rows;
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -73,8 +69,21 @@ export function SessionsScreen() {
       await connection?.archiveSession(row.id);
       list.removeLocally(row.id);
       void refresh();
+      search.rerun();
     } catch {
       showToast(t('sessions.archiveFailed'), 'error');
+    }
+  };
+
+  const unarchive = async (row: SessionRowData) => {
+    setMenuId(null);
+    try {
+      await connection?.unarchiveSession(row.id);
+      list.removeLocally(row.id);
+      void refresh();
+      search.rerun();
+    } catch {
+      showToast(t('sessions.unarchiveFailed'), 'error');
     }
   };
 
@@ -88,6 +97,7 @@ export function SessionsScreen() {
       list.renameLocally(renaming.id, title);
       setRenaming(null);
       void refresh();
+      search.rerun();
     } catch {
       showToast(t('sessions.renameFailed'), 'error');
     } finally {
@@ -111,11 +121,14 @@ export function SessionsScreen() {
 
   const transient =
     status === 'connecting' || status === 'authenticating' || status === 'reconnecting';
-  const showSkeleton = loading && rows.length === 0 && (ready || transient);
-  const showOfflineEmpty = !ready && !transient && rows.length === 0;
-  const firstRunEmpty = !loading && ready && !failed && rows.length === 0;
-  const loadFailed = !loading && ready && failed && rows.length === 0;
-  const noResults = searching && rows.length > 0 && visibleRows.length === 0 && !hasMore;
+  const showSkeleton = !searching && loading && rows.length === 0 && (ready || transient);
+  const showOfflineEmpty = !searching && !ready && !transient && rows.length === 0;
+  const idle = !searching && !loading && ready && !failed && rows.length === 0;
+  const firstRunEmpty = idle && !archivedView;
+  const archivedEmpty = idle && archivedView;
+  const loadFailed = !searching && !loading && ready && failed && rows.length === 0;
+  const searchPending = searching && ready && !search.settled;
+  const noResults = searching && search.settled && !search.failed && visibleRows.length === 0;
 
   return (
     <section
@@ -159,6 +172,27 @@ export function SessionsScreen() {
         onChange={(event) => setQuery(event.target.value)}
       />
 
+      <div className="sessions-filter" role="group" aria-label={t('sessions.filterLabel')}>
+        <button
+          type="button"
+          className={`btn ${archivedView ? 'btn--ghost' : 'btn--secondary'}`}
+          data-testid="sessions-filter-active"
+          aria-pressed={!archivedView}
+          onClick={() => setArchivedView(false)}
+        >
+          {t('sessions.filterActive')}
+        </button>
+        <button
+          type="button"
+          className={`btn ${archivedView ? 'btn--secondary' : 'btn--ghost'}`}
+          data-testid="sessions-filter-archived"
+          aria-pressed={archivedView}
+          onClick={() => setArchivedView(true)}
+        >
+          {t('sessions.filterArchived')}
+        </button>
+      </div>
+
       {!ready ? (
         <p
           className="sessions-notice sessions-notice--offline"
@@ -168,7 +202,20 @@ export function SessionsScreen() {
           {t('sessions.offline')}
         </p>
       ) : null}
-      {ready && failed && rows.length > 0 ? (
+      {searchPending ? (
+        <p className="sessions-notice" role="status" data-testid="sessions-searching">
+          {t('sessions.searching')}
+        </p>
+      ) : null}
+      {searching && search.settled && search.failed ? (
+        <ErrorState
+          title={t('sessions.loadFailedTitle')}
+          message={t('sessions.searchFailed')}
+          onRetry={search.rerun}
+          retryLabel={t('common.retry')}
+        />
+      ) : null}
+      {ready && failed && rows.length > 0 && !searching ? (
         <p className="sessions-notice" role="status" data-testid="sessions-stale">
           {t('sessions.stale')}
         </p>
@@ -184,7 +231,7 @@ export function SessionsScreen() {
         </p>
       ) : null}
 
-      {showSkeleton || rows.length > 0 ? (
+      {showSkeleton || (searching ? visibleRows.length > 0 : rows.length > 0) ? (
         <ul
           className="session-list"
           data-testid="sessions-list"
@@ -210,6 +257,7 @@ export function SessionsScreen() {
                   setRenaming(target);
                 }}
                 onArchive={(target) => void archive(target)}
+                onUnarchive={(target) => void unarchive(target)}
               />
             ))
           )}
@@ -222,13 +270,13 @@ export function SessionsScreen() {
           message={t('sessions.noResults', { query: query.trim() })}
         />
       ) : null}
-      {searching && rows.length === 0 && !loading && ready && !failed ? (
+      {archivedEmpty ? (
         <EmptyState
-          title={t('sessions.noResultsTitle')}
-          message={t('sessions.noResults', { query: query.trim() })}
+          title={t('sessions.archivedEmptyTitle')}
+          message={t('sessions.archivedEmpty')}
         />
       ) : null}
-      {firstRunEmpty && !searching ? (
+      {firstRunEmpty ? (
         <EmptyState
           title={t('sessions.emptyTitle')}
           message={t('sessions.emptyMessage')}

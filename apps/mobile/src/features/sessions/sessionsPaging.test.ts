@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { filterRows, formatModified, mergeRows, nextEndBefore } from './sessionsPaging';
-import type { SessionRowData } from './sessionsPaging';
+import { formatModified, mergeRows, nextEndBefore, toRow, toSearchRow } from './sessionsPaging';
+import type { DaemonSearchSummary, DaemonSessionSummary, SessionRowData } from './sessionsPaging';
 
 const row = (id: string, modifiedMs: number, title = id): SessionRowData => ({
   id,
@@ -30,13 +30,22 @@ describe('nextEndBefore', () => {
   });
 });
 
-describe('filterRows', () => {
-  it('matches title or cwd case-insensitively and returns all for a blank query', () => {
-    const rows = [row('a', 1, 'Fix Login'), { ...row('b', 2, 'x'), cwd: 'C:\\Work\\Alpha' }];
-    expect(filterRows(rows, '  login ').map((r) => r.id)).toEqual(['a']);
-    expect(filterRows(rows, 'alpha').map((r) => r.id)).toEqual(['b']);
-    expect(filterRows(rows, '')).toHaveLength(2);
-    expect(filterRows(rows, 'zzzz')).toHaveLength(0);
+describe('row mapping', () => {
+  it('marks list rows archived from archivedTime', () => {
+    const base = { id: 'a', messageCount: 3, modifiedTime: new Date(5_000) };
+    expect(toRow(base as DaemonSessionSummary).archived).toBe(false);
+    expect(toRow({ ...base, archivedTime: new Date(6_000) } as DaemonSessionSummary).archived).toBe(
+      true,
+    );
+  });
+
+  it('maps a search hit without a message count', () => {
+    const hit = { id: 'a', title: ' Fix ', modifiedTime: new Date(5_000), hits: [] };
+    expect(toSearchRow(hit as unknown as DaemonSearchSummary)).toEqual({
+      id: 'a',
+      title: 'Fix',
+      modifiedMs: 5_000,
+    });
   });
 });
 

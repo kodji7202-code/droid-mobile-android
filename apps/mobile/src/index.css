@@ -600,6 +600,15 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   flex: 1;
 }
 
+.sessions-filter {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sessions-filter .btn {
+  flex: 1;
+}
+
 .sessions-notice {
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
