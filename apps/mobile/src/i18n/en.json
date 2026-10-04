@@ -1,6 +1,72 @@
 {
   "app": {
-    "title": "Droid Mobile",
-    "placeholder": "The app shell is not built yet. This screen only proves the toolchain works."
+    "title": "Droid Mobile"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "sessions": "Sessions",
+    "workspace": "Workspace",
+    "extensions": "Extensions",
+    "settings": "Settings"
+  },
+  "connection": {
+    "status": {
+      "connecting": "Connecting…",
+      "authenticating": "Signing in…",
+      "ready": "Connected",
+      "reconnecting": "Reconnecting…",
+      "offline": "Offline",
+      "error": "Connection error"
+    }
+  },
+  "connect": {
+    "title": "Connect to your daemon",
+    "description": "Enter the daemon URL and your Factory API key.",
+    "urlLabel": "Daemon URL",
+    "keyLabel": "API key",
+    "submit": "Connect",
+    "submitting": "Connecting…",
+    "error": "Could not connect. Check the URL and API key, then try again."
+  },
+  "placeholder": {
+    "message": "This screen is not built yet."
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "appearanceDescription": "Choose light, dark, or follow the system setting.",
+    "language": "Language",
+    "languageDescription": "Choose the language used across the app.",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
+  },
+  "language": {
+    "english": "English",
+    "romanian": "Română"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "retry": "Try again",
+    "back": "Back"
+  },
+  "emptyState": {
+    "title": "Nothing here yet"
+  },
+  "errorState": {
+    "title": "Something went wrong"
+  },
+  "shell": {
+    "errorTitle": "Something went wrong",
+    "errorMessage": "An unexpected error occurred. Reload the app to recover.",
+    "reload": "Reload"
+  },
+  "route": {
+    "notFoundTitle": "Page not found",
+    "notFoundMessage": "This page does not exist.",
+    "goHome": "Go to Sessions"
   }
 }

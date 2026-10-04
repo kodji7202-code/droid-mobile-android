@@ -9,4 +9,20 @@ export default defineConfig({
   preview: {
     allowedHosts: true,
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        advancedChunks: {
+          groups: [
+            // The SDK (+ the daemon-client adapter that wraps it) is ~1 MB;
+            // keep it in its own cacheable chunk (architecture.md 3.2).
+            {
+              name: 'daemon-sdk',
+              test: /[\\/]node_modules[\\/]@factory[\\/]droid-sdk|packages[\\/]daemon-client[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
 });

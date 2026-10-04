@@ -5,6 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:," />
     <title>Droid Mobile</title>
+    <script>
+      // Applies the persisted (non-secret) theme and language before first paint
+      // so a reload never flashes the wrong palette or language.
+      (function () {
+        try {
+          var pref = localStorage.getItem('droidm.theme') || 'system';
+          var resolved =
+            pref === 'system'
+              ? window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+              : pref;
+          document.documentElement.dataset.theme = resolved;
+          document.documentElement.dataset.themePref = pref;
+          var lang = localStorage.getItem('droidm.lang');
+          if (lang === 'ro' || lang === 'en') {
+            document.documentElement.lang = lang;
+          }
+        } catch (e) {
+          /* storage unavailable: defaults apply */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

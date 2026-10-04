@@ -1,6 +1,72 @@
 {
   "app": {
-    "title": "Droid Mobile",
-    "placeholder": "Interfața aplicației nu este construită încă. Acest ecran demonstrează doar funcționarea lanțului de unelte."
+    "title": "Droid Mobile"
+  },
+  "nav": {
+    "label": "Navigare principală",
+    "sessions": "Sesiuni",
+    "workspace": "Spațiu de lucru",
+    "extensions": "Extensii",
+    "settings": "Setări"
+  },
+  "connection": {
+    "status": {
+      "connecting": "Se conectează…",
+      "authenticating": "Se autentifică…",
+      "ready": "Conectat",
+      "reconnecting": "Se reconectează…",
+      "offline": "Offline",
+      "error": "Eroare de conexiune"
+    }
+  },
+  "connect": {
+    "title": "Conectare la daemon",
+    "description": "Introdu URL-ul daemonului și cheia API Factory.",
+    "urlLabel": "URL daemon",
+    "keyLabel": "Cheie API",
+    "submit": "Conectare",
+    "submitting": "Se conectează…",
+    "error": "Nu s-a putut realiza conexiunea. Verifică URL-ul și cheia API, apoi încearcă din nou."
+  },
+  "placeholder": {
+    "message": "Acest ecran nu este construit încă."
+  },
+  "settings": {
+    "title": "Setări",
+    "appearance": "Aspect",
+    "appearanceDescription": "Alege deschis, închis sau conform setării sistemului.",
+    "language": "Limbă",
+    "languageDescription": "Alege limba folosită în aplicație.",
+    "theme": "Temă",
+    "themeLight": "Deschisă",
+    "themeDark": "Închisă",
+    "themeSystem": "Sistem"
+  },
+  "language": {
+    "english": "English",
+    "romanian": "Română"
+  },
+  "common": {
+    "cancel": "Anulare",
+    "confirm": "Confirmare",
+    "close": "Închidere",
+    "retry": "Încearcă din nou",
+    "back": "Înapoi"
+  },
+  "emptyState": {
+    "title": "Nimic aici încă"
+  },
+  "errorState": {
+    "title": "Ceva nu a funcționat"
+  },
+  "shell": {
+    "errorTitle": "Ceva nu a funcționat",
+    "errorMessage": "A apărut o eroare neașteptată. Reîncarcă aplicația pentru a continua.",
+    "reload": "Reîncărcare"
+  },
+  "route": {
+    "notFoundTitle": "Pagină inexistentă",
+    "notFoundMessage": "Această pagină nu există.",
+    "goHome": "Mergi la Sesiuni"
   }
 }

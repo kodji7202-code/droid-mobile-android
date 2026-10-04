@@ -13,17 +13,22 @@
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",
+    "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.5.2",
+    "@droidmobile/daemon-client": "0.0.0",
     "i18next": "26.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-i18next": "17.0.15"
+    "react-i18next": "17.0.15",
+    "react-router": "7.18.4",
+    "zustand": "5.0.15"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.2",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
     "@types/node": "26.6.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

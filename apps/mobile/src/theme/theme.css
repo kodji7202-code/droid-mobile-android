@@ -1,0 +1,42 @@
+/*
+ * Theme system: light/dark palettes as CSS variables on <html data-theme>.
+ * ThemeProvider (or the pre-paint inline script in index.html) always sets the
+ * resolved value, so there is no prefers-color-scheme fallback here — the
+ * "system" choice is resolved in JS and kept in sync live.
+ *
+ * Palette contrast (WCAG, against --color-bg):
+ *   light fg  #1b1d21 on #f7f7f8 ~ 15.4:1, muted #555b63 ~ 6.9:1
+ *   dark  fg  #e7e8ea on #141518 ~ 12.9:1, muted #a2a9b3 ~ 6.8:1
+ */
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-bg: #f7f7f8;
+  --color-surface: #ffffff;
+  --color-surface-variant: #ededf0;
+  --color-fg: #1b1d21;
+  --color-fg-muted: #555b63;
+  --color-accent: #4f46e5;
+  --color-accent-fg: #ffffff;
+  --color-border: #d9dade;
+  --color-success: #1b7f3b;
+  --color-warning: #9a6700;
+  --color-danger: #b3261e;
+  --shadow-sheet: 0 8px 30px rgba(0, 0, 0, 0.18);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #141518;
+  --color-surface: #1e2023;
+  --color-surface-variant: #26282c;
+  --color-fg: #e7e8ea;
+  --color-fg-muted: #a2a9b3;
+  --color-accent: #818cf8;
+  --color-accent-fg: #10121a;
+  --color-border: #34383d;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --shadow-sheet: 0 8px 30px rgba(0, 0, 0, 0.55);
+}
