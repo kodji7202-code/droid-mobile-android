@@ -253,4 +253,53 @@ describe('early Stop on a restored dialog', () => {
 
     expect(interrupt).toHaveBeenCalledTimes(1);
   });
+
+  it('sends the interrupt immediately while history is still pending', async () => {
+    const { connection, resumeSession } = setup([[]]);
+    const interrupt = vi.fn(async () => undefined);
+    let resolveHistory: (page: unknown) => void = () => undefined;
+    const handle = {
+      id: 's1',
+      settings: { modelId: 'm' },
+      cwd: 'C:\\w',
+      getMessages: vi.fn(() => new Promise((resolve) => (resolveHistory = resolve))),
+      interrupt,
+    };
+    resumeSession.mockResolvedValue(handle as never);
+    useConnectionStore.setState({ connection, status: 'ready' });
+
+    const opening = useSessionViewStore.getState().open(connection, 's1', 1);
+    await vi.waitFor(() => expect(handle.getMessages).toHaveBeenCalled());
+    await useSessionViewStore.getState().interrupt('s1');
+    expect(interrupt).toHaveBeenCalledTimes(1);
+    resolveHistory({ messages: [], hasMore: false });
+    await opening;
+    expect(interrupt).toHaveBeenCalledTimes(1);
+  });
+
+  it('still sends the interrupt when history then rejects', async () => {
+    const { connection, resumeSession } = setup([[]]);
+    const interrupt = vi.fn(async () => undefined);
+    let rejectHistory: (err: Error) => void = () => undefined;
+    const handle = {
+      id: 's1',
+      settings: { modelId: 'm' },
+      cwd: 'C:\\w',
+      getMessages: vi.fn(
+        () => new Promise((_, reject) => (rejectHistory = reject as (err: Error) => void)),
+      ),
+      interrupt,
+    };
+    resumeSession.mockResolvedValue(handle as never);
+    useConnectionStore.setState({ connection, status: 'ready' });
+
+    const opening = useSessionViewStore.getState().open(connection, 's1', 1);
+    await vi.waitFor(() => expect(handle.getMessages).toHaveBeenCalled());
+    await useSessionViewStore.getState().interrupt('s1');
+    expect(interrupt).toHaveBeenCalledTimes(1);
+    rejectHistory(new Error('history failed'));
+    await opening;
+    expect(interrupt).toHaveBeenCalledTimes(1);
+    expect(useSessionViewStore.getState().views['s1']?.status).toBe('error');
+  });
 });
