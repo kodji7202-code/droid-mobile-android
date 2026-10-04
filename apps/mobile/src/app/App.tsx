@@ -5,6 +5,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { createAppRoutes } from './routes';
 import { ThemeProvider } from '../theme/ThemeProvider';
 import { ToastProvider } from '../components/Toast';
+import { LockGate } from '../features/lock/LockGate';
 import { Skeleton } from '../components/Skeleton';
 
 /**
@@ -25,7 +26,9 @@ export default function App() {
       <ThemeProvider>
         <ToastProvider>
           <Suspense fallback={<Skeleton lines={3} />}>
-            <RouterProvider router={router} />
+            <LockGate>
+              <RouterProvider router={router} />
+            </LockGate>
           </Suspense>
         </ToastProvider>
       </ThemeProvider>

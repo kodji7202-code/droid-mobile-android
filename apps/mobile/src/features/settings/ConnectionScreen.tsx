@@ -4,6 +4,8 @@ import { SettingsSubHeader } from './SettingsSubHeader';
 import { ConnectionForm } from './ConnectionForm';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useConnectionStore, MissingKeyError } from '../../stores/connection';
+import { useLockStore } from '../../stores/lock';
+import { useAuthenticate } from '../lock/useAuthenticate';
 import { isDebugBuild } from '../../platform/buildFlavor';
 import type { SavedConnection } from '../../platform/savedConnections';
 import { isCleartextUrl } from '../connect/validation';
@@ -33,6 +35,11 @@ export function ConnectionScreen() {
   const [forgetTarget, setForgetTarget] = useState<SavedConnection | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);
+  const lockEnabled = useLockStore((state) => state.enabled);
+  const authenticate = useAuthenticate();
+  const [revealed, setRevealed] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
+  const hidden = lockEnabled && !revealed;
 
   const active = saved.find((entry) => entry.id === activeId) ?? null;
   const editing = panel?.kind === 'edit' ? saved.find((entry) => entry.id === panel.id) : undefined;
@@ -47,6 +54,22 @@ export function ConnectionScreen() {
         );
       })
       .finally(() => setSwitching(null));
+  };
+
+  // With the app lock on, details stay out of the DOM until a prompt succeeds.
+  const withAuth = async (proceed: () => void) => {
+    if (!lockEnabled || revealed) {
+      proceed();
+      return;
+    }
+    setRevealError(null);
+    const outcome = await authenticate('reveal');
+    if (outcome === 'success') {
+      setRevealed(true);
+      proceed();
+    } else {
+      setRevealError(outcome === 'cancelled' ? 'lock.revealCancelled' : 'lock.revealFailed');
+    }
   };
 
   const confirmForget = () => {
@@ -69,7 +92,9 @@ export function ConnectionScreen() {
             </div>
             <div className="about-row">
               <dt>{t('connect.urlLabel')}</dt>
-              <dd data-testid="connection-active-url">{active.url}</dd>
+              <dd data-testid="connection-active-url">
+                {hidden ? t('lock.hiddenUrl') : active.url}
+              </dd>
             </div>
             <div className="about-row">
               <dt>{t('connections.transport')}</dt>
@@ -94,6 +119,11 @@ export function ConnectionScreen() {
 
       <section aria-labelledby="connection-list-title">
         <h3 id="connection-list-title">{t('connections.listTitle')}</h3>
+        {revealError ? (
+          <p className="field__error" data-testid="connection-reveal-error" role="alert">
+            {t(revealError)}
+          </p>
+        ) : null}
         {switchError ? (
           <p className="field__error" data-testid="connection-switch-error" role="alert">
             {t(switchError)}
@@ -111,7 +141,9 @@ export function ConnectionScreen() {
               >
                 <div className="connection-item__text">
                   <strong>{entry.label}</strong>
-                  <span className="field__description">{entry.url}</span>
+                  <span className="field__description">
+                    {hidden ? t('lock.hiddenUrl') : entry.url}
+                  </span>
                   {isActive ? (
                     <span
                       className="connection-item__marker"
@@ -137,7 +169,7 @@ export function ConnectionScreen() {
                     type="button"
                     className="btn btn--ghost"
                     data-testid={`connection-edit-${entry.id}`}
-                    onClick={() => setPanel({ kind: 'edit', id: entry.id })}
+                    onClick={() => void withAuth(() => setPanel({ kind: 'edit', id: entry.id }))}
                   >
                     {t('connections.edit')}
                   </button>
@@ -145,7 +177,7 @@ export function ConnectionScreen() {
                     type="button"
                     className="btn btn--ghost"
                     data-testid={`connection-forget-${entry.id}`}
-                    onClick={() => setForgetTarget(entry)}
+                    onClick={() => void withAuth(() => setForgetTarget(entry))}
                   >
                     {isActive ? t('connections.forgetActive') : t('connections.forget')}
                   </button>

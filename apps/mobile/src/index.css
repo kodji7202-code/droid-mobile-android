@@ -540,3 +540,24 @@ p {
 .connection-form {
   margin-top: 1rem;
 }
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 48px;
+}
+
+.settings-toggle__control {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  accent-color: var(--color-accent, currentColor);
+}
+
+.lock-screen {
+  min-height: 100vh;
+  justify-content: center;
+  align-items: stretch;
+}

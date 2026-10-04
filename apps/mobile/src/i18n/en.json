@@ -62,7 +62,8 @@
     "themeLight": "Light",
     "themeDark": "Dark",
     "themeSystem": "System",
-    "connection": "Connection"
+    "connection": "Connection",
+    "security": "Security"
   },
   "about": {
     "title": "About",
@@ -121,5 +122,39 @@
     "saving": "Saving?",
     "keyEditHint": "Leave empty to keep the stored key.",
     "errorMissingKey": "The key for this connection is not stored on this device. Edit the connection and enter its key."
+  },
+  "lock": {
+    "title": "Droid Mobile is locked",
+    "description": "Authenticate with your fingerprint, face or screen lock to continue.",
+    "unlock": "Unlock",
+    "retry": "Try again",
+    "cancelled": "Authentication was cancelled. The app stays locked.",
+    "failed": "Authentication failed. The app stays locked.",
+    "unavailable": "No screen lock or biometric is set up on this device. Set one up in Android settings, then try again.",
+    "reason": {
+      "unlock": "Unlock Droid Mobile",
+      "enable": "Turn on the app lock",
+      "disable": "Turn off the app lock",
+      "reveal": "Show connection settings"
+    },
+    "revealCancelled": "Authentication was cancelled. Connection details stay hidden.",
+    "revealFailed": "Authentication failed. Connection details stay hidden.",
+    "hiddenUrl": "Hidden until you authenticate"
+  },
+  "security": {
+    "title": "Security",
+    "lockLabel": "Lock the app with biometrics or screen lock",
+    "lockDescription": "Ask for your fingerprint, face or screen lock when the app opens and before connection details are shown.",
+    "notAvailable": "Set up a screen lock or biometric in Android settings first.",
+    "enableCancelled": "The app lock stays off because authentication was cancelled.",
+    "enableFailed": "The app lock stays off because authentication failed.",
+    "disableCancelled": "The app lock stays on because authentication was cancelled.",
+    "disableFailed": "The app lock stays on because authentication failed.",
+    "graceLabel": "Lock again after leaving the app",
+    "graceDescription": "How long the app can stay in the background before it asks again.",
+    "grace0": "Immediately",
+    "grace30": "After 30 seconds",
+    "grace60": "After 1 minute",
+    "grace300": "After 5 minutes"
   }
 }

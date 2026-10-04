@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { createNativeSecureStore } from './platform/nativeSecureStore';
 import { setSecureStore } from './platform/secureStore';
 import { useConnectionStore } from './stores/connection';
+import { useLockStore } from './stores/lock';
 
 // Must run before the store restores: the web build keeps keys in memory only.
 if (Capacitor.isNativePlatform()) {
@@ -25,8 +26,10 @@ void i18nReady.then(async () => {
   // shows the offline shell with a retry control instead of flashing the
   // Connect screen. On the web the key lives in memory only, so this is a
   // no-op after a reload (WEB-KEY-RULE).
+  // With the app lock on, the lock screen restores after a successful unlock,
+  // so no key is read and no socket opened while locked.
   try {
-    await useConnectionStore.getState().restore();
+    if (!useLockStore.getState().locked) await useConnectionStore.getState().restore();
   } catch {
     // A failed restore must never block the first paint.
   }

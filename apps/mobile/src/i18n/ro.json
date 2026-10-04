@@ -62,7 +62,8 @@
     "themeLight": "Deschisă",
     "themeDark": "Închisă",
     "themeSystem": "Sistem",
-    "connection": "Conexiune"
+    "connection": "Conexiune",
+    "security": "Securitate"
   },
   "about": {
     "title": "Despre",
@@ -121,5 +122,39 @@
     "saving": "Se salveaz??",
     "keyEditHint": "Las? gol pentru a p?stra cheia stocat?.",
     "errorMissingKey": "Cheia pentru aceast? conexiune nu este stocat? pe acest dispozitiv. Editeaz? conexiunea ?i introdu cheia."
+  },
+  "lock": {
+    "title": "Droid Mobile este blocată",
+    "description": "Autentifică-te cu amprenta, fața sau blocarea ecranului pentru a continua.",
+    "unlock": "Deblochează",
+    "retry": "Încearcă din nou",
+    "cancelled": "Autentificarea a fost anulată. Aplicația rămâne blocată.",
+    "failed": "Autentificarea a eșuat. Aplicația rămâne blocată.",
+    "unavailable": "Pe acest dispozitiv nu este configurată nicio blocare a ecranului sau biometrie. Configurează una în setările Android, apoi încearcă din nou.",
+    "reason": {
+      "unlock": "Deblochează Droid Mobile",
+      "enable": "Pornește blocarea aplicației",
+      "disable": "Oprește blocarea aplicației",
+      "reveal": "Arată setările conexiunii"
+    },
+    "revealCancelled": "Autentificarea a fost anulată. Detaliile conexiunii rămân ascunse.",
+    "revealFailed": "Autentificarea a eșuat. Detaliile conexiunii rămân ascunse.",
+    "hiddenUrl": "Ascuns până te autentifici"
+  },
+  "security": {
+    "title": "Securitate",
+    "lockLabel": "Blochează aplicația cu biometrie sau blocarea ecranului",
+    "lockDescription": "Cere amprenta, fața sau blocarea ecranului la deschiderea aplicației și înainte de afișarea detaliilor conexiunii.",
+    "notAvailable": "Configurează mai întâi o blocare a ecranului sau o biometrie în setările Android.",
+    "enableCancelled": "Blocarea aplicației rămâne oprită deoarece autentificarea a fost anulată.",
+    "enableFailed": "Blocarea aplicației rămâne oprită deoarece autentificarea a eșuat.",
+    "disableCancelled": "Blocarea aplicației rămâne pornită deoarece autentificarea a fost anulată.",
+    "disableFailed": "Blocarea aplicației rămâne pornită deoarece autentificarea a eșuat.",
+    "graceLabel": "Blochează din nou după ce părăsești aplicația",
+    "graceDescription": "Cât timp poate rămâne aplicația în fundal înainte să ceară din nou autentificarea.",
+    "grace0": "Imediat",
+    "grace30": "După 30 de secunde",
+    "grace60": "După 1 minut",
+    "grace300": "După 5 minute"
   }
 }
