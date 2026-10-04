@@ -35,9 +35,21 @@ export class TransportPolicyError extends Error {
   }
 }
 
+/** Thrown when a saved connection has no key in the secure store (web: after a reload). */
+export class MissingKeyError extends Error {
+  constructor() {
+    super('No API key is stored for this connection');
+    this.name = 'MissingKeyError';
+  }
+}
+
 export interface ConnectionManagerState {
   connection: DaemonConnection | null;
   activeConnectionId: string | null;
+  /** Persisted metadata (never keys) for Settings > Connection. */
+  savedConnections: SavedConnection[];
+  /** Persisted active marker; differs from the live connection after a web reload. */
+  savedActiveId: string | null;
   /** Mirrors the active daemon-client connection status. */
   status: ConnectionStatus;
   /** Increments on every transition into `ready` (initial connect and reconnects). */
@@ -52,8 +64,14 @@ export interface ConnectionManagerDeps {
   createConnection(options: { url: string; apiKey: string }): DaemonConnection;
   loadSavedConnections(): { activeId: string | null; connections: SavedConnection[] };
   saveActiveConnection(connection: SavedConnection): void;
+  addSavedConnection(connection: SavedConnection): void;
+  updateSavedConnection(id: string, patch: Partial<Pick<SavedConnection, 'label' | 'url'>>): void;
+  setActiveSavedConnection(id: string | null): void;
+  removeSavedConnection(id: string): void;
   getSecureStore(): SecureStore;
-  checkUrl(rawUrl: string): { ok: true; url: string } | { ok: false; reason: 'malformed' | 'insecure' };
+  checkUrl(
+    rawUrl: string,
+  ): { ok: true; url: string } | { ok: false; reason: 'malformed' | 'insecure' };
   onChange(state: ConnectionManagerState): void;
 }
 
@@ -72,6 +90,29 @@ export interface ConnectionManager {
   /** Tears the current connection down (if any) and returns to offline. */
   close(): void;
   clearVersionWarning(): void;
+  /**
+   * Validates the address and key with a throwaway connection (same
+   * authenticate check as onboarding) and only then saves the connection,
+   * inactive. Rejects with the classified error and saves nothing otherwise.
+   */
+  addConnection(input: { label: string; url: string; apiKey: string }): Promise<SavedConnection>;
+  /**
+   * Makes the saved connection the single active one and reconnects. A target
+   * that cannot be reached still becomes active (status shows the failure and
+   * the user can switch away); only a missing key or policy violation rejects.
+   */
+  switchTo(id: string): Promise<void>;
+  /**
+   * Updates label/URL. A new key is validated against the (new) URL before
+   * anything is saved; without one the stored key is kept and never read back
+   * into the UI. Editing the active connection reconnects when it changed.
+   */
+  updateConnection(
+    id: string,
+    input: { label: string; url: string; apiKey?: string },
+  ): Promise<void>;
+  /** Deletes the connection and its key; forgetting the active one closes the socket. */
+  forget(id: string): Promise<void>;
 }
 
 const ERROR_KINDS: readonly DaemonErrorKind[] = [
@@ -92,9 +133,12 @@ function labelFor(url: string): string {
 }
 
 export function createConnectionManager(deps: ConnectionManagerDeps): ConnectionManager {
+  const initialSaved = deps.loadSavedConnections();
   let state: ConnectionManagerState = {
     connection: null,
     activeConnectionId: null,
+    savedConnections: initialSaved.connections,
+    savedActiveId: initialSaved.activeId,
     status: 'offline',
     readyEpoch: 0,
     lastErrorKind: null,
@@ -168,13 +212,132 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
       throw error;
     }
 
-    const existing = deps.loadSavedConnections().connections.find((entry) => entry.url === policy.url);
+    const existing = deps
+      .loadSavedConnections()
+      .connections.find((entry) => entry.url === policy.url);
     const id = existing?.id ?? crypto.randomUUID();
     await deps.getSecureStore().setSecret(id, apiKey);
-    deps.saveActiveConnection({ id, label: existing?.label ?? labelFor(policy.url), url: policy.url });
-    emit({ activeConnectionId: id });
+    deps.saveActiveConnection({
+      id,
+      label: existing?.label ?? labelFor(policy.url),
+      url: policy.url,
+    });
+    emit({ activeConnectionId: id, ...snapshotSaved() });
   }
 
+  function snapshotSaved(): Pick<ConnectionManagerState, 'savedConnections' | 'savedActiveId'> {
+    const saved = deps.loadSavedConnections();
+    return { savedConnections: saved.connections, savedActiveId: saved.activeId };
+  }
+
+  function checkedUrl(rawUrl: string): string {
+    const policy = deps.checkUrl(rawUrl);
+    if (!policy.ok) throw new TransportPolicyError(policy.reason);
+    return policy.url;
+  }
+
+  async function validateCandidate(url: string, apiKey: string): Promise<void> {
+    const probe = deps.createConnection({ url, apiKey });
+    try {
+      await probe.connect();
+    } finally {
+      try {
+        probe.disconnect();
+      } catch {
+        // a probe that never connected may not close cleanly
+      }
+    }
+  }
+
+  async function addConnection(input: {
+    label: string;
+    url: string;
+    apiKey: string;
+  }): Promise<SavedConnection> {
+    const url = checkedUrl(input.url);
+    await validateCandidate(url, input.apiKey);
+    const entry: SavedConnection = {
+      id: crypto.randomUUID(),
+      label: input.label.trim() || labelFor(url),
+      url,
+    };
+    await deps.getSecureStore().setSecret(entry.id, input.apiKey);
+    deps.addSavedConnection(entry);
+    emit(snapshotSaved());
+    return entry;
+  }
+
+  async function activate(id: string): Promise<void> {
+    const entry = deps.loadSavedConnections().connections.find((candidate) => candidate.id === id);
+    if (!entry) return;
+    const url = checkedUrl(entry.url);
+    const apiKey = await deps.getSecureStore().getSecret(id);
+    if (!apiKey) throw new MissingKeyError();
+
+    close();
+    deps.setActiveSavedConnection(id);
+    const connection = deps.createConnection({ url, apiKey });
+    adopt(connection, id);
+    emit(snapshotSaved());
+    try {
+      await connection.connect();
+    } catch (error) {
+      const kind = errorKindOf(error);
+      emit({ lastErrorKind: kind });
+      if (kind !== 'auth') retry();
+    }
+  }
+
+  function switchTo(id: string): Promise<void> {
+    if (state.connection && state.activeConnectionId === id) return Promise.resolve();
+    return activate(id);
+  }
+
+  async function updateConnection(
+    id: string,
+    input: { label: string; url: string; apiKey?: string },
+  ): Promise<void> {
+    const entry = deps.loadSavedConnections().connections.find((candidate) => candidate.id === id);
+    if (!entry) return;
+    const url = checkedUrl(input.url);
+    const apiKey = input.apiKey?.trim() ? input.apiKey.trim() : null;
+    if (apiKey) {
+      await validateCandidate(url, apiKey);
+      await deps.getSecureStore().setSecret(id, apiKey);
+    }
+    deps.updateSavedConnection(id, { label: input.label.trim() || labelFor(url), url });
+    emit(snapshotSaved());
+    const changed = apiKey !== null || url !== entry.url;
+    if (changed && state.activeConnectionId === id) await activate(id);
+  }
+
+  async function forget(id: string): Promise<void> {
+    const saved = deps.loadSavedConnections();
+    const wasActive = state.activeConnectionId === id || saved.activeId === id;
+    let successor: string | null = null;
+    if (wasActive) {
+      for (const candidate of saved.connections) {
+        if (candidate.id !== id && (await deps.getSecureStore().getSecret(candidate.id))) {
+          successor = candidate.id;
+          break;
+        }
+      }
+      // Switching first keeps the shell mounted (no flash through the Connect screen).
+      try {
+        if (successor) await activate(successor);
+        else close();
+      } catch {
+        successor = null;
+        close();
+      }
+    }
+    await deps.getSecureStore().deleteSecret(id);
+    deps.removeSavedConnection(id);
+    emit({
+      activeConnectionId: wasActive && !successor ? null : state.activeConnectionId,
+      ...snapshotSaved(),
+    });
+  }
   function connect(url: string, apiKey: string): Promise<void> {
     // Concurrent submits (double tap) share one attempt.
     pendingConnect ??= connectInternal(url, apiKey).finally(() => {
@@ -218,5 +381,9 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
     retry,
     close,
     clearVersionWarning: () => emit({ versionWarning: null }),
+    addConnection,
+    switchTo,
+    updateConnection,
+    forget,
   };
 }

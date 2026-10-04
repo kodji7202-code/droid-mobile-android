@@ -7,7 +7,7 @@ import { SDK_PACKAGE_VERSION } from './version';
 function findPackageJson(): string {
   let dir = process.cwd();
   for (;;) {
-    for (const candidate of [dir, join(dir, 'packages', 'daemon-client')]) {
+    for (const candidate of [join(dir, 'packages', 'daemon-client'), dir]) {
       const file = join(candidate, 'package.json');
       if (existsSync(file)) return file;
     }

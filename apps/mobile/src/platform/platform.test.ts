@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createMemorySecureStore } from './secureStore';
-import { loadSavedConnections, saveActiveConnection, SAVED_CONNECTIONS_KEY } from './savedConnections';
+import {
+  addSavedConnection,
+  loadSavedConnections,
+  removeSavedConnection,
+  saveActiveConnection,
+  setActiveSavedConnection,
+  updateSavedConnection,
+  SAVED_CONNECTIONS_KEY,
+} from './savedConnections';
 
 describe('memory secure store', () => {
   it('round-trips, deletes, and never touches web storage', async () => {
@@ -36,5 +44,30 @@ describe('saved connections', () => {
     expect(state.activeId).toBe('1');
     expect(state.connections).toEqual([{ id: '1', label: 'Work PC', url: 'ws://h:1' }]);
     expect(window.localStorage.getItem(SAVED_CONNECTIONS_KEY)).not.toMatch(/fk-/);
+  });
+});
+
+describe('saved connection management', () => {
+  it('adds without changing the active marker, updates, re-activates and removes', () => {
+    window.localStorage.clear();
+    saveActiveConnection({ id: 'a', label: 'A', url: 'ws://h:1' });
+    addSavedConnection({ id: 'b', label: 'B', url: 'ws://h:2' });
+    expect(loadSavedConnections().activeId).toBe('a');
+
+    updateSavedConnection('b', { label: 'Work PC' });
+    setActiveSavedConnection('b');
+    expect(loadSavedConnections()).toEqual({
+      activeId: 'b',
+      connections: [
+        { id: 'a', label: 'A', url: 'ws://h:1' },
+        { id: 'b', label: 'Work PC', url: 'ws://h:2' },
+      ],
+    });
+
+    removeSavedConnection('b');
+    expect(loadSavedConnections()).toEqual({
+      activeId: null,
+      connections: [{ id: 'a', label: 'A', url: 'ws://h:1' }],
+    });
   });
 });

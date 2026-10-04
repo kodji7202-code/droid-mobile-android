@@ -9,6 +9,7 @@ import { ExtensionsScreen } from '../features/extensions/ExtensionsScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { AppearanceScreen } from '../features/settings/AppearanceScreen';
 import { LanguageScreen } from '../features/settings/LanguageScreen';
+import { ConnectionScreen } from '../features/settings/ConnectionScreen';
 import { AboutScreen } from '../features/settings/AboutScreen';
 
 /**
@@ -30,6 +31,7 @@ export function createAppRoutes(): RouteObject[] {
         { path: 'settings', element: <SettingsScreen /> },
         { path: 'settings/appearance', element: <AppearanceScreen /> },
         { path: 'settings/language', element: <LanguageScreen /> },
+        { path: 'settings/connection', element: <ConnectionScreen /> },
         { path: 'settings/about', element: <AboutScreen /> },
         { path: '*', element: <NotFoundScreen /> },
       ],

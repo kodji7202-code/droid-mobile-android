@@ -5,7 +5,7 @@ export interface SavedConnection {
   url: string;
 }
 
-interface SavedConnectionsState {
+export interface SavedConnectionsState {
   activeId: string | null;
   connections: SavedConnection[];
 }
@@ -51,4 +51,46 @@ export function saveActiveConnection(connection: SavedConnection): void {
     connections: [...others, { id: connection.id, label: connection.label, url: connection.url }],
   };
   window.localStorage.setItem(SAVED_CONNECTIONS_KEY, JSON.stringify(next));
+}
+
+function write(state: SavedConnectionsState): void {
+  window.localStorage.setItem(SAVED_CONNECTIONS_KEY, JSON.stringify(state));
+}
+
+/** Adds a connection without changing which one is active. */
+export function addSavedConnection(connection: SavedConnection): void {
+  const state = loadSavedConnections();
+  write({
+    ...state,
+    connections: [
+      ...state.connections,
+      { id: connection.id, label: connection.label, url: connection.url },
+    ],
+  });
+}
+
+export function updateSavedConnection(
+  id: string,
+  patch: Partial<Pick<SavedConnection, 'label' | 'url'>>,
+): void {
+  const state = loadSavedConnections();
+  write({
+    ...state,
+    connections: state.connections.map((entry) =>
+      entry.id === id ? { ...entry, ...patch } : entry,
+    ),
+  });
+}
+
+export function setActiveSavedConnection(id: string | null): void {
+  write({ ...loadSavedConnections(), activeId: id });
+}
+
+/** Removes the entry; the active marker is cleared when it pointed at it. */
+export function removeSavedConnection(id: string): void {
+  const state = loadSavedConnections();
+  write({
+    activeId: state.activeId === id ? null : state.activeId,
+    connections: state.connections.filter((entry) => entry.id !== id),
+  });
 }

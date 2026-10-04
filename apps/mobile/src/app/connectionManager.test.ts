@@ -71,6 +71,10 @@ function harness(
     createConnection,
     loadSavedConnections: vi.fn(() => saved),
     saveActiveConnection,
+    addSavedConnection: vi.fn(),
+    updateSavedConnection: vi.fn(),
+    setActiveSavedConnection: vi.fn(),
+    removeSavedConnection: vi.fn(),
     getSecureStore: () => ({
       getSecret: (id) => Promise.resolve(secrets.get(id) ?? null),
       setSecret: (id, secret) => {

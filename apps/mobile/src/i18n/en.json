@@ -61,7 +61,8 @@
     "theme": "Theme",
     "themeLight": "Light",
     "themeDark": "Dark",
-    "themeSystem": "System"
+    "themeSystem": "System",
+    "connection": "Connection"
   },
   "about": {
     "title": "About",
@@ -96,5 +97,29 @@
     "notFoundTitle": "Page not found",
     "notFoundMessage": "This page does not exist.",
     "goHome": "Go to Sessions"
+  },
+  "connections": {
+    "title": "Connection",
+    "activeTitle": "Active connection",
+    "listTitle": "Saved connections",
+    "noneActive": "No active connection.",
+    "labelField": "Label",
+    "transport": "Transport",
+    "status": "Status",
+    "activeMarker": "Active",
+    "add": "Add connection",
+    "addTitle": "Add connection",
+    "editTitle": "Edit connection",
+    "edit": "Edit",
+    "switch": "Switch",
+    "forget": "Forget",
+    "forgetActive": "Sign out / forget key",
+    "forgetTitle": "Forget this connection?",
+    "forgetMessage": "Remove \"{{label}}\" and its stored API key from this device?",
+    "forgetConfirm": "Forget",
+    "save": "Save",
+    "saving": "Saving?",
+    "keyEditHint": "Leave empty to keep the stored key.",
+    "errorMissingKey": "The key for this connection is not stored on this device. Edit the connection and enter its key."
   }
 }

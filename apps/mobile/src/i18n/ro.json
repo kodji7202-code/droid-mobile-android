@@ -61,7 +61,8 @@
     "theme": "Temă",
     "themeLight": "Deschisă",
     "themeDark": "Închisă",
-    "themeSystem": "Sistem"
+    "themeSystem": "Sistem",
+    "connection": "Conexiune"
   },
   "about": {
     "title": "Despre",
@@ -96,5 +97,29 @@
     "notFoundTitle": "Pagină inexistentă",
     "notFoundMessage": "Această pagină nu există.",
     "goHome": "Mergi la Sesiuni"
+  },
+  "connections": {
+    "title": "Conexiune",
+    "activeTitle": "Conexiunea activ?",
+    "listTitle": "Conexiuni salvate",
+    "noneActive": "Nicio conexiune activ?.",
+    "labelField": "Etichet?",
+    "transport": "Transport",
+    "status": "Stare",
+    "activeMarker": "Activ?",
+    "add": "Adaug? conexiune",
+    "addTitle": "Adaug? conexiune",
+    "editTitle": "Editeaz? conexiunea",
+    "edit": "Editeaz?",
+    "switch": "Comut?",
+    "forget": "Uit?",
+    "forgetActive": "Deconectare / uit? cheia",
+    "forgetTitle": "?tergi aceast? conexiune?",
+    "forgetMessage": "Elimini ?{{label}}? ?i cheia API stocat? de pe acest dispozitiv?",
+    "forgetConfirm": "Uit?",
+    "save": "Salveaz?",
+    "saving": "Se salveaz??",
+    "keyEditHint": "Las? gol pentru a p?stra cheia stocat?.",
+    "errorMissingKey": "Cheia pentru aceast? conexiune nu este stocat? pe acest dispozitiv. Editeaz? conexiunea ?i introdu cheia."
   }
 }

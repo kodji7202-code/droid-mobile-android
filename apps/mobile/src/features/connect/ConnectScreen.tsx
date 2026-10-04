@@ -2,30 +2,13 @@ import { useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useConnectionStore, TransportPolicyError } from '../../stores/connection';
+import { useConnectionStore } from '../../stores/connection';
+import { messageKeyFor } from './errors';
+import type { ConnectErrorKey } from './errors';
 import { isDebugBuild } from '../../platform/buildFlavor';
 import { loadSavedConnections } from '../../platform/savedConnections';
 import { parsePairingCode } from './pairing';
 import { checkDaemonUrl, isApiKeyFormat, isCleartextUrl } from './validation';
-
-type ConnectErrorKey =
-  | 'connect.errorUrlFormat'
-  | 'connect.errorInsecure'
-  | 'connect.errorKeyFormat'
-  | 'connect.errorKeyRejected'
-  | 'connect.errorUnreachable'
-  | 'connect.error';
-
-/** Maps a rejected connect to a message; only the typed `kind` is trusted. */
-function messageKeyFor(error: unknown): ConnectErrorKey {
-  if (error instanceof TransportPolicyError) {
-    return error.reason === 'insecure' ? 'connect.errorInsecure' : 'connect.errorUrlFormat';
-  }
-  const kind = (error as { kind?: unknown } | null)?.kind;
-  if (kind === 'auth') return 'connect.errorKeyRejected';
-  if (kind === 'connection') return 'connect.errorUnreachable';
-  return 'connect.error';
-}
 
 function initialUrl(): string {
   const { activeId, connections } = loadSavedConnections();
@@ -96,7 +79,9 @@ export function ConnectScreen() {
 
     const urlCheck = checkDaemonUrl(url, isDebugBuild());
     if (!urlCheck.ok) {
-      setErrorKey(urlCheck.reason === 'insecure' ? 'connect.errorInsecure' : 'connect.errorUrlFormat');
+      setErrorKey(
+        urlCheck.reason === 'insecure' ? 'connect.errorInsecure' : 'connect.errorUrlFormat',
+      );
       return;
     }
     const apiKey = keyInput.current?.value.trim() ?? '';

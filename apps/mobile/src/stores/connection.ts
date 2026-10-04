@@ -1,13 +1,24 @@
 import { create } from 'zustand';
 import { createDaemonConnection } from '@droidmobile/daemon-client';
-import { createConnectionManager, TransportPolicyError } from '../app/connectionManager';
-import type { ConnectionManagerState } from '../app/connectionManager';
+import {
+  createConnectionManager,
+  MissingKeyError,
+  TransportPolicyError,
+} from '../app/connectionManager';
+import type { ConnectionManager, ConnectionManagerState } from '../app/connectionManager';
 import { checkDaemonUrl } from '../features/connect/validation';
 import { isDebugBuild } from '../platform/buildFlavor';
 import { getSecureStore } from '../platform/secureStore';
-import { loadSavedConnections, saveActiveConnection } from '../platform/savedConnections';
+import {
+  addSavedConnection,
+  loadSavedConnections,
+  removeSavedConnection,
+  saveActiveConnection,
+  setActiveSavedConnection,
+  updateSavedConnection,
+} from '../platform/savedConnections';
 
-export { TransportPolicyError };
+export { MissingKeyError, TransportPolicyError };
 
 interface ConnectionStore extends ConnectionManagerState {
   /**
@@ -30,6 +41,10 @@ interface ConnectionStore extends ConnectionManagerState {
   close(): void;
   /** Consumes the pending protocol-version warning after showing it. */
   clearVersionWarning(): void;
+  addConnection: ConnectionManager['addConnection'];
+  switchTo: ConnectionManager['switchTo'];
+  updateConnection: ConnectionManager['updateConnection'];
+  forget: ConnectionManager['forget'];
 }
 
 export const useConnectionStore = create<ConnectionStore>((set) => {
@@ -37,6 +52,10 @@ export const useConnectionStore = create<ConnectionStore>((set) => {
     createConnection: (options) => createDaemonConnection(options),
     loadSavedConnections,
     saveActiveConnection,
+    addSavedConnection,
+    updateSavedConnection,
+    setActiveSavedConnection,
+    removeSavedConnection,
     getSecureStore,
     checkUrl: (rawUrl) => checkDaemonUrl(rawUrl, isDebugBuild()),
     onChange: (state) => set(state),
@@ -49,5 +68,9 @@ export const useConnectionStore = create<ConnectionStore>((set) => {
     retry: () => manager.retry(),
     close: () => manager.close(),
     clearVersionWarning: () => manager.clearVersionWarning(),
+    addConnection: (input) => manager.addConnection(input),
+    switchTo: (id) => manager.switchTo(id),
+    updateConnection: (id, input) => manager.updateConnection(id, input),
+    forget: (id) => manager.forget(id),
   };
 });
