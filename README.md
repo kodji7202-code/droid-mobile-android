@@ -10,13 +10,13 @@ land milestone by milestone.
 
 ## Layout (npm workspaces)
 
-| Path                     | Package                      | Purpose                                                                               |
-| ------------------------ | ---------------------------- | ------------------------------------------------------------------------------------- |
-| `apps/mobile`            | `@droidmobile/mobile`        | Capacitor + React app (web build now, `android/` native project in a later milestone) |
-| `packages/daemon-client` | `@droidmobile/daemon-client` | Typed adapter over `@factory/droid-sdk` (pure TS, no React)                           |
-| `server/fcm-bridge`      | `@droidmobile/fcm-bridge`    | Fastify + firebase-admin push bridge                                                  |
-| `tools/pc-helper`        | `@droidmobile/pc-helper`     | PowerShell + Node helpers for the PC side                                             |
-| `docs/`                  | —                            | User docs (setup, security, ToS note)                                                 |
+| Path                     | Package                      | Purpose                                                                                   |
+| ------------------------ | ---------------------------- | ----------------------------------------------------------------------------------------- |
+| `apps/mobile`            | `@droidmobile/mobile`        | Capacitor + React app (+ `android/` native shell, see [docs/android.md](docs/android.md)) |
+| `packages/daemon-client` | `@droidmobile/daemon-client` | Typed adapter over `@factory/droid-sdk` (pure TS, no React)                               |
+| `server/fcm-bridge`      | `@droidmobile/fcm-bridge`    | Fastify + firebase-admin push bridge                                                      |
+| `tools/pc-helper`        | `@droidmobile/pc-helper`     | PowerShell + Node helpers for the PC side                                                 |
+| `docs/`                  | —                            | User docs (setup, security, ToS note)                                                     |
 
 ## Getting started
 
@@ -30,16 +30,21 @@ npm run dev   # Vite dev server on http://127.0.0.1:3100
 
 ## Scripts (repo root)
 
-| Script                     | What it does                                                            |
-| -------------------------- | ----------------------------------------------------------------------- |
-| `npm run typecheck`        | `tsc --noEmit` in every workspace                                       |
-| `npm run lint`             | ESLint (flat config) over the repo                                      |
-| `npm run test`             | Vitest `unit` project, `--maxWorkers=4`                                 |
-| `npm run test:integration` | Vitest `integration` project (needs the real daemon on 127.0.0.1:3101)  |
-| `npm run build`            | Workspace builds (currently the Vite production build of `apps/mobile`) |
-| `npm run format`           | Prettier write (`format:check` to verify)                               |
+| Script                                         | What it does                                                            |
+| ---------------------------------------------- | ----------------------------------------------------------------------- |
+| `npm run typecheck`                            | `tsc --noEmit` in every workspace                                       |
+| `npm run lint`                                 | ESLint (flat config) over the repo                                      |
+| `npm run test`                                 | Vitest `unit` project, `--maxWorkers=4`                                 |
+| `npm run test:integration`                     | Vitest `integration` project (needs the real daemon on 127.0.0.1:3101)  |
+| `npm run build`                                | Workspace builds (currently the Vite production build of `apps/mobile`) |
+| `npm run format`                               | Prettier write (`format:check` to verify)                               |
+| `npm run android:debug`                        | Native debug APK (web build + `cap sync` + `gradlew assembleDebug`)     |
+| `npm run android:release`                      | Native release APK + AAB (no signing config yet)                        |
+| `npm run android:check`                        | Automated debug/release variant checks (merged manifests + config)      |
+| `npm run android:emulator` / `install` / `cdp` | Emulator start / APK install / WebView CDP forward                      |
 
 Scope a command to one workspace with `-w`, e.g. `npm run test -w @droidmobile/mobile`.
+The native Android workflow is documented in [docs/android.md](docs/android.md).
 
 ## Dev services (Windows)
 

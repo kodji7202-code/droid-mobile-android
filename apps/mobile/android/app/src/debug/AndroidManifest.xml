@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug variant only (transport policy, architecture.md section 2): the http scheme
+     WebView may connect to cleartext ws:// daemons (adb reverse / 10.0.2.2).
+     Release never includes this source set. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:usesCleartextTraffic="true">
+    </application>
+</manifest>

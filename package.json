@@ -20,7 +20,15 @@
     "test:integration": "vitest run --project integration --maxWorkers=4 --passWithNoTests",
     "build": "npm run build --workspaces --if-present",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "android:debug": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/build-android.ps1 -Variant debug",
+    "android:release": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/build-android.ps1 -Variant release -Bundle",
+    "android:sync": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/build-android.ps1 -Variant debug -SyncOnly",
+    "android:check": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/check-android-variants.ps1",
+    "android:icons": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/generate-android-icons.ps1",
+    "android:emulator": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/emulator-start.ps1",
+    "android:install": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/emulator-install.ps1",
+    "android:cdp": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/emulator-forward-cdp.ps1 -Port 3150"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

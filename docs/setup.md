@@ -4,9 +4,9 @@
 
 - Node.js 24, npm 11 (pinned toolchain for this project)
 - git
-- For native Android builds (later milestones): JDK 21 at `D:\droid-tools\jdk-21` (JDK 17
-  cannot build Capacitor 8 projects), Android SDK at `%LOCALAPPDATA%\Android\Sdk`,
-  Gradle 8.14.3 via the wrapper.
+- For native Android builds: JDK 21 at `D:\droid-tools\jdk-21` (JDK 17 cannot build
+  Capacitor 8 projects), Android SDK at `%LOCALAPPDATA%\Android\Sdk`, Gradle 8.14.3 via
+  the wrapper. See [android.md](android.md) for the full native workflow.
 
 ## Install and run
 
