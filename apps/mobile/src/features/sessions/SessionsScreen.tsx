@@ -1,18 +1,266 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '../../components/EmptyState';
+import { ErrorState } from '../../components/ErrorState';
+import { Skeleton } from '../../components/Skeleton';
+import { useToast } from '../../components/Toast';
+import { useConnectionStore } from '../../stores/connection';
+import { RenameSessionSheet } from './RenameSessionSheet';
+import { SessionRow } from './SessionRow';
+import { filterRows } from './sessionsPaging';
+import type { SessionRowData } from './sessionsPaging';
+import { usePullToRefresh } from './usePullToRefresh';
+import { useSessionsList } from './useSessionsList';
 
-/**
- * Placeholder for the Sessions list (sessions-list feature builds the real
- * screen). Localized per the mission i18n directive.
- */
+const SKELETON_ROWS = 5;
+
 export function SessionsScreen() {
   const { t } = useTranslation();
+  const { showToast } = useToast();
+  const connection = useConnectionStore((state) => state.connection);
+  const status = useConnectionStore((state) => state.status);
+  const readyEpoch = useConnectionStore((state) => state.readyEpoch);
+  const ready = status === 'ready';
+
+  const list = useSessionsList({ connection, ready, readyEpoch });
+  const { rows, loading, loadingMore, hasMore, failed, refresh, loadMore } = list;
+
+  const [query, setQuery] = useState('');
+  const [manualRefresh, setManualRefresh] = useState(false);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<SessionRowData | null>(null);
+  const [renameBusy, setRenameBusy] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const runManualRefresh = useCallback(() => {
+    setManualRefresh(true);
+    void refresh().finally(() => setManualRefresh(false));
+  }, [refresh]);
+  const pull = usePullToRefresh(runManualRefresh);
+
+  const searching = query.trim() !== '';
+  const visibleRows = filterRows(rows, query);
+
+  useEffect(() => {
+    if (searching && hasMore && !loadingMore && !failed) {
+      void loadMore();
+    }
+  }, [searching, hasMore, loadingMore, failed, rows.length, loadMore]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || typeof IntersectionObserver === 'undefined') {
+      return undefined;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        void loadMore();
+      }
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore, rows.length]);
+
+  const archive = async (row: SessionRowData) => {
+    setMenuId(null);
+    try {
+      await connection?.archiveSession(row.id);
+      list.removeLocally(row.id);
+      void refresh();
+    } catch {
+      showToast(t('sessions.archiveFailed'), 'error');
+    }
+  };
+
+  const rename = async (title: string) => {
+    if (!renaming) {
+      return;
+    }
+    setRenameBusy(true);
+    try {
+      await connection?.renameSession(renaming.id, title);
+      list.renameLocally(renaming.id, title);
+      setRenaming(null);
+      void refresh();
+    } catch {
+      showToast(t('sessions.renameFailed'), 'error');
+    } finally {
+      setRenameBusy(false);
+    }
+  };
+
+  const onNewSession = () => {
+    showToast(t('sessions.newPending'));
+  };
+
+  const transient =
+    status === 'connecting' || status === 'authenticating' || status === 'reconnecting';
+  const showSkeleton = loading && rows.length === 0 && (ready || transient);
+  const showOfflineEmpty = !ready && !transient && rows.length === 0;
+  const firstRunEmpty = !loading && ready && !failed && rows.length === 0;
+  const loadFailed = !loading && ready && failed && rows.length === 0;
+  const noResults = searching && rows.length > 0 && visibleRows.length === 0 && !hasMore;
+
   return (
-    <section className="screen" data-testid="sessions-screen" aria-labelledby="sessions-title">
-      <h2 className="screen__title" id="sessions-title">
-        {t('nav.sessions')}
-      </h2>
-      <EmptyState title={t('nav.sessions')} message={t('placeholder.message')} />
+    <section
+      className="screen sessions-screen"
+      data-testid="sessions-screen"
+      aria-labelledby="sessions-title"
+      {...pull.handlers}
+    >
+      <div className="sessions-screen__header">
+        <h2 className="screen__title" id="sessions-title">
+          {t('nav.sessions')}
+        </h2>
+        <button
+          type="button"
+          className="btn btn--ghost"
+          data-testid="sessions-refresh"
+          onClick={runManualRefresh}
+          disabled={!ready || manualRefresh}
+        >
+          {t('sessions.refresh')}
+        </button>
+        <button
+          type="button"
+          className="btn btn--primary"
+          data-testid="session-new"
+          onClick={onNewSession}
+          disabled={!ready}
+          title={ready ? undefined : t('sessions.newOffline')}
+        >
+          {t('sessions.new')}
+        </button>
+      </div>
+
+      <input
+        type="search"
+        className="field__control"
+        data-testid="session-search-input"
+        aria-label={t('sessions.searchLabel')}
+        placeholder={t('sessions.searchPlaceholder')}
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+
+      {!ready ? (
+        <p
+          className="sessions-notice sessions-notice--offline"
+          role="status"
+          data-testid="sessions-offline"
+        >
+          {t('sessions.offline')}
+        </p>
+      ) : null}
+      {ready && failed && rows.length > 0 ? (
+        <p className="sessions-notice" role="status" data-testid="sessions-stale">
+          {t('sessions.stale')}
+        </p>
+      ) : null}
+      {pull.distance > 0 || manualRefresh ? (
+        <p
+          className="sessions-notice sessions-refresh-indicator"
+          role="status"
+          data-testid="sessions-refreshing"
+          style={{ minHeight: Math.max(pull.distance, 32) }}
+        >
+          {t('sessions.refreshing')}
+        </p>
+      ) : null}
+
+      {showSkeleton || rows.length > 0 ? (
+        <ul
+          className="session-list"
+          data-testid="sessions-list"
+          aria-busy={showSkeleton || list.refreshing}
+        >
+          {showSkeleton ? (
+            <li className="session-list__loading" data-testid="sessions-loading">
+              {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                <Skeleton key={index} lines={2} />
+              ))}
+            </li>
+          ) : (
+            visibleRows.map((row) => (
+              <SessionRow
+                key={row.id}
+                row={row}
+                now={list.loadedAt}
+                menuOpen={menuId === row.id}
+                onToggleMenu={(id) => setMenuId((current) => (current === id ? null : id))}
+                onRename={(target) => {
+                  setMenuId(null);
+                  setRenaming(target);
+                }}
+                onArchive={(target) => void archive(target)}
+              />
+            ))
+          )}
+        </ul>
+      ) : null}
+
+      {noResults ? (
+        <EmptyState
+          title={t('sessions.noResultsTitle')}
+          message={t('sessions.noResults', { query: query.trim() })}
+        />
+      ) : null}
+      {searching && rows.length === 0 && !loading && ready && !failed ? (
+        <EmptyState
+          title={t('sessions.noResultsTitle')}
+          message={t('sessions.noResults', { query: query.trim() })}
+        />
+      ) : null}
+      {firstRunEmpty && !searching ? (
+        <EmptyState
+          title={t('sessions.emptyTitle')}
+          message={t('sessions.emptyMessage')}
+          action={
+            <button
+              type="button"
+              className="btn btn--primary"
+              data-testid="session-new-empty"
+              onClick={onNewSession}
+            >
+              {t('sessions.new')}
+            </button>
+          }
+        />
+      ) : null}
+      {loadFailed ? (
+        <ErrorState
+          title={t('sessions.loadFailedTitle')}
+          message={t('sessions.loadFailed')}
+          onRetry={runManualRefresh}
+          retryLabel={t('common.retry')}
+        />
+      ) : null}
+      {showOfflineEmpty ? (
+        <EmptyState title={t('sessions.offlineEmptyTitle')} message={t('sessions.offlineEmpty')} />
+      ) : null}
+
+      {hasMore && !searching ? (
+        <div ref={sentinelRef} className="session-list__more">
+          <button
+            type="button"
+            className="btn btn--secondary"
+            data-testid="sessions-load-more"
+            onClick={() => void loadMore()}
+            disabled={loadingMore || !ready}
+          >
+            {loadingMore ? t('sessions.loadingMore') : t('sessions.loadMore')}
+          </button>
+        </div>
+      ) : null}
+
+      {renaming ? (
+        <RenameSessionSheet
+          initialTitle={renaming.title}
+          busy={renameBusy}
+          onSubmit={(title) => void rename(title)}
+          onClose={() => setRenaming(null)}
+        />
+      ) : null}
     </section>
   );
 }

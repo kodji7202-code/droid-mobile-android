@@ -587,3 +587,91 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   background: var(--color-surface) !important;
   min-height: 48px;
 }
+
+/* ---- Sessions list -------------------------------------------------------- */
+
+.sessions-screen__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sessions-screen__header .screen__title {
+  flex: 1;
+}
+
+.sessions-notice {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--color-surface-variant);
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sessions-notice--offline {
+  color: var(--color-danger);
+}
+
+.session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.session-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  min-height: 64px;
+  border-bottom: 1px solid var(--color-border);
+  /* Off-screen rows skip layout and paint, which keeps long lists cheap. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
+}
+
+.session-row__main {
+  min-width: 0;
+  padding: 0.5rem 0.25rem;
+}
+
+.session-row__title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-row__meta {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+.session-row__more {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+}
+
+.session-row__menu {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 0.25rem 0.5rem;
+}
+
+.session-row__action {
+  flex: 1;
+  min-height: 48px;
+  border-color: var(--color-border);
+}
+
+.session-list__more {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0 1rem;
+}
