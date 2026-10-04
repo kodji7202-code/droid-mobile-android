@@ -80,7 +80,10 @@ async function killThrowawayDaemon(pid: number): Promise<void> {
 afterAll(async () => {
   if (sessionToArchive && API_KEY) {
     const conn = createDaemonConnection({ url: 'ws://127.0.0.1:3101', apiKey: API_KEY });
-    await conn.archiveSession(sessionToArchive, { force: true }).catch(() => undefined);
+    await conn.connect();
+    await conn.archiveSession(sessionToArchive, { force: true }).catch((err: unknown) => {
+      console.error('cleanup archive failed:', String(err).slice(0, 120));
+    });
     conn.disconnect();
   }
   if (daemonPid !== null) await killThrowawayDaemon(daemonPid);

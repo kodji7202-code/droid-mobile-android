@@ -34,8 +34,11 @@ afterEach(async () => {
   // Archive what this file created (sessions that received a message).
   if (!createdSessionIds.length) return;
   const conn = createDaemonConnection({ url: DAEMON_URL, apiKey: API_KEY });
+  await conn.connect();
   for (const id of createdSessionIds.splice(0)) {
-    await conn.archiveSession(id, { force: true }).catch(() => undefined);
+    await conn.archiveSession(id, { force: true }).catch((err: unknown) => {
+      console.error('cleanup archive failed:', String(err).slice(0, 120));
+    });
   }
   conn.disconnect();
 });

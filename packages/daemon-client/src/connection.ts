@@ -56,6 +56,12 @@ export interface DaemonConnectionOptions {
   backoff?: Partial<BackoffOptions>;
 }
 
+/**
+ * A daemon connection. Every session wrapper (and any other facade call)
+ * requires a prior successful {@link DaemonConnection.connect}; without one
+ * they reject with ConnectionError ("not ready"). Drops recover on their own
+ * once the connection has been ready.
+ */
 export interface DaemonConnection {
   readonly url: string;
   getStatus(): ConnectionStatus;
