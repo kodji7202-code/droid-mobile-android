@@ -221,8 +221,17 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       const current = () => startedUnder === replacements;
       try {
         const handle = await connection.resumeSession(id);
+        // Stop pressed while the handle was unpublished is only a recorded intent.
+        let interruptSent = false;
+        const sendPendingStop = () => {
+          if (interruptSent || !current() || !get().views[id]?.stopRequested) return;
+          interruptSent = true;
+          void handle.interrupt().catch(() => undefined);
+        };
+        sendPendingStop();
         const page = await handle.getMessages({ limit: HISTORY_PAGE_SIZE });
         if (!current()) return;
+        sendPendingStop();
         bumpWindow(id);
         patch(id, {
           status: 'ready',

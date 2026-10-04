@@ -217,3 +217,40 @@ describe('sessionView across connection replacement', () => {
     expect(useSessionViewStore.getState().views['s1']).toBeUndefined();
   });
 });
+
+describe('early Stop on a restored dialog', () => {
+  beforeEach(() => {
+    useSessionViewStore.getState().reset();
+    useConnectionStore.setState({ connection: null, status: 'offline' });
+  });
+
+  it('sends the interrupt once the handle exists although history is still loading', async () => {
+    const { connection, resumeSession } = setup([[message('u1', 'user', 1, 'first')]]);
+    type Page = { messages: SessionMessage[]; hasMore: boolean; nextCursor: undefined };
+    let resolveHistory: (page: Page) => void = () => undefined;
+    const history = {
+      promise: new Promise<Page>((resolve) => {
+        resolveHistory = resolve;
+      }),
+      resolve: (page: Page) => resolveHistory(page),
+    };
+    const interrupt = vi.fn(async () => undefined);
+    const handle = {
+      id: 's1',
+      settings: { modelId: 'm' },
+      cwd: 'C:\\w',
+      getMessages: vi.fn(() => history.promise),
+      interrupt,
+    };
+    resumeSession.mockResolvedValue(handle);
+    useConnectionStore.setState({ connection, status: 'ready' });
+
+    const opening = useSessionViewStore.getState().open(connection, 's1', 1);
+    await vi.waitFor(() => expect(handle.getMessages).toHaveBeenCalled());
+    await useSessionViewStore.getState().interrupt('s1');
+    history.resolve({ messages: [], hasMore: false, nextCursor: undefined });
+    await opening;
+
+    expect(interrupt).toHaveBeenCalledTimes(1);
+  });
+});

@@ -10,10 +10,10 @@ const FACTORY_API_KEY_PATTERN = /fk-[A-Za-z0-9][A-Za-z0-9_-]*/g;
 const BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi;
 
 const NAMED_CREDENTIAL_PATTERN =
-  /((?:api[-_ ]?key|token|secret|password|passwd|authorization)s?["']?\s*[:=]\s*)(?:(?:Basic|Bearer|Digest)\s+)?(?:"[^"]*"|'[^']*'|(?!\[REDACTED\])[^\s"',;&}\])]+)/gi;
+  /((?:api[-_ ]?key|token|secret|password|passwd|authorization)s?["']?\s*[:=]\s*)(?:(?:Basic|Bearer|Digest)\s+)?(?:\\?"(?:[^"\\]|\\.)*"|\\?'(?:[^'\\]|\\.)*'|(?!\[REDACTED\])[^\s"',;&}\])]+)/gi;
 
-/** Basic credentials are base64: require a non-letter character so prose ("Basic usage") survives. */
-const BASIC_PATTERN = /\bBasic\s+(?=[A-Za-z0-9+/]*[0-9+/=])[A-Za-z0-9+/]+={0,2}/g;
+/** The base64 payload can be all letters and unpadded, so any token after the scheme is treated as the credential. */
+const BASIC_PATTERN = /\bBasic\s+[A-Za-z0-9+/]+={0,2}/gi;
 
 const SENSITIVE_KEY_PATTERN = /api[-_]?key|token|secret|password|passwd|authorization|credential/i;
 
@@ -24,7 +24,7 @@ export function redactSecrets(text: string): string {
     .replace(FACTORY_API_KEY_PATTERN, REDACTED)
     .replace(NAMED_CREDENTIAL_PATTERN, (match: string, prefix: string) => {
       const quote =
-        /^(?:(?:Basic|Bearer|Digest)\s+)?(["'])/i.exec(match.slice(prefix.length))?.[1] ?? '';
+        /^(?:(?:Basic|Bearer|Digest)\s+)?(\\?["'])/i.exec(match.slice(prefix.length))?.[1] ?? '';
       return `${prefix}${quote}${REDACTED}${quote}`;
     })
     .replace(BEARER_PATTERN, `Bearer ${REDACTED}`)

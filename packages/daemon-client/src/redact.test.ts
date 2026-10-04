@@ -33,3 +33,21 @@ describe('redactSecrets credential values', () => {
     expect(redactSecrets('secret=abc123&x=1')).toBe('secret=[REDACTED]&x=1');
   });
 });
+
+describe('redactSecrets escapes and Basic payloads', () => {
+  it('consumes escaped quotes so no suffix leaks', () => {
+    expect(redactSecrets('password="ab\\"cd-secret" next')).toBe('password="[REDACTED]" next');
+    expect(
+      redactSecrets(JSON.stringify({ message: 'password="ab\\"cd-secret" end' })),
+    ).not.toContain('cd-secret');
+    expect(redactSecrets(JSON.stringify({ error: 'bad apiKey: "x\\"yzSUFFIX"' }))).not.toContain(
+      'SUFFIX',
+    );
+  });
+
+  it('redacts Basic payloads of any casing and character mix', () => {
+    expect(redactSecrets('got basic dXNlcjpwYXNz')).toBe('got Basic [REDACTED]');
+    expect(redactSecrets('got BASIC abcdefghijklmnop')).toBe('got Basic [REDACTED]');
+    expect(redactSecrets('got Basic YWJjZGVm')).toBe('got Basic [REDACTED]');
+  });
+});

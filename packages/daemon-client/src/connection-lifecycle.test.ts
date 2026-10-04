@@ -377,6 +377,29 @@ describe('interaction handler ownership', () => {
     connection.disconnect();
   });
 
+  it('never reuses a facade id across connections', async () => {
+    const lostA: number[] = [];
+    const lostB: number[] = [];
+    sdk.connectToDaemon.mockResolvedValueOnce(fakeDroid());
+    sdk.connectToDaemon.mockResolvedValueOnce(fakeDroid());
+    const make = (lost: number[]) =>
+      createDaemonConnection({
+        url: 'ws://127.0.0.1:1',
+        apiKey: 'fk-test',
+        keepAliveMs: 0,
+        onFacadeLost: (generation) => lost.push(generation),
+      });
+    const a = make(lostA);
+    const b = make(lostB);
+    await a.connect();
+    await b.connect();
+    a.disconnect();
+    b.disconnect();
+    expect(lostA.length).toBeGreaterThan(0);
+    expect(lostB.length).toBeGreaterThan(0);
+    expect(lostA.filter((id) => lostB.includes(id))).toEqual([]);
+  });
+
   it('cancels a request replayed by an abandoned facade at once', async () => {
     const droid = fakeDroid();
     sdk.connectToDaemon.mockResolvedValueOnce(droid);

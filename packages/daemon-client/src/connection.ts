@@ -138,6 +138,13 @@ export interface DaemonConnection {
   listAllMessages(sessionId: string, options?: { maxMessages?: number }): Promise<SessionMessage[]>;
 }
 
+/**
+ * Facade ids are unique across every connection in the process: onFacadeLost
+ * consumers expire interactions by id, so two connections must never share one.
+ */
+let facadeSequence = 0;
+const nextFacadeId = (): number => ++facadeSequence;
+
 const DEFAULT_PAGE_LIMIT = 50;
 const RECONNECT_READY_TIMEOUT_MS = 30_000;
 const DEFAULT_KEEP_ALIVE_MS = 10_000;
@@ -229,7 +236,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     // Invalidate any in-flight attempt even when no facade is adopted yet, so a
     // pending authentication cannot adopt its droid after the teardown.
     const abandoned = droidToken;
-    droidToken += 1;
+    droidToken = nextFacadeId();
     options.onFacadeLost?.(abandoned);
     const droid = currentDroid;
     currentDroid = null;
@@ -246,7 +253,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
    * Rejects with a classified error; never retries by itself.
    */
   async function runAttempt(): Promise<void> {
-    const token = ++droidToken;
+    const token = (droidToken = nextFacadeId());
     emitStatus({ type: 'attempt-start' });
     emitStatus({ type: 'auth-start' });
     lastFailure = null;
