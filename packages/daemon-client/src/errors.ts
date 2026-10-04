@@ -1,4 +1,4 @@
-import { redactSecrets } from './redact';
+import { redactSecrets, redactValue } from './redact';
 
 /**
  * Error taxonomy of the daemon-client adapter (architecture.md 3.1). Every
@@ -16,7 +16,7 @@ function redactCause(cause: unknown): unknown {
   }
   if (typeof cause === 'string') return redactSecrets(cause);
   try {
-    return redactSecrets(JSON.stringify(cause));
+    return JSON.stringify(redactValue(cause));
   } catch {
     return '[unserializable cause]';
   }
@@ -26,7 +26,10 @@ export class DaemonClientError extends Error {
   readonly kind: DaemonErrorKind;
 
   constructor(kind: DaemonErrorKind, message: string, options?: { cause?: unknown }) {
-    super(redactSecrets(message), options === undefined ? undefined : { cause: redactCause(options.cause) });
+    super(
+      redactSecrets(message),
+      options === undefined ? undefined : { cause: redactCause(options.cause) },
+    );
     this.name = 'DaemonClientError';
     this.kind = kind;
   }
@@ -34,7 +37,10 @@ export class DaemonClientError extends Error {
 
 /** The daemon rejected the API key. Message never repeats the daemon's generic text. */
 export class AuthError extends DaemonClientError {
-  constructor(message = 'The API key was rejected by the daemon. Check the key and try again.', options?: { cause?: unknown }) {
+  constructor(
+    message = 'The API key was rejected by the daemon. Check the key and try again.',
+    options?: { cause?: unknown },
+  ) {
     super('auth', message, options);
     this.name = 'AuthError';
   }

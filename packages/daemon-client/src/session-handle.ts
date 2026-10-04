@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SessionHandle: the adapter's per-session wrapper (architecture.md 3.1).
  * Survives reconnects: after the connection re-resumes opened sessions, the
  * same handle delegates to the new underlying SDK session; if a call hits a
@@ -13,7 +13,8 @@ import type {
 } from '@factory/droid-sdk';
 import type { NormalizedEvent } from './normalize';
 import { normalizeStreamEvent } from './normalize';
-import { classifyConnectFailure } from './classify';
+import { isNonTransportFailure } from './classify';
+import type { DaemonClientError } from './errors';
 import type { SessionMessagesPage } from './paging';
 
 /** Stream option shape of the facade's session.stream (SDK type not re-exported). */
@@ -36,6 +37,12 @@ export interface SessionHost {
   currentDroidToken(): number;
   /** Re-resumes the session on the current connection and attaches the handle. */
   reattachSession(sessionId: string): Promise<ConnectedDroidSession>;
+  /**
+   * Maps a failed SDK call to a typed error, emitting the advisory version
+   * warning when applicable. 	ransport is true only for a real connection loss
+   * (never for cancellations, application errors or version mismatches).
+   */
+  reportFailure(err: unknown): { error: DaemonClientError; transport: boolean };
   /** Asks the connection to verify the transport and recover if it is down. */
   onConnectionLost(): void;
   getMessagesPage(
@@ -56,6 +63,7 @@ export class SessionHandle {
   private attachedDroidToken = -1;
   private lastSettings: Readonly<SessionSettings> | undefined;
   private lastCwd: string | undefined;
+  private pendingDetach: Promise<void> | undefined;
 
   /** @internal Swaps the underlying session after a (re)attach. */
   attach(session: ConnectedDroidSession, droidToken: number): void {
@@ -80,9 +88,19 @@ export class SessionHandle {
     return this.attachedDroidToken;
   }
 
-  /** @internal Forces the next call to re-resume. */
+  /**
+   * @internal Forces the next call to re-resume. The SDK attachment is released
+   * first: a facade that survived the liveness probe still holds it and would
+   * reject the re-resume as already attached.
+   */
   markSuspect(): void {
+    const stale = this.underlying;
     this.underlying = undefined;
+    if (!stale) return;
+    this.pendingDetach = stale.detach().then(
+      () => undefined,
+      () => undefined,
+    );
   }
 
   private async resolveSession(): Promise<ConnectedDroidSession> {
@@ -90,6 +108,8 @@ export class SessionHandle {
       return this.underlying;
     }
     this.underlying = undefined;
+    await this.pendingDetach;
+    this.pendingDetach = undefined;
     return this.host.reattachSession(this.id);
   }
 
@@ -98,19 +118,12 @@ export class SessionHandle {
     try {
       session = await this.resolveSession();
     } catch (err) {
-      throw classifyConnectFailure(err);
+      throw this.host.reportFailure(err).error;
     }
     try {
       return await op(session);
     } catch (err) {
-      const classified = classifyConnectFailure(err);
-      if (classified.kind === 'connection') {
-        // The transport may have dropped underneath us; force a re-resume on
-        // the next call and let the connection recover itself.
-        this.markSuspect();
-        this.host.onConnectionLost();
-      }
-      throw classified;
+      throw this.failed(err);
     }
   }
 
@@ -123,7 +136,7 @@ export class SessionHandle {
     try {
       session = await this.resolveSession();
     } catch (err) {
-      throw classifyConnectFailure(err);
+      throw this.host.reportFailure(err).error;
     }
     try {
       const rawStream = session.stream(prompt, {
@@ -137,13 +150,24 @@ export class SessionHandle {
         yield normalizeStreamEvent(raw);
       }
     } catch (err) {
-      const classified = classifyConnectFailure(err);
-      if (classified.kind === 'connection') {
-        this.markSuspect();
-        this.host.onConnectionLost();
+      if (options?.abortSignal?.aborted || isNonTransportFailure(err)) {
+        this.host.reportFailure(err);
+        throw err;
       }
-      throw classified;
+      throw this.failed(err);
     }
+  }
+
+  /** Maps a failed call; only a real transport loss poisons the attachment. */
+  private failed(err: unknown): DaemonClientError {
+    const { error, transport } = this.host.reportFailure(err);
+    if (transport) {
+      // The transport may have dropped underneath us; force a re-resume on the
+      // next call and let the connection recover itself.
+      this.markSuspect();
+      this.host.onConnectionLost();
+    }
+    return error;
   }
 
   interrupt(): Promise<void> {
@@ -185,7 +209,7 @@ export class SessionHandle {
       try {
         await session.detach();
       } catch (err) {
-        throw classifyConnectFailure(err);
+        throw this.host.reportFailure(err).error;
       }
     }
   }
@@ -198,7 +222,7 @@ export class SessionHandle {
     try {
       await session.close();
     } catch (err) {
-      throw classifyConnectFailure(err);
+      throw this.host.reportFailure(err).error;
     }
   }
 

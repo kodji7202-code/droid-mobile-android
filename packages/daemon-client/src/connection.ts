@@ -1,4 +1,4 @@
-/**
+﻿/**
  * createDaemonConnection: the adapter's connection core (architecture.md 3.1).
  *
  * - One WebSocket, one `daemon.authenticate`, over the SDK facade
@@ -29,10 +29,10 @@ import type {
 } from '@factory/droid-sdk';
 import { backoffDelay } from './backoff';
 import type { BackoffOptions } from './backoff';
-import { classifyConnectFailure, versionWarningOf } from './classify';
+import { classifyConnectFailure, isNonTransportFailure, versionWarningOf } from './classify';
 import type { AskUserHandler, PermissionHandler } from './interactions';
 import { AuthError, ConnectionError } from './errors';
-import type { VersionMismatchWarning } from './errors';
+import type { DaemonClientError, VersionMismatchWarning } from './errors';
 import { toPage } from './paging';
 import type { SessionMessagesPage } from './paging';
 import { probeDaemonIdentity } from './probe';
@@ -219,12 +219,12 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
 
   function teardownDroid(): void {
     stopKeepAlive();
+    // Invalidate any in-flight attempt even when no facade is adopted yet, so a
+    // pending authentication cannot adopt its droid after the teardown.
+    droidToken += 1;
     const droid = currentDroid;
     currentDroid = null;
     if (!droid) return;
-    // Invalidate any in-flight attempt so it cannot adopt its fresh droid
-    // after the teardown (disconnect during connect).
-    droidToken += 1;
     try {
       droid.disconnect();
     } catch {
@@ -265,6 +265,15 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       }
       currentDroid = droid;
       await rebindOpenedSessions(droid, token);
+      if (token !== droidToken || disposed || currentDroid !== droid) {
+        if (currentDroid === droid) currentDroid = null;
+        try {
+          droid.disconnect();
+        } catch {
+          // stale droid teardown must never throw
+        }
+        throw new ConnectionError('Connection attempt was superseded.');
+      }
       emitStatus({ type: 'ready' });
       startKeepAlive();
     } catch (err) {
@@ -285,14 +294,14 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     for (const [id, handle] of handles) {
       let attached = false;
       for (let retry = 0; retry < 2 && !attached; retry += 1) {
+        if (token !== droidToken) return;
         try {
-          handle.attach(
-            await droid.sessions.resume(
-              id,
-              handlersFor(() => id),
-            ),
-            token,
+          const session = await droid.sessions.resume(
+            id,
+            handlersFor(() => id),
           );
+          if (token !== droidToken) return;
+          handle.attach(session, token);
           attached = true;
         } catch {
           // The daemon may still be warming up right after a restart; one
@@ -304,14 +313,17 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
   }
 
   async function isAlive(droid: ConnectedDroid, timeoutMs = 5000): Promise<boolean> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('liveness probe timed out')), timeoutMs);
+      timer = setTimeout(() => reject(new Error('liveness probe timed out')), timeoutMs);
     });
     try {
       await Promise.race([droid.sessions.list({ limit: 1 }), timeout]);
       return true;
     } catch {
       return false;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -328,6 +340,10 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       return;
     }
     const droid = currentDroid;
+    const probeToken = droidToken;
+    // A probe result only counts for the facade it was started against.
+    const isCurrent = (): boolean =>
+      !disposed && currentDroid === droid && probeToken === droidToken;
     if (err !== undefined) {
       const classified = classifyConnectFailure(err);
       if (classified.kind === 'auth') {
@@ -337,7 +353,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
         return;
       }
     }
-    if (!(await isAlive(droid))) {
+    if (!(await isAlive(droid)) && isCurrent()) {
       lastFailure = new ConnectionError('The daemon connection was lost.');
       teardownDroid();
       emitStatus({ type: 'transport-lost' });
@@ -478,18 +494,29 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     };
   }
 
+  /**
+   * Classifies a failed facade call. A version-related failure becomes a
+   * non-blocking warning; neither it, a cancellation nor an application error
+   * is a transport problem, so none of them may trigger a reconnect.
+   */
+  function reportFailure(err: unknown): { error: DaemonClientError; transport: boolean } {
+    const warning = versionWarningOf(err);
+    if (warning) emitWarning(warning);
+    const error = classifyConnectFailure(err);
+    return {
+      error,
+      transport: error.kind === 'connection' && !warning && !isNonTransportFailure(err),
+    };
+  }
+
   /** Wraps a facade call, converting SDK failures into classified errors. */
   async function mapSdkError<T>(op: () => Promise<T>): Promise<T> {
     try {
       return await op();
     } catch (err) {
-      // A version-related failure is surfaced as a non-blocking warning; it is
-      // not a transport problem, so it must not trigger a reconnect.
-      const warning = versionWarningOf(err);
-      if (warning) emitWarning(warning);
-      const classified = classifyConnectFailure(err);
-      if (classified.kind === 'connection' && !warning) void handlePossibleDisconnect();
-      throw classified;
+      const { error, transport } = reportFailure(err);
+      if (transport) void handlePossibleDisconnect();
+      throw error;
     }
   }
 
@@ -515,6 +542,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
 
   const host: SessionHost = {
     currentDroidToken: () => droidToken,
+    reportFailure,
     reattachSession: (sessionId) => reattachSession(sessionId),
     onConnectionLost: () => {
       void handlePossibleDisconnect();

@@ -80,23 +80,44 @@ export function extractVersionMismatch(data: unknown): VersionMismatchWarning | 
  * `fallbackMethod` is the request method from the originating frame, used
  * when the mismatch data carries no method of its own.
  */
-export function classifyJsonRpcError(rpc: JsonRpcErrorShape, fallbackMethod?: string): ErrorClassification {
+export function classifyJsonRpcError(
+  rpc: JsonRpcErrorShape,
+  fallbackMethod?: string,
+): ErrorClassification {
   if (rpc.code === RPC_AUTH_REJECTED) {
     return { kind: 'auth', error: new AuthError(undefined, { cause: rpc }) };
   }
   const mismatch = extractVersionMismatch(rpc.data);
   if (mismatch) {
-    return { kind: 'version-warning', warning: { ...mismatch, method: mismatch.method ?? fallbackMethod } };
+    return {
+      kind: 'version-warning',
+      warning: { ...mismatch, method: mismatch.method ?? fallbackMethod },
+    };
   }
   if (rpc.code === RPC_METHOD_NOT_FOUND) {
-    return { kind: 'method-unavailable', error: new MethodUnavailableError(rpc.message ?? 'The daemon does not implement this method.', { cause: rpc }) };
+    return {
+      kind: 'method-unavailable',
+      error: new MethodUnavailableError(
+        rpc.message ?? 'The daemon does not implement this method.',
+        { cause: rpc },
+      ),
+    };
   }
   if (rpc.code === RPC_PARSE_ERROR || rpc.code === RPC_INVALID_PARAMS) {
-    return { kind: 'protocol', error: new ProtocolError(rpc.message ?? 'The daemon sent a malformed response.', { cause: rpc }) };
+    return {
+      kind: 'protocol',
+      error: new ProtocolError(rpc.message ?? 'The daemon sent a malformed response.', {
+        cause: rpc,
+      }),
+    };
   }
   return {
     kind: 'unknown',
-    error: new DaemonClientError('unknown', rpc.message ?? `The daemon request failed (code ${rpc.code}).`, { cause: rpc }),
+    error: new DaemonClientError(
+      'unknown',
+      rpc.message ?? `The daemon request failed (code ${rpc.code}).`,
+      { cause: rpc },
+    ),
   };
 }
 
@@ -118,7 +139,11 @@ function asJsonRpcError(value: unknown): JsonRpcErrorShape | null {
   }
   // SDK JsonRpcRequestError carries the rpc error under `.error`.
   const nested = (value as WithError).error;
-  if (typeof nested === 'object' && nested !== null && typeof (nested as Partial<JsonRpcErrorShape>).code === 'number') {
+  if (
+    typeof nested === 'object' &&
+    nested !== null &&
+    typeof (nested as Partial<JsonRpcErrorShape>).code === 'number'
+  ) {
     const n = nested as JsonRpcErrorShape;
     return { code: n.code, message: n.message, data: n.data };
   }
@@ -140,7 +165,7 @@ function findRpcError(err: unknown, depth = 0): JsonRpcErrorShape | null {
   if (depth > 5 || typeof err !== 'object' || err === null) return null;
   const rpc = asJsonRpcError(err);
   if (rpc) return rpc;
-  const cause = (err as { cause?: unknown; originalError?: unknown });
+  const cause = err as { cause?: unknown; originalError?: unknown };
   return findRpcError(cause.originalError, depth + 1) ?? findRpcError(cause.cause, depth + 1);
 }
 
@@ -157,6 +182,25 @@ export function versionWarningOf(err: unknown): VersionMismatchWarning | null {
   return classified.kind === 'version-warning' ? classified.warning : null;
 }
 
+/** SDK errors that report a cancelled or rejected operation, never a lost socket. */
+const APPLICATION_ERROR_NAMES = new Set([
+  'AbortError',
+  'SessionError',
+  'SessionNotFoundError',
+  'InvalidSessionCwdError',
+  'ConcurrentStreamError',
+  'SessionReplacedError',
+  'SessionReplacementError',
+  'ComputeLimitExceededError',
+]);
+
+/** True for cancellations and daemon-side application errors (not transport loss). */
+export function isNonTransportFailure(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const name = (err as { name?: unknown }).name;
+  return typeof name === 'string' && APPLICATION_ERROR_NAMES.has(name);
+}
+
 /**
  * Classifies a failure thrown by the SDK during connect (or carried in an
  * onError event) into the adapter's typed errors. Anything that is not an
@@ -171,10 +215,9 @@ export function classifyConnectFailure(err: unknown): DaemonClientError {
     if (classified.kind !== 'version-warning') return classified.error;
     // A version warning during connect is surfaced as a non-fatal connection
     // failure with the warning attached via its cause chain message.
-    return new ConnectionError(
-      'The daemon speaks a different protocol version than this client.',
-      { cause: classified.warning },
-    );
+    return new ConnectionError('The daemon speaks a different protocol version than this client.', {
+      cause: classified.warning,
+    });
   }
   if (typeof err === 'object' && err !== null && isAuthRejectedFailure(err)) {
     return new AuthError(undefined, { cause: err });
