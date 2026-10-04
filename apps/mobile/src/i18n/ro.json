@@ -214,6 +214,28 @@
     "grace60": "După 1 minut",
     "grace300": "După 5 minute"
   },
+  "chat": {
+    "inputLabel": "Mesaj",
+    "inputPlaceholder": "Scrie-i lui Droid",
+    "send": "Trimite",
+    "interrupt": "Oprește",
+    "notSent": "Netrimis",
+    "connectionLost": "Conexiunea s-a pierdut. Conversația se reîncarcă din daemon când acesta e din nou accesibil.",
+    "working": {
+      "thinking": "Se gândește…",
+      "streaming_assistant_message": "Scrie…",
+      "executing_tool": "Rulează o unealtă…"
+    },
+    "tool": {
+      "running": "Rulează",
+      "completed": "Gata",
+      "error": "Eroare",
+      "input": "Intrare",
+      "result": "Rezultat",
+      "errorOutput": "Eroare",
+      "noResult": "Încă fără rezultat"
+    }
+  },
   "session": {
     "title": "Sesiune",
     "model": "Model",

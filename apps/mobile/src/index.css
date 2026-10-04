@@ -782,3 +782,138 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.session-message--assistant .session-message__text,
+.session-message--user .session-message__text {
+  margin: 0;
+}
+
+.session-message--streaming .session-message__text::after {
+  content: '?';
+  opacity: 0.6;
+}
+
+.session-message--sending {
+  opacity: 0.7;
+}
+
+.session-message--failed {
+  outline: 1px solid var(--color-danger);
+}
+
+.session-message--error {
+  background: color-mix(in srgb, var(--color-danger) 14%, var(--color-surface));
+  color: var(--color-fg);
+  border: 1px solid var(--color-danger);
+}
+
+.session-message__failed {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.tool-card {
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+}
+
+.tool-card--error {
+  border-color: var(--color-danger);
+}
+
+.tool-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tool-card__name {
+  font-weight: 600;
+}
+
+.tool-card__summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-fg-muted);
+}
+
+.tool-card__status {
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+}
+
+.tool-card--error .tool-card__status {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.tool-card__body {
+  padding: 0 0.75rem 0.75rem;
+}
+
+.tool-card__label {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+}
+
+.tool-card__pre {
+  margin: 0;
+  max-height: 16rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8125rem;
+}
+
+.chat-composer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem 0;
+  background: var(--color-bg);
+}
+
+.chat-composer__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.chat-composer__input {
+  flex: 1;
+  min-height: 48px;
+  resize: none;
+}
+
+.chat-composer__button {
+  min-height: 48px;
+}
+
+.chat-composer__working {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-fg-muted);
+}
+
+.app-shell:has(.app-nav-bar) .chat-composer {
+  bottom: 53px;
+}

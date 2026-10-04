@@ -214,6 +214,28 @@
     "grace60": "After 1 minute",
     "grace300": "After 5 minutes"
   },
+  "chat": {
+    "inputLabel": "Message",
+    "inputPlaceholder": "Message Droid",
+    "send": "Send",
+    "interrupt": "Stop",
+    "notSent": "Not sent",
+    "connectionLost": "Connection lost. The conversation reloads from the daemon when it is reachable again.",
+    "working": {
+      "thinking": "Thinking…",
+      "streaming_assistant_message": "Writing…",
+      "executing_tool": "Running a tool…"
+    },
+    "tool": {
+      "running": "Running",
+      "completed": "Done",
+      "error": "Error",
+      "input": "Input",
+      "result": "Result",
+      "errorOutput": "Error",
+      "noResult": "No result yet"
+    }
+  },
   "session": {
     "title": "Session",
     "model": "Model",

@@ -26,6 +26,27 @@ export {
   versionWarningOf,
 } from './classify';
 export type { ErrorClassification, JsonRpcErrorShape } from './classify';
+export {
+  addPendingUser,
+  appendError,
+  applyStreamEvent,
+  failPendingUser,
+  isHiddenUserMessage,
+  itemsFromMessages,
+  localOnlyItems,
+  prependItems,
+  removeItem,
+  settleTurn,
+} from './transcript';
+export type {
+  AssistantItem,
+  ErrorItem,
+  ToolItem,
+  ToolStatus,
+  TranscriptItem,
+  UserDelivery,
+  UserItem,
+} from './transcript';
 export { SDK_PACKAGE_VERSION } from './version';
 export {
   AuthError,

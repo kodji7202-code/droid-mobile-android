@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { BackIcon } from '../../components/icons';
@@ -7,7 +7,8 @@ import { ErrorState } from '../../components/ErrorState';
 import { Skeleton } from '../../components/Skeleton';
 import { useConnectionStore } from '../../stores/connection';
 import { useSessionViewStore } from '../../stores/sessionView';
-import { toHistory } from './history';
+import { ChatComposer } from '../chat/ChatComposer';
+import { Transcript } from '../chat/Transcript';
 
 /** Last path segment of a working directory, for a compact header title. */
 function folderName(cwd: string | undefined): string | undefined {
@@ -26,6 +27,11 @@ export function SessionScreen() {
   const view = useSessionViewStore((state) => state.views[id]);
   const open = useSessionViewStore((state) => state.open);
   const loadOlder = useSessionViewStore((state) => state.loadOlder);
+  const send = useSessionViewStore((state) => state.send);
+  const retry = useSessionViewStore((state) => state.retry);
+  const interrupt = useSessionViewStore((state) => state.interrupt);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
 
   useEffect(() => {
     if (ready && connection && id !== '') {
@@ -33,7 +39,30 @@ export function SessionScreen() {
     }
   }, [ready, connection, id, readyEpoch, open]);
 
-  const history = useMemo(() => toHistory(view?.messages ?? []), [view?.messages]);
+  const items = view?.items;
+  const itemCount = items?.length ?? 0;
+  const lastText = items?.at(-1);
+
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const atBottom =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 160;
+      // Content growth alone never lowers scrollY, so only a real upward scroll releases the pin.
+      if (atBottom) stickToBottom.current = true;
+      else if (window.scrollY < lastY - 4) stickToBottom.current = false;
+      lastY = window.scrollY;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (stickToBottom.current) {
+      bottomRef.current?.scrollIntoView?.({ block: 'end' });
+    }
+  }, [itemCount, lastText, view?.interrupted]);
+
   const loading = view === undefined ? ready : view.status === 'loading';
   const failed = view?.status === 'error';
   const title = folderName(view?.cwd) ?? t('session.title');
@@ -122,26 +151,33 @@ export function SessionScreen() {
         </div>
       ) : null}
 
-      {view?.status === 'ready' && history.length === 0 ? (
+      {view?.status === 'ready' && itemCount === 0 ? (
         <EmptyState title={t('session.emptyTitle')} message={t('session.emptyMessage')} />
       ) : null}
 
-      {history.length > 0 ? (
-        <ol className="session-messages" data-testid="session-messages">
-          {history.map((message, index) => (
-            <li
-              key={message.id}
-              className={`session-message session-message--${message.role}`}
-              data-testid={`msg-${message.role}-${index}`}
-            >
-              <span className="session-message__role">
-                {message.role === 'user' ? t('session.roleUser') : t('session.roleAssistant')}
-              </span>
-              <p className="session-message__text">{message.text}</p>
-            </li>
-          ))}
-        </ol>
+      {items && itemCount > 0 ? (
+        <Transcript items={items} onRetry={(itemId) => void retry(id, itemId)} />
       ) : null}
+
+      {view?.interrupted ? (
+        <p
+          className="sessions-notice sessions-notice--offline"
+          role="status"
+          data-testid="chat-interrupted"
+        >
+          {t('chat.connectionLost')}
+        </p>
+      ) : null}
+
+      <div ref={bottomRef} />
+
+      <ChatComposer
+        turnActive={view?.turnActive ?? false}
+        workingState={view?.workingState ?? 'idle'}
+        disabled={view?.status !== 'ready'}
+        onSend={(text) => void send(id, text)}
+        onInterrupt={() => void interrupt(id)}
+      />
     </section>
   );
 }
