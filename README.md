@@ -62,8 +62,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev\with-env.ps1 <comm
 - `start-daemon.ps1` starts `droid daemon --host 127.0.0.1 --port <p>` detached via
   WMI/CIM (survives the launching shell), logs to `.tmp\logs\daemon-<port>.*.log`, writes
   the PID file `.tmp\daemon-<port>.pid`, and health-checks `/health`.
-- `stop-daemon.ps1` stops only the recorded PID (`taskkill /T`); fallback: the listener on
-  that exact port.
+- `stop-daemon.ps1` stops only the recorded PID (`taskkill /T`) after validating its start time
+  and command line; it never kills a process inferred from a port (refuses, exit 1).
 - `with-env.ps1` loads `.env.local` `KEY=VALUE` lines into the process environment without
   printing values, then runs the given command.
 

@@ -11,14 +11,17 @@
 param(
   [int]$Port = 3101,
   [string]$DroidExe = 'C:\Users\claud\bin\droid.exe',
-  [int]$HealthTimeoutSec = 30
+  [int]$HealthTimeoutSec = 30,
+  [string]$StateDir
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $logDir = Join-Path $repoRoot '.tmp\logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-$pidFile = Join-Path $repoRoot ".tmp\daemon-$Port.pid"
+if (-not $StateDir) { $StateDir = Join-Path $repoRoot '.tmp' }
+New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
+$pidFile = Join-Path $StateDir "daemon-$Port.pid"
 
 function Test-DaemonHealth {
   param([int]$HealthPort)
@@ -32,7 +35,7 @@ function Test-DaemonHealth {
 
 # Idempotence: if our PID file points at a live, healthy process, start nothing.
 if (Test-Path $pidFile) {
-  $existing = Get-Content $pidFile -ErrorAction SilentlyContinue
+  $existing = try { (Get-Content $pidFile -Raw | ConvertFrom-Json).pid } catch { $null }
   if ($existing -and (Get-Process -Id $existing -ErrorAction SilentlyContinue)) {
     if (Test-DaemonHealth -HealthPort $Port) {
       "daemon already running on port $Port (cmd pid $existing), healthy"
@@ -70,7 +73,8 @@ if ($result.ReturnValue -ne 0) {
 }
 
 $wrapperPid = $result.ProcessId
-Set-Content -Path $pidFile -Value $wrapperPid
+$startTime = (Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $wrapperPid").CreationDate.ToUniversalTime().ToString('o')
+@{ pid = $wrapperPid; startTime = $startTime } | ConvertTo-Json -Compress | Set-Content -Path $pidFile -Encoding ASCII
 "daemon cmd pid $wrapperPid"
 
 # Cold start takes a few seconds; fail fast if the wrapper process already exited.
