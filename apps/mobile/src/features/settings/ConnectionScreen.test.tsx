@@ -13,6 +13,7 @@ const actions = {
   switchTo: vi.fn(),
   updateConnection: vi.fn(),
   forget: vi.fn(),
+  signOut: vi.fn(),
 };
 
 beforeEach(() => {
@@ -146,5 +147,24 @@ describe('ConnectionScreen', () => {
     fireEvent.click(screen.getByTestId('connection-forget-b'));
     fireEvent.click(screen.getByTestId('connection-forget-dialog-confirm'));
     await waitFor(() => expect(actions.forget).toHaveBeenCalledWith('b'));
+  });
+
+  it('labels per-entry removal "Forget" for the active and inactive entries alike', () => {
+    renderPage();
+    expect(screen.getByTestId('connection-forget-a')).toHaveTextContent(/^Forget$/);
+    expect(screen.getByTestId('connection-forget-b')).toHaveTextContent(/^Forget$/);
+  });
+
+  it('signs out only after confirmation and cancel keeps everything', async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('connection-sign-out'));
+    expect(screen.getByTestId('connection-sign-out-dialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('connection-sign-out-dialog-cancel'));
+    expect(actions.signOut).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('connection-sign-out'));
+    fireEvent.click(screen.getByTestId('connection-sign-out-dialog-confirm'));
+    await waitFor(() => expect(actions.signOut).toHaveBeenCalledTimes(1));
+    expect(actions.forget).not.toHaveBeenCalled();
   });
 });

@@ -85,6 +85,10 @@ function setup(
     setActiveSavedConnection: (id) => {
       saved.activeId = id;
     },
+    clearSavedConnections: () => {
+      saved.connections = [];
+      saved.activeId = null;
+    },
     removeSavedConnection: (id) => {
       saved.connections = saved.connections.filter((e) => e.id !== id);
       if (saved.activeId === id) saved.activeId = null;
@@ -267,5 +271,44 @@ describe('forget', () => {
     expect(saved.activeId).toBe('b');
     expect(created.at(-1)?.url).toBe(B.url);
     expect(manager.getState().connection).not.toBeNull();
+  });
+});
+
+describe('signOut', () => {
+  it('removes every connection, key, pending bridge secret and metadata and closes the socket', async () => {
+    const { manager, saved, secrets, created } = setup({
+      keys: ['a', 'b', 'pairing.pendingBridge'],
+    });
+    await manager.switchTo('a');
+    await manager.signOut();
+    expect(created[0]!.disconnect).toHaveBeenCalled();
+    expect(manager.getState().connection).toBeNull();
+    expect(manager.getState().activeConnectionId).toBeNull();
+    expect(manager.getState().savedConnections).toEqual([]);
+    expect(manager.getState().savedActiveId).toBeNull();
+    expect(saved.connections).toEqual([]);
+    expect(saved.activeId).toBeNull();
+    expect(secrets.size).toBe(0);
+  });
+
+  it('wipes saved metadata before closing so the Connect screen mounts empty', async () => {
+    const { manager, saved, created } = setup();
+    await manager.switchTo('a');
+    let savedAtClose = -1;
+    created[0]!.disconnect.mockImplementation(() => {
+      savedAtClose = saved.connections.length;
+    });
+    await manager.signOut();
+    expect(savedAtClose).toBe(0);
+  });
+
+  it('works when nothing is connected and the pending bridge secret exists alone', async () => {
+    const { manager, secrets } = setup({
+      connections: [],
+      activeId: null,
+      keys: ['pairing.pendingBridge'],
+    });
+    await manager.signOut();
+    expect(secrets.size).toBe(0);
   });
 });

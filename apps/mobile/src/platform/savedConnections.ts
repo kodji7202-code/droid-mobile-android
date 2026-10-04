@@ -94,3 +94,8 @@ export function removeSavedConnection(id: string): void {
     connections: state.connections.filter((entry) => entry.id !== id),
   });
 }
+
+/** Drops all metadata, including the active marker. */
+export function clearSavedConnections(): void {
+  window.localStorage.removeItem(SAVED_CONNECTIONS_KEY);
+}

@@ -10,12 +10,9 @@ import { loadSavedConnections } from '../../platform/savedConnections';
 import { qrScanner } from '../../platform/qrScanner';
 import type { QrScanResult } from '../../platform/qrScanner';
 import { getSecureStore } from '../../platform/secureStore';
-import { parsePairingCode } from './pairing';
+import { parsePairingCode, PENDING_BRIDGE_SECRET_ID } from './pairing';
 import type { PairingPayload } from './pairing';
 import { checkDaemonUrl, isApiKeyFormat, isCleartextUrl } from './validation';
-
-/** Holds bridge info from a pairing code until the FCM registration consumes it; never rendered. */
-export const PENDING_BRIDGE_SECRET_ID = 'pairing.pendingBridge';
 
 function initialUrl(): string {
   const { activeId, connections } = loadSavedConnections();
@@ -84,7 +81,8 @@ export function ConnectScreen() {
     }
     const payload = parsePairingCode(text);
     if (payload === null) {
-      setPairing(text);
+      // A rejected code may still embed a key or bridge secret; never keep it in the field.
+      setPairing('');
       setPairingError(true);
       return;
     }

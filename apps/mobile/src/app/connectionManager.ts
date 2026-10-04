@@ -23,6 +23,7 @@ import type {
 } from '@droidmobile/daemon-client';
 import type { SavedConnection } from '../platform/savedConnections';
 import type { SecureStore } from '../platform/secureStore';
+import { PENDING_BRIDGE_SECRET_ID } from '../features/connect/pairing';
 
 /** Thrown before any socket exists when the address breaks the transport policy. */
 export class TransportPolicyError extends Error {
@@ -68,6 +69,7 @@ export interface ConnectionManagerDeps {
   updateSavedConnection(id: string, patch: Partial<Pick<SavedConnection, 'label' | 'url'>>): void;
   setActiveSavedConnection(id: string | null): void;
   removeSavedConnection(id: string): void;
+  clearSavedConnections(): void;
   getSecureStore(): SecureStore;
   checkUrl(
     rawUrl: string,
@@ -113,6 +115,11 @@ export interface ConnectionManager {
   ): Promise<void>;
   /** Deletes the connection and its key; forgetting the active one closes the socket. */
   forget(id: string): Promise<void>;
+  /**
+   * Full sign-out: closes the socket and deletes every saved connection, key,
+   * pending bridge secret and metadata, leaving the empty Connect screen.
+   */
+  signOut(): Promise<void>;
 }
 
 const ERROR_KINDS: readonly DaemonErrorKind[] = [
@@ -345,6 +352,19 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
       ...snapshotSaved(),
     });
   }
+  async function signOut(): Promise<void> {
+    const store = deps.getSecureStore();
+    const ids = new Set(deps.loadSavedConnections().connections.map((entry) => entry.id));
+    if (state.activeConnectionId) ids.add(state.activeConnectionId);
+    // Metadata goes before close() so the Connect screen mounts with an empty form.
+    deps.clearSavedConnections();
+    close();
+    await Promise.all(
+      [...ids, PENDING_BRIDGE_SECRET_ID].map((id) => store.deleteSecret(id).catch(() => undefined)),
+    );
+    emit({ activeConnectionId: null, ...snapshotSaved() });
+  }
+
   function connect(url: string, apiKey: string): Promise<void> {
     // Concurrent submits (double tap) share one attempt.
     pendingConnect ??= connectInternal(url, apiKey).finally(() => {
@@ -392,5 +412,6 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
     switchTo,
     updateConnection,
     forget,
+    signOut,
   };
 }

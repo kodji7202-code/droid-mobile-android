@@ -31,6 +31,8 @@ export function ConnectionScreen() {
   const switchTo = useConnectionStore((state) => state.switchTo);
   const updateConnection = useConnectionStore((state) => state.updateConnection);
   const forget = useConnectionStore((state) => state.forget);
+  const signOut = useConnectionStore((state) => state.signOut);
+  const [signOutOpen, setSignOutOpen] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
   const [forgetTarget, setForgetTarget] = useState<SavedConnection | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
@@ -76,6 +78,11 @@ export function ConnectionScreen() {
     const target = forgetTarget;
     setForgetTarget(null);
     if (target) void forget(target.id);
+  };
+
+  const confirmSignOut = () => {
+    setSignOutOpen(false);
+    void signOut();
   };
 
   return (
@@ -179,7 +186,7 @@ export function ConnectionScreen() {
                     data-testid={`connection-forget-${entry.id}`}
                     onClick={() => void withAuth(() => setForgetTarget(entry))}
                   >
-                    {isActive ? t('connections.forgetActive') : t('connections.forget')}
+                    {t('connections.forget')}
                   </button>
                 </div>
               </li>
@@ -194,6 +201,16 @@ export function ConnectionScreen() {
             onClick={() => setPanel({ kind: 'add' })}
           >
             {t('connections.add')}
+          </button>
+        ) : null}
+        {saved.length > 0 || active ? (
+          <button
+            type="button"
+            className="btn btn--secondary"
+            data-testid="connection-sign-out"
+            onClick={() => void withAuth(() => setSignOutOpen(true))}
+          >
+            {t('connections.signOut')}
           </button>
         ) : null}
       </section>
@@ -226,6 +243,15 @@ export function ConnectionScreen() {
         />
       ) : null}
 
+      <ConfirmDialog
+        open={signOutOpen}
+        testId="connection-sign-out-dialog"
+        title={t('connections.signOutTitle')}
+        message={t('connections.signOutMessage')}
+        confirmLabel={t('connections.signOutConfirm')}
+        onConfirm={confirmSignOut}
+        onCancel={() => setSignOutOpen(false)}
+      />
       <ConfirmDialog
         open={forgetTarget !== null}
         testId="connection-forget-dialog"

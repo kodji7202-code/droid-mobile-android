@@ -5,15 +5,25 @@ import { parsePairingCode } from './pairing';
 const PROBE_KEY = 'fk-invalid-validation-probe';
 
 describe('checkDaemonUrl', () => {
-  it.each(['daemon', 'ws://', 'ftp://127.0.0.1:3101', 'http://example.com', '', 'ws://user:pw@host'])(
-    'rejects %j as malformed',
-    (value) => {
-      expect(checkDaemonUrl(value, true)).toEqual({ ok: false, reason: 'malformed' });
-    },
-  );
+  it.each([
+    'daemon',
+    'ws://',
+    'ftp://127.0.0.1:3101',
+    'http://example.com',
+    '',
+    'ws://user:pw@host',
+    'ws://127.0.0.1:3101#',
+    'ws://127.0.0.1:3101/#frag',
+    'wss://host.example/path#',
+  ])('rejects %j as malformed', (value) => {
+    expect(checkDaemonUrl(value, true)).toEqual({ ok: false, reason: 'malformed' });
+  });
 
   it('accepts ws and wss in debug and trims', () => {
-    expect(checkDaemonUrl(' ws://127.0.0.1:3101 ', true)).toEqual({ ok: true, url: 'ws://127.0.0.1:3101' });
+    expect(checkDaemonUrl(' ws://127.0.0.1:3101 ', true)).toEqual({
+      ok: true,
+      url: 'ws://127.0.0.1:3101',
+    });
     expect(checkDaemonUrl('wss://example.invalid', true).ok).toBe(true);
   });
 

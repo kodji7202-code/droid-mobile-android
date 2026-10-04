@@ -12,6 +12,7 @@ import { isDebugBuild } from '../platform/buildFlavor';
 import { getSecureStore } from '../platform/secureStore';
 import {
   addSavedConnection,
+  clearSavedConnections,
   loadSavedConnections,
   removeSavedConnection,
   saveActiveConnection,
@@ -46,6 +47,7 @@ interface ConnectionStore extends ConnectionManagerState {
   switchTo: ConnectionManager['switchTo'];
   updateConnection: ConnectionManager['updateConnection'];
   forget: ConnectionManager['forget'];
+  signOut: ConnectionManager['signOut'];
 }
 
 export const useConnectionStore = create<ConnectionStore>((set) => {
@@ -64,6 +66,7 @@ export const useConnectionStore = create<ConnectionStore>((set) => {
     updateSavedConnection,
     setActiveSavedConnection,
     removeSavedConnection,
+    clearSavedConnections,
     getSecureStore,
     checkUrl: (rawUrl) => checkDaemonUrl(rawUrl, isDebugBuild()),
     onChange: (state) => set(state),
@@ -80,5 +83,6 @@ export const useConnectionStore = create<ConnectionStore>((set) => {
     switchTo: (id) => manager.switchTo(id),
     updateConnection: (id, input) => manager.updateConnection(id, input),
     forget: (id) => manager.forget(id),
+    signOut: () => manager.signOut(),
   };
 });

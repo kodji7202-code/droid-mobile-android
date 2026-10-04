@@ -7,6 +7,8 @@ export type UrlCheck = { ok: true; url: string } | { ok: false; reason: 'malform
  */
 export function checkDaemonUrl(raw: string, allowCleartext: boolean): UrlCheck {
   const url = raw.trim();
+  // WebSocket construction rejects any fragment, and URL parsing drops an empty one.
+  if (url.includes('#')) return { ok: false, reason: 'malformed' };
   let parsed: URL;
   try {
     parsed = new URL(url);

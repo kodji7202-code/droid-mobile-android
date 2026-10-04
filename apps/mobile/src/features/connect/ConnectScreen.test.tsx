@@ -224,6 +224,7 @@ describe('ConnectScreen pairing paste', () => {
     'droidmobile://pair?v=2&url=wss://x.example.invalid',
     'droidmobile://pair?v=1',
     'droidmobile://pair?v=1&url=ftp://x.example.invalid',
+    'droidmobile://pair?v=1&url=ws%3A%2F%2F127.0.0.1%3A3101%23',
   ])('rejects %s and leaves the fields unchanged', (value) => {
     renderConnect();
     fireEvent.change(screen.getByTestId('connect-url-input'), { target: { value: 'ws://keep:1' } });
@@ -336,5 +337,28 @@ describe('ConnectScreen QR scanning', () => {
     await waitFor(() => expect(qrScanner.scanCamera).toHaveBeenCalled());
     expect(screen.queryByTestId('connect-scan-notice')).not.toBeInTheDocument();
     expect(screen.queryByTestId('connect-pairing-error')).not.toBeInTheDocument();
+  });
+
+  it('clears a rejected secret-bearing payload from the field and the DOM', () => {
+    renderConnect();
+    const secret = 'S3CRET-bridge-value';
+    const rejected = `droidmobile://pair?v=1&url=ftp%3A%2F%2Fx&key=${PROBE_KEY}&bridge=https%3A%2F%2Fb.example&bridgeSecret=${secret}`;
+    fireEvent.change(screen.getByTestId('connect-paste-pairing'), { target: { value: rejected } });
+    expect(screen.getByTestId('connect-pairing-error')).toBeInTheDocument();
+    expect(screen.getByTestId('connect-paste-pairing')).toHaveValue('');
+    const html = document.body.innerHTML;
+    expect(html).not.toContain(PROBE_KEY);
+    expect(html).not.toContain(secret);
+  });
+
+  it('shows the malformed-URL error for a fragment URL without constructing a socket', () => {
+    renderConnect();
+    fireEvent.change(screen.getByTestId('connect-url-input'), {
+      target: { value: 'ws://127.0.0.1:3101#' },
+    });
+    fireEvent.change(screen.getByTestId('connect-key-input'), { target: { value: PROBE_KEY } });
+    fireEvent.click(screen.getByTestId('connect-submit'));
+    expect(screen.getByTestId('connect-error')).toBeInTheDocument();
+    expect(createDaemonConnection).not.toHaveBeenCalled();
   });
 });

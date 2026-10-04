@@ -7,6 +7,9 @@ export interface PairingPayload {
   bridgeSecret?: string;
 }
 
+/** Holds bridge info from a pairing code until the FCM registration consumes it; never rendered. */
+export const PENDING_BRIDGE_SECRET_ID = 'pairing.pendingBridge';
+
 const PREFIX = 'droidmobile://pair?';
 const MAX_LENGTH = 4096;
 
