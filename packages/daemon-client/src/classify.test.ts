@@ -6,7 +6,12 @@ import {
   MethodUnavailableError,
   ProtocolError,
 } from './errors';
-import { classifyConnectFailure, classifyJsonRpcError, versionWarningOf } from './classify';
+import {
+  classifyConnectFailure,
+  classifyJsonRpcError,
+  isNonTransportFailure,
+  versionWarningOf,
+} from './classify';
 
 const KEY = 'fk-super-secret-key-value';
 
@@ -182,5 +187,16 @@ describe('classifyConnectFailure', () => {
   it('redacts keys found in underlying failure messages', () => {
     const classified = classifyConnectFailure(new Error(`handshake failed for ${KEY}`));
     expect(classified.message).not.toContain(KEY);
+  });
+});
+
+describe('replacement guard classification', () => {
+  it('is a non-transport failure and classifies as a non-connection error', () => {
+    const guard = Object.assign(new Error('Session replacement is already in progress.'), {
+      name: 'ConnectionError',
+    });
+    expect(isNonTransportFailure(guard)).toBe(true);
+    expect(classifyConnectFailure(guard).kind).toBe('unknown');
+    expect(isNonTransportFailure(Object.assign(new Error('socket hang up'), { name: 'ConnectionError' }))).toBe(false);
   });
 });

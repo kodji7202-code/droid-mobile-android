@@ -197,8 +197,16 @@ const APPLICATION_ERROR_NAMES = new Set([
 /** True for cancellations and daemon-side application errors (not transport loss). */
 export function isNonTransportFailure(err: unknown): boolean {
   if (typeof err !== 'object' || err === null) return false;
-  const name = (err as { name?: unknown }).name;
-  return typeof name === 'string' && APPLICATION_ERROR_NAMES.has(name);
+  const { name, message } = err as { name?: unknown; message?: unknown };
+  if (typeof name !== 'string') return false;
+  if (APPLICATION_ERROR_NAMES.has(name)) return true;
+  // The SDK throws its replacement guard as a plain ConnectionError although
+  // the socket is healthy; only the message tells it apart from a real loss.
+  return (
+    name === 'ConnectionError' &&
+    typeof message === 'string' &&
+    /replacement is already in progress/i.test(message)
+  );
 }
 
 /**
@@ -209,6 +217,9 @@ export function isNonTransportFailure(err: unknown): boolean {
  */
 export function classifyConnectFailure(err: unknown): DaemonClientError {
   if (err instanceof DaemonClientError) return err;
+  if (isNonTransportFailure(err)) {
+    return new DaemonClientError('unknown', messageOf(err), { cause: err });
+  }
   const rpc = findRpcError(err);
   if (rpc) {
     const classified = classifyJsonRpcError(rpc);

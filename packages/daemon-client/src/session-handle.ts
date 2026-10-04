@@ -151,8 +151,7 @@ export class SessionHandle {
       }
     } catch (err) {
       if (options?.abortSignal?.aborted || isNonTransportFailure(err)) {
-        this.host.reportFailure(err);
-        throw err;
+        throw this.host.reportFailure(err).error;
       }
       throw this.failed(err);
     }

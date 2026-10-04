@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface Deferred<T> {
   promise: Promise<T>;
@@ -202,7 +202,7 @@ describe('cancelled streams', () => {
       (async () => {
         for await (const _ of handle.stream('hi', { abortSignal: controller.signal })) void _;
       })(),
-    ).rejects.toMatchObject({ name: 'AbortError' });
+    ).rejects.toMatchObject({ name: 'DaemonClientError', kind: 'unknown' });
     await flush();
 
     await handle.interrupt();
@@ -211,6 +211,59 @@ describe('cancelled streams', () => {
     expect(connection.getStatus()).toBe('ready');
   });
 
+  it('redacts credentials carried by an application stream error and never rethrows the raw SDK error', async () => {
+    const session = fakeSession();
+    const droid = fakeDroid(session);
+    sdk.connectToDaemon.mockResolvedValueOnce(droid);
+    const connection = newConnection();
+    await connection.connect();
+    const handle = await connection.createSession({} as never);
+
+    const raw = Object.assign(new Error('rejected apiKey: "abc def ghi" Authorization: Basic dXNlcjpwYXNz'), {
+      name: 'SessionError',
+      data: { token: 'zzz' },
+    });
+    session.stream.mockImplementation(async function* () {
+      yield* [];
+      throw raw;
+    });
+    const caught = await (async () => {
+      try {
+        for await (const _ of handle.stream('hi')) void _;
+      } catch (err) {
+        return err;
+      }
+      return undefined;
+    })();
+    expect(caught).not.toBe(raw);
+    expect((caught as Error).message).not.toMatch(/abc|def ghi|dXNlcjpwYXNz/);
+    expect(JSON.stringify(caught)).not.toContain('zzz');
+  });
+
+  it('the replacement-in-progress guard is an application error that keeps the healthy session attached', async () => {
+    const session = fakeSession();
+    const droid = fakeDroid(session);
+    sdk.connectToDaemon.mockResolvedValueOnce(droid);
+    const connection = newConnection();
+    await connection.connect();
+    const handle = await connection.createSession({} as never);
+
+    const gate = deferred<never>();
+    session.interrupt.mockReturnValueOnce(gate.promise);
+    const guard = Object.assign(new Error('Session replacement is already in progress.'), {
+      name: 'ConnectionError',
+    });
+    const pending = handle.interrupt();
+    gate.reject(guard);
+    await expect(pending).rejects.toMatchObject({ kind: 'unknown' });
+    await flush();
+
+    await handle.interrupt();
+    expect(session.detach).not.toHaveBeenCalled();
+    expect(droid.sessions.resume).not.toHaveBeenCalled();
+    expect(session.interrupt).toHaveBeenCalledTimes(2);
+    expect(connection.getStatus()).toBe('ready');
+  });
   it('detaches the stale SDK attachment before re-resuming after a real transport error', async () => {
     const stale = fakeSession();
     const fresh = fakeSession();
