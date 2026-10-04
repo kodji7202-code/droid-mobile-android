@@ -29,12 +29,18 @@ async function loadPages(
   let hasMore = true;
   // The daemon has no archived-only list: archived rows are picked out of
   // includeArchived pages, so keep reading until a page's worth turned up.
-  const wanted = start.rows.length + (options.archived ? PAGE_SIZE : 0);
+  // At least one new row is required: a read inside a crowded second can only
+  // widen the cursor, and stopping there would leave scroll paging stalled.
+  const wanted = start.rows.length + (options.archived ? PAGE_SIZE : 1);
+  // Covering needs a row from an older second, otherwise the boundary second
+  // may still be partly unread (it can hold more rows than one page).
+  const coverSecondMs =
+    options.coverMs === undefined ? undefined : Math.floor(options.coverMs / 1000) * 1000;
   for (let index = 0; index < MAX_REFRESH_PAGES && hasMore; index += 1) {
     const covered =
       index >= options.minPages &&
       rows.length >= wanted &&
-      (options.coverMs === undefined || oldestMs(rows) <= options.coverMs);
+      (coverSecondMs === undefined || oldestMs(rows) < coverSecondMs);
     if (covered) {
       break;
     }
@@ -48,11 +54,10 @@ async function loadPages(
     hasMore = page.length >= (cursor?.limit ?? PAGE_SIZE);
     cursor = nextCursor(pageRows, cursor);
   }
-  if (options.coverMs === undefined) {
+  if (coverSecondMs === undefined) {
     return { rows, hasMore: hasMore && cursor !== undefined, cursor };
   }
-  const { coverMs } = options;
-  const kept = rows.filter((row) => row.modifiedMs >= coverMs);
+  const kept = rows.filter((row) => row.modifiedMs >= coverSecondMs);
   if (kept.length === rows.length) {
     return { rows, hasMore: hasMore && cursor !== undefined, cursor };
   }

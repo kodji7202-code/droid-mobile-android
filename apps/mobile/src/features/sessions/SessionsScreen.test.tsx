@@ -348,6 +348,33 @@ describe('SessionsScreen same-second boundary', () => {
     const ids = screen.getAllByTestId(/^session-item-/).map((el) => el.getAttribute('data-testid'));
     expect(new Set(ids).size).toBe(all.length);
   });
+
+  it('adds rows on every single load-more and keeps all 57 through a refresh', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const all = Array.from({ length: 57 }, (_, index) =>
+      summary(index, { modifiedTime: new Date(BASE_SECONDS * 1000) }),
+    );
+    renderScreen(all);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await screen.findByTestId('session-item-s000');
+    expect(screen.getAllByTestId(/^session-item-/)).toHaveLength(PAGE_SIZE);
+
+    await user.click(screen.getByTestId('sessions-load-more'));
+    await waitFor(() =>
+      expect(screen.getAllByTestId(/^session-item-/).length).toBeGreaterThan(PAGE_SIZE),
+    );
+    for (let clicks = 0; clicks < 3 && screen.queryByTestId('sessions-load-more'); clicks += 1) {
+      await user.click(screen.getByTestId('sessions-load-more'));
+    }
+    await waitFor(() => expect(screen.getAllByTestId(/^session-item-/)).toHaveLength(57));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_500);
+    });
+    expect(screen.getAllByTestId(/^session-item-/)).toHaveLength(57);
+    const ids = screen.getAllByTestId(/^session-item-/).map((el) => el.getAttribute('data-testid'));
+    expect(new Set(ids).size).toBe(57);
+  });
 });
 
 describe('SessionsScreen infinite scroll after search', () => {

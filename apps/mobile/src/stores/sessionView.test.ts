@@ -112,3 +112,75 @@ describe('lost echo recovery', () => {
     expect(texts()).toEqual(['first', 'hello']);
   });
 });
+
+describe('cached refresh racing an older-page load', () => {
+  beforeEach(() => useSessionViewStore.getState().reset());
+
+  const range = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, index) =>
+      message('m' + (from + index), 'user', from + index, 'm' + (from + index)),
+    );
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  }
+
+  type Page = { messages: SessionMessage[]; hasMore: boolean; nextCursor?: string };
+
+  async function openWithPendingOlder() {
+    const older = deferred<Page>();
+    const refresh = deferred<Page>();
+    const getMessages = vi
+      .fn()
+      .mockResolvedValueOnce({ messages: range(51, 100), hasMore: true, nextCursor: 'c1' })
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(refresh.promise);
+    const handle = { id: 's1', settings: { modelId: 'm' }, cwd: 'C:\\w', getMessages };
+    const connection = { resumeSession: vi.fn(async () => handle) } as unknown as DaemonConnection;
+    await useSessionViewStore.getState().open(connection, 's1', 1);
+    const loading = useSessionViewStore.getState().loadOlder('s1');
+    const refreshing = useSessionViewStore.getState().open(connection, 's1', 1);
+    return { older, refresh, loading, refreshing, getMessages };
+  }
+
+  const ids = () => useSessionViewStore.getState().views['s1']?.items.map((item) => item.id);
+
+  it('discards an older page that resolves after the window moved, leaving no gap', async () => {
+    const { older, refresh, loading, refreshing, getMessages } = await openWithPendingOlder();
+    refresh.resolve({ messages: range(55, 104), hasMore: true, nextCursor: 'c2' });
+    await refreshing;
+    older.resolve({ messages: range(1, 50), hasMore: false, nextCursor: undefined });
+    await loading;
+
+    const view = useSessionViewStore.getState().views['s1']!;
+    expect(ids()).toEqual(range(55, 104).map((item) => item.id));
+    expect(view.nextCursor).toBe('c2');
+    expect(view.hasMore).toBe(true);
+    expect(view.loadingOlder).toBe(false);
+
+    getMessages.mockResolvedValueOnce({ messages: range(5, 54), hasMore: false });
+    await useSessionViewStore.getState().loadOlder('s1');
+    expect(getMessages).toHaveBeenLastCalledWith({ limit: expect.any(Number), cursor: 'c2' });
+    expect(ids()?.slice(0, 2)).toEqual(['m5', 'm6']);
+    expect(ids()).toContain('m54');
+    expect(ids()).toContain('m104');
+  });
+
+  it('keeps the refreshed window when the older page resolves first', async () => {
+    const { older, refresh, loading, refreshing } = await openWithPendingOlder();
+    older.resolve({ messages: range(1, 50), hasMore: false, nextCursor: undefined });
+    await loading;
+    refresh.resolve({ messages: range(55, 104), hasMore: true, nextCursor: 'c2' });
+    await refreshing;
+
+    const view = useSessionViewStore.getState().views['s1']!;
+    expect(ids()?.[0]).toBe('m55');
+    expect(ids()).toHaveLength(50);
+    expect(view.nextCursor).toBe('c2');
+    expect(view.hasMore).toBe(true);
+  });
+});

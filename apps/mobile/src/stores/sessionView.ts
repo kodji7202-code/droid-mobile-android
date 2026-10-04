@@ -94,6 +94,14 @@ function emptyView(id: string, epoch: number): SessionView {
 
 let localSeq = 0;
 
+/**
+ * Bumped whenever a session's latest history window is replaced. An older-page
+ * request started under a previous window is stale: applying it would overwrite
+ * the cursor and skip the messages between the two windows.
+ */
+const historyWindow = new Map<string, number>();
+const bumpWindow = (id: string) => historyWindow.set(id, (historyWindow.get(id) ?? 0) + 1);
+
 const hasPending = (id: string) =>
   useInteractionStore.getState().pending.some((item) => item.sessionId === id);
 
@@ -178,6 +186,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       const page = await handle.getMessages({ limit: HISTORY_PAGE_SIZE });
       const latest = get().views[id];
       if (!latest || latest.handle !== handle || latest.turnActive) return;
+      bumpWindow(id);
       patch(id, {
         items: reconcileLocalItems(itemsFromMessages(page.messages), latest.items),
         hasMore: page.hasMore,
@@ -208,6 +217,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       try {
         const handle = await connection.resumeSession(id);
         const page = await handle.getMessages({ limit: HISTORY_PAGE_SIZE });
+        bumpWindow(id);
         patch(id, {
           status: 'ready',
           handle,
@@ -223,6 +233,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
     },
 
     adopt(handle, epoch) {
+      bumpWindow(handle.id);
       set((state) => ({
         views: {
           ...state.views,
@@ -243,11 +254,16 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
         return;
       }
       patch(id, { loadingOlder: true });
+      const startedIn = historyWindow.get(id);
       try {
         const page = await view.handle.getMessages({
           limit: HISTORY_PAGE_SIZE,
           cursor: view.nextCursor,
         });
+        if (startedIn !== historyWindow.get(id)) {
+          patch(id, { loadingOlder: false });
+          return;
+        }
         const latest = get().views[id];
         patch(id, {
           items: prependItems(latest?.items ?? [], itemsFromMessages(page.messages)),

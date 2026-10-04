@@ -67,11 +67,13 @@ describe('workspace and session creation (real daemon 3101)', () => {
       expect((await conn.checkFolderTrust(dir)).isTrusted).toBe(true);
 
       const defaults = await conn.getDefaultSettings();
-      expect(typeof defaults.modelId).toBe('string');
 
       const handle = await conn.createSession({ cwd: dir });
       expect(handle.cwd).toBe(dir);
-      expect(handle.settings?.modelId).toBe(defaults.modelId);
+      // defaults.modelId is optional: an absent value means the daemon picks the model when
+      // the session is created, and only the session settings report it.
+      expect(typeof handle.settings?.modelId).toBe('string');
+      expect(handle.settings?.modelId).toBe(defaults.modelId ?? handle.settings?.modelId);
       const page = await handle.getMessages({ limit: 10 });
       expect(page.messages).toEqual([]);
 
