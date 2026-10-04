@@ -5,7 +5,7 @@ import {
   applyStreamEvent,
   failPendingUser,
   itemsFromMessages,
-  localOnlyItems,
+  reconcileLocalItems,
   markStopped,
   markToolsDenied,
   prependItems,
@@ -94,6 +94,9 @@ function emptyView(id: string, epoch: number): SessionView {
 
 let localSeq = 0;
 
+const hasPending = (id: string) =>
+  useInteractionStore.getState().pending.some((item) => item.sessionId === id);
+
 export const useSessionViewStore = create<SessionViewStore>((set, get) => {
   const patch = (id: string, change: Partial<SessionView>) =>
     set((state) => {
@@ -176,7 +179,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       const latest = get().views[id];
       if (!latest || latest.handle !== handle || latest.turnActive) return;
       patch(id, {
-        items: [...itemsFromMessages(page.messages), ...localOnlyItems(latest.items)],
+        items: reconcileLocalItems(itemsFromMessages(page.messages), latest.items),
         hasMore: page.hasMore,
         nextCursor: page.nextCursor,
       });
@@ -208,7 +211,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
         patch(id, {
           status: 'ready',
           handle,
-          items: [...itemsFromMessages(page.messages), ...localOnlyItems(existing?.items ?? [])],
+          items: reconcileLocalItems(itemsFromMessages(page.messages), existing?.items ?? []),
           hasMore: page.hasMore,
           nextCursor: page.nextCursor,
           modelId: handle.settings?.modelId,
@@ -263,7 +266,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
     async send(id, text) {
       const view = get().views[id];
       const prompt = text.trim();
-      if (!view?.handle || view.turnActive || prompt === '') {
+      if (!view?.handle || view.turnActive || prompt === '' || hasPending(id)) {
         return;
       }
       localSeq += 1;
@@ -282,7 +285,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
     async retry(id, itemId) {
       const view = get().views[id];
       const failed = view?.items.find((item) => item.id === itemId && item.kind === 'user');
-      if (!view?.handle || view.turnActive || failed?.kind !== 'user') {
+      if (!view?.handle || view.turnActive || hasPending(id) || failed?.kind !== 'user') {
         return;
       }
       patch(id, { items: removeItem(view.items, itemId) });
@@ -307,7 +310,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
           if (useInteractionStore.getState().pending.some((item) => item.sessionId === id))
             continue;
           const page = await handle.getMessages({ limit: HISTORY_PAGE_SIZE });
-          const items = [...itemsFromMessages(page.messages), ...localOnlyItems(view.items)];
+          const items = reconcileLocalItems(itemsFromMessages(page.messages), view.items);
           patch(id, { items });
           const last = items.at(-1);
           if (

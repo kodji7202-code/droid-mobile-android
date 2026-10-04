@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useConnectionStore } from '../../stores/connection';
 import { useInteractionStore } from '../../stores/interactions';
 import { useSessionViewStore } from '../../stores/sessionView';
 import { AskUserDialog, PermissionDialog } from './InteractionDialogs';
@@ -12,19 +10,12 @@ import { describePermission } from './permissionDetail';
  */
 export function InteractionHost({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
-  const status = useConnectionStore((state) => state.status);
   const pending = useInteractionStore((state) => state.pending);
   const expired = useInteractionStore((state) => state.expired[sessionId] === true);
   const answerPermission = useInteractionStore((state) => state.answerPermission);
   const answerAskUser = useInteractionStore((state) => state.answerAskUser);
-  const expire = useInteractionStore((state) => state.expire);
   const markDenied = useSessionViewStore((state) => state.markDenied);
   const follow = useSessionViewStore((state) => state.follow);
-
-  useEffect(() => {
-    // A dropped socket takes the daemon-side request with it; answering later is rejected.
-    if (status !== 'ready') expire({ notify: true });
-  }, [status, expire]);
 
   const entry = pending.find((item) => item.sessionId === sessionId);
 

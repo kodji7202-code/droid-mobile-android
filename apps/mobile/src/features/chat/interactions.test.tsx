@@ -270,3 +270,46 @@ describe('replayed requests', () => {
     expect(screen.queryByTestId('permission-dialog')).toBeNull();
   });
 });
+
+describe('restored pending requests', () => {
+  it('count as busy: send is disabled, Stop is shown and the background is inert', async () => {
+    setup(async function* () {
+      yield { type: 'working_state', state: 'thinking' };
+    });
+    await screen.findByTestId('chat-input');
+    act(() => {
+      void useInteractionStore.getState().requestPermission('s1', permissionRequest(createDetails));
+    });
+    await screen.findByTestId('permission-dialog');
+    expect(screen.getByTestId('chat-send')).toBeDisabled();
+    expect(screen.getByTestId('chat-interrupt')).toBeInTheDocument();
+    expect(screen.getByTestId('session-background')).toHaveAttribute('inert');
+    await useSessionViewStore.getState().send('s1', 'more');
+    expect(useSessionViewStore.getState().views['s1']?.items).toEqual([]);
+  });
+});
+
+describe('connection lifecycle', () => {
+  it('settles pending requests when the connection is replaced, with no screen mounted', async () => {
+    const answers: unknown[] = [];
+    const first = { id: 'c1' } as unknown as DaemonConnection;
+    act(() => useConnectionStore.setState({ connection: first, status: 'ready' }));
+    void useInteractionStore
+      .getState()
+      .requestPermission('s1', permissionRequest(createDetails))
+      .then((a) => answers.push(a));
+    act(() =>
+      useConnectionStore.setState({ connection: { id: 'c2' } as unknown as DaemonConnection }),
+    );
+    await waitFor(() => expect(answers).toEqual(['cancel']));
+    expect(useInteractionStore.getState().pending).toEqual([]);
+    expect(useInteractionStore.getState().expired).toEqual({});
+  });
+
+  it('marks sessions expired when the connection drops', () => {
+    act(() => useConnectionStore.setState({ connection: {} as DaemonConnection, status: 'ready' }));
+    void useInteractionStore.getState().requestPermission('s1', permissionRequest(createDetails));
+    act(() => useConnectionStore.setState({ status: 'offline' }));
+    expect(useInteractionStore.getState().expired).toEqual({ s1: true });
+  });
+});

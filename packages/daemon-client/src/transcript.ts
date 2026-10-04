@@ -189,8 +189,70 @@ export function prependItems(
   loaded: readonly TranscriptItem[],
   older: readonly TranscriptItem[],
 ): TranscriptItem[] {
+  const loadedTools = new Map(
+    loaded.filter((item): item is ToolItem => item.kind === 'tool').map((item) => [item.id, item]),
+  );
+  const mergedIds = new Set<string>();
   const known = new Set(loaded.map((item) => `${item.kind}:${item.id}`));
-  return [...older.filter((item) => !known.has(`${item.kind}:${item.id}`)), ...loaded];
+  const front: TranscriptItem[] = [];
+  for (const item of older) {
+    const key = `${item.kind}:${item.id}`;
+    const twin = item.kind === 'tool' ? loadedTools.get(item.id) : undefined;
+    if (item.kind === 'tool' && twin) {
+      // A call and its result can sit on different pages; each page only knows its half.
+      front.push(mergeTools(item, twin));
+      mergedIds.add(item.id);
+    } else if (!known.has(key)) {
+      front.push(item);
+    }
+  }
+  const rest = loaded.filter((item) => !(item.kind === 'tool' && mergedIds.has(item.id)));
+  return [...front, ...rest];
+}
+
+const isPlaceholderTool = (tool: ToolItem) =>
+  tool.name === 'tool' && Object.keys(tool.input).length === 0;
+
+/** `older` comes from the earlier page; the call half wins for name/input, the result half for outcome. */
+function mergeTools(older: ToolItem, loaded: ToolItem): ToolItem {
+  const callSide = isPlaceholderTool(older) ? loaded : older;
+  const resultSide = loaded.result !== undefined || older.result === undefined ? loaded : older;
+  return {
+    kind: 'tool',
+    id: older.id,
+    name: callSide.name,
+    input: callSide.input,
+    result: resultSide.result,
+    status: resultSide.status,
+  };
+}
+
+/**
+ * Re-attaches this device's unsent user bubbles to freshly recovered history. A
+ * bubble whose prompt the daemon stored after it was last known (the echo was
+ * lost) is dropped so it is neither shown twice nor offered for retry.
+ */
+export function reconcileLocalItems(
+  recovered: readonly TranscriptItem[],
+  previous: readonly TranscriptItem[],
+): TranscriptItem[] {
+  const knownIds = new Set(
+    previous.filter((item) => item.kind === 'user' && item.delivery === 'sent').map((i) => i.id),
+  );
+  const claimed = new Set<string>();
+  const local = localOnlyItems(previous).filter((item) => {
+    if (item.kind !== 'user') return true;
+    const match = recovered.find(
+      (candidate) =>
+        candidate.kind === 'user' &&
+        candidate.text === item.text &&
+        !knownIds.has(candidate.id) &&
+        !claimed.has(candidate.id),
+    );
+    if (match) claimed.add(match.id);
+    return !match;
+  });
+  return [...recovered, ...local];
 }
 
 /** Items that exist only on this device and must survive a reload from the daemon. */

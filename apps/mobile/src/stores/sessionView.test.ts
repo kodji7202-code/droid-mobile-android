@@ -85,3 +85,30 @@ describe('sessionView.open on a ready cached view', () => {
     expect(texts()).toEqual(['first', 'unsent']);
   });
 });
+
+describe('lost echo recovery', () => {
+  beforeEach(() => useSessionViewStore.getState().reset());
+
+  it('drops the failed bubble once history shows the prompt was stored', async () => {
+    const { connection } = setup([
+      [message('u0', 'user', 1, 'first')],
+      [message('u1', 'user', 2, 'hello'), message('u0', 'user', 1, 'first')],
+    ]);
+    await useSessionViewStore.getState().open(connection, 's1', 1);
+    useSessionViewStore.setState((state) => ({
+      views: {
+        s1: {
+          ...state.views['s1']!,
+          items: [
+            ...state.views['s1']!.items,
+            { kind: 'user', id: 'local-1', text: 'hello', delivery: 'failed' },
+          ],
+        },
+      },
+    }));
+
+    await useSessionViewStore.getState().open(connection, 's1', 1);
+
+    expect(texts()).toEqual(['first', 'hello']);
+  });
+});

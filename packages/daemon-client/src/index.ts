@@ -47,6 +47,7 @@ export {
   markStopped,
   markToolsDenied,
   prependItems,
+  reconcileLocalItems,
   removeItem,
   settleTurn,
 } from './transcript';

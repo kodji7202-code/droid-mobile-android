@@ -78,113 +78,119 @@ export function SessionScreen() {
       data-testid="session-screen"
       aria-labelledby="session-title"
     >
-      <div className="sub-header">
-        <button
-          type="button"
-          className="btn btn--ghost sub-header__back"
-          data-testid="session-back"
-          aria-label={t('common.back')}
-          onClick={() => navigate('/sessions')}
-        >
-          <BackIcon />
-        </button>
-        <h2 className="sub-header__title" id="session-title" data-testid="session-title">
-          {title}
-        </h2>
-        <select
-          className="field__control session-screen__model"
-          data-testid="session-model-select"
-          aria-label={t('session.model')}
-          value={view?.modelId ?? ''}
-          disabled
-        >
-          {view?.modelId ? (
-            <option value={view.modelId}>{view.modelId}</option>
-          ) : (
-            <option value="">{t('session.modelUnknown')}</option>
-          )}
-        </select>
-      </div>
-      {view?.cwd ? (
-        <p className="session-screen__cwd" data-testid="session-cwd">
-          {view.cwd}
-        </p>
-      ) : null}
-
-      {!ready ? (
-        <p
-          className="sessions-notice sessions-notice--offline"
-          role="status"
-          data-testid="session-offline"
-        >
-          {t('session.offline')}
-        </p>
-      ) : null}
-
-      {loading ? (
-        <div data-testid="session-loading">
-          <Skeleton lines={4} />
-        </div>
-      ) : null}
-
-      {failed ? (
-        <ErrorState
-          title={t('session.loadFailedTitle')}
-          message={t('session.loadFailed')}
-          retryLabel={t('common.retry')}
-          onRetry={
-            connection
-              ? () => {
-                  void open(connection, id, readyEpoch);
-                }
-              : undefined
-          }
-        />
-      ) : null}
-
-      {view?.status === 'ready' && view.hasMore ? (
-        <div className="session-list__more">
+      <div
+        style={{ display: 'contents' }}
+        inert={awaitingApproval}
+        data-testid="session-background"
+      >
+        <div className="sub-header">
           <button
             type="button"
-            className="btn btn--secondary"
-            data-testid="session-load-older"
-            disabled={view.loadingOlder}
-            onClick={() => void loadOlder(id)}
+            className="btn btn--ghost sub-header__back"
+            data-testid="session-back"
+            aria-label={t('common.back')}
+            onClick={() => navigate('/sessions')}
           >
-            {view.loadingOlder ? t('session.loadingOlder') : t('session.loadOlder')}
+            <BackIcon />
           </button>
+          <h2 className="sub-header__title" id="session-title" data-testid="session-title">
+            {title}
+          </h2>
+          <select
+            className="field__control session-screen__model"
+            data-testid="session-model-select"
+            aria-label={t('session.model')}
+            value={view?.modelId ?? ''}
+            disabled
+          >
+            {view?.modelId ? (
+              <option value={view.modelId}>{view.modelId}</option>
+            ) : (
+              <option value="">{t('session.modelUnknown')}</option>
+            )}
+          </select>
         </div>
-      ) : null}
+        {view?.cwd ? (
+          <p className="session-screen__cwd" data-testid="session-cwd">
+            {view.cwd}
+          </p>
+        ) : null}
 
-      {view?.status === 'ready' && itemCount === 0 ? (
-        <EmptyState title={t('session.emptyTitle')} message={t('session.emptyMessage')} />
-      ) : null}
+        {!ready ? (
+          <p
+            className="sessions-notice sessions-notice--offline"
+            role="status"
+            data-testid="session-offline"
+          >
+            {t('session.offline')}
+          </p>
+        ) : null}
 
-      {items && itemCount > 0 ? (
-        <Transcript items={items} onRetry={(itemId) => void retry(id, itemId)} />
-      ) : null}
+        {loading ? (
+          <div data-testid="session-loading">
+            <Skeleton lines={4} />
+          </div>
+        ) : null}
 
-      {view?.interrupted ? (
-        <p
-          className="sessions-notice sessions-notice--offline"
-          role="status"
-          data-testid="chat-interrupted"
-        >
-          {t('chat.connectionLost')}
-        </p>
-      ) : null}
+        {failed ? (
+          <ErrorState
+            title={t('session.loadFailedTitle')}
+            message={t('session.loadFailed')}
+            retryLabel={t('common.retry')}
+            onRetry={
+              connection
+                ? () => {
+                    void open(connection, id, readyEpoch);
+                  }
+                : undefined
+            }
+          />
+        ) : null}
 
-      <div ref={bottomRef} />
+        {view?.status === 'ready' && view.hasMore ? (
+          <div className="session-list__more">
+            <button
+              type="button"
+              className="btn btn--secondary"
+              data-testid="session-load-older"
+              disabled={view.loadingOlder}
+              onClick={() => void loadOlder(id)}
+            >
+              {view.loadingOlder ? t('session.loadingOlder') : t('session.loadOlder')}
+            </button>
+          </div>
+        ) : null}
+
+        {view?.status === 'ready' && itemCount === 0 ? (
+          <EmptyState title={t('session.emptyTitle')} message={t('session.emptyMessage')} />
+        ) : null}
+
+        {items && itemCount > 0 ? (
+          <Transcript items={items} onRetry={(itemId) => void retry(id, itemId)} />
+        ) : null}
+
+        {view?.interrupted ? (
+          <p
+            className="sessions-notice sessions-notice--offline"
+            role="status"
+            data-testid="chat-interrupted"
+          >
+            {t('chat.connectionLost')}
+          </p>
+        ) : null}
+
+        <div ref={bottomRef} />
+
+        <ChatComposer
+          turnActive={Boolean(view?.turnActive) || awaitingApproval}
+          workingState={awaitingApproval ? WAITING_STATE : (view?.workingState ?? 'idle')}
+          disabled={view?.status !== 'ready'}
+          onSend={(text) => void send(id, text)}
+          onInterrupt={() => void interrupt(id)}
+        />
+      </div>
 
       <InteractionHost sessionId={id} />
-
-      <ChatComposer
-        turnActive={view?.turnActive ?? false}
-        workingState={awaitingApproval ? WAITING_STATE : (view?.workingState ?? 'idle')}
-        disabled={view?.status !== 'ready'}
-        onSend={(text) => void send(id, text)}
-        onInterrupt={() => void interrupt(id)}
-      />
     </section>
   );
 }

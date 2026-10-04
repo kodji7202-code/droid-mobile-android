@@ -10,6 +10,7 @@ import {
   markStopped,
   markToolsDenied,
   prependItems,
+  reconcileLocalItems,
   settleTurn,
 } from './transcript';
 import type { TranscriptItem } from './transcript';
@@ -198,5 +199,59 @@ describe('interrupt and denial markers', () => {
       isError: true,
     });
     expect(after[0]).toMatchObject({ status: 'denied', result: 'cancelled' });
+  });
+});
+
+describe('tool metadata across page boundaries', () => {
+  it('keeps the call name and input when the result page was loaded first', () => {
+    const newer = itemsFromMessages([
+      msg('r1', 'tool', 20, [{ type: 'tool_result', toolUseId: 't1', content: 'ok' }]),
+    ]);
+    const older = itemsFromMessages([
+      msg('a1', 'assistant', 10, [
+        { type: 'tool_use', id: 't1', name: 'Read', input: { path: 'x' } },
+      ]),
+    ]);
+    const merged = prependItems(newer, older);
+    expect(merged).toEqual([
+      {
+        kind: 'tool',
+        id: 't1',
+        name: 'Read',
+        input: { path: 'x' },
+        result: 'ok',
+        status: 'completed',
+      },
+    ]);
+  });
+});
+
+describe('reconcileLocalItems', () => {
+  const sent = (id: string, text: string): TranscriptItem => ({
+    kind: 'user',
+    id,
+    text,
+    delivery: 'sent',
+  });
+
+  it('drops a failed local prompt that the daemon stored meanwhile', () => {
+    const previous: TranscriptItem[] = [
+      sent('u0', 'hi'),
+      { kind: 'user', id: 'local-1', text: 'hello', delivery: 'failed' },
+    ];
+    const recovered = [sent('u0', 'hi'), sent('u1', 'hello')];
+    expect(reconcileLocalItems(recovered, previous)).toEqual(recovered);
+  });
+
+  it('keeps a failed prompt whose text only matches an older sent message', () => {
+    const previous: TranscriptItem[] = [
+      sent('u0', 'ok'),
+      { kind: 'user', id: 'local-1', text: 'ok', delivery: 'failed' },
+    ];
+    const recovered = [sent('u0', 'ok')];
+    expect(reconcileLocalItems(recovered, previous).map((item) => item.id)).toEqual([
+      'u0',
+      'local-1',
+    ]);
   });
 });

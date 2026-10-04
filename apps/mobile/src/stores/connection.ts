@@ -86,3 +86,18 @@ export const useConnectionStore = create<ConnectionStore>((set) => {
     signOut: () => manager.signOut(),
   };
 });
+
+/**
+ * A dropped, replaced or forgotten connection takes the daemon-side requests with
+ * it, whichever screen is mounted. Pending SDK promises are settled here, and a
+ * new connection starts without the previous one's expired markers.
+ */
+useConnectionStore.subscribe((state, previous) => {
+  const interactions = useInteractionStore.getState();
+  if (state.connection !== previous.connection) {
+    interactions.expire();
+    useInteractionStore.setState({ expired: {} });
+  } else if (state.status !== 'ready' && previous.status === 'ready') {
+    interactions.expire({ notify: true });
+  }
+});
