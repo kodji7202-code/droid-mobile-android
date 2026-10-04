@@ -675,3 +675,101 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   justify-content: center;
   padding: 0.5rem 0 1rem;
 }
+
+.session-row__main {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.session-row__title,
+.session-row__meta {
+  display: block;
+}
+
+/* ---- New session sheet and session screen --------------------------------- */
+
+.new-session {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.new-session__suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.new-session__suggestion {
+  width: 100%;
+  min-height: 48px;
+  justify-content: flex-start;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.new-session__trust {
+  padding: 0.75rem;
+  border: 1px solid var(--color-warning);
+  border-radius: 0.5rem;
+  color: var(--color-fg);
+}
+
+.new-session__trust-title {
+  font-weight: 600;
+}
+
+.session-screen__model {
+  width: auto;
+  max-width: 45%;
+  min-height: 48px;
+}
+
+.session-screen__cwd {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.session-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.session-message {
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--color-surface-variant);
+}
+
+.session-message--user {
+  align-self: flex-end;
+  max-width: 90%;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+}
+
+.session-message__role {
+  display: block;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.session-message__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

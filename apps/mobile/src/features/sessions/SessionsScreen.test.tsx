@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router';
 import type { DaemonConnection } from '@droidmobile/daemon-client';
 import { AppProviders } from '../../test/render-app';
 import { useConnectionStore } from '../../stores/connection';
@@ -55,7 +56,9 @@ function renderScreen(all: DaemonSessionSummary[], status: 'ready' | 'offline' =
   useConnectionStore.setState({ connection: fake.connection, status, readyEpoch: 1 });
   render(
     <AppProviders>
-      <SessionsScreen />
+      <MemoryRouter>
+        <SessionsScreen />
+      </MemoryRouter>
     </AppProviders>,
   );
   return fake;

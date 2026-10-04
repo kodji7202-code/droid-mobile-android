@@ -4,6 +4,7 @@ import { AppShell } from './AppShell';
 import { NotFoundScreen, RouteErrorBoundary } from './RouteErrorBoundary';
 import { ConnectScreen } from '../features/connect/ConnectScreen';
 import { SessionsScreen } from '../features/sessions/SessionsScreen';
+import { SessionScreen } from '../features/session/SessionScreen';
 import { WorkspaceScreen } from '../features/workspace/WorkspaceScreen';
 import { ExtensionsScreen } from '../features/extensions/ExtensionsScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
@@ -27,6 +28,7 @@ export function createAppRoutes(): RouteObject[] {
       children: [
         { index: true, element: <Navigate to="/sessions" replace /> },
         { path: 'sessions', element: <SessionsScreen /> },
+        { path: 'sessions/:id', element: <SessionScreen /> },
         { path: 'workspace', element: <WorkspaceScreen /> },
         { path: 'extensions', element: <ExtensionsScreen /> },
         { path: 'settings', element: <SettingsScreen /> },

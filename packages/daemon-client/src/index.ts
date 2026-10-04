@@ -8,14 +8,23 @@ export { createDaemonConnection } from './connection';
 export type {
   DaemonConnection,
   DaemonConnectionOptions,
+  DefaultSettings,
+  DirectoryValidation,
+  FolderTrust,
   SessionSearchParams,
 } from './connection';
 export { SessionHandle } from './session-handle';
 export type { SessionHost, StreamOptions } from './session-handle';
 export type { SessionMessagesPage } from './paging';
+export type { SessionMessage } from '@factory/droid-sdk';
 export type { NormalizedEvent } from './normalize';
 export { normalizeStreamEvent } from './normalize';
-export { classifyJsonRpcError, classifyConnectFailure, extractVersionMismatch, versionWarningOf } from './classify';
+export {
+  classifyJsonRpcError,
+  classifyConnectFailure,
+  extractVersionMismatch,
+  versionWarningOf,
+} from './classify';
 export type { ErrorClassification, JsonRpcErrorShape } from './classify';
 export { SDK_PACKAGE_VERSION } from './version';
 export {
@@ -33,11 +42,7 @@ export {
   INITIAL_CONNECTION_STATE,
   reduceConnectionState,
 } from './status';
-export type {
-  ConnectionMachineEvent,
-  ConnectionMachineState,
-  ConnectionStatus,
-} from './status';
+export type { ConnectionMachineEvent, ConnectionMachineState, ConnectionStatus } from './status';
 export { backoffDelay, DEFAULT_BACKOFF } from './backoff';
 export type { BackoffOptions } from './backoff';
 export { redactSecrets, REDACTED } from './redact';

@@ -8,6 +8,7 @@ import type {
   ConnectedDroidSession,
   ForkSessionOptions,
   RewindSessionParams,
+  SessionSettings,
   UpdateSessionSettingsOptions,
 } from '@factory/droid-sdk';
 import type { NormalizedEvent } from './normalize';
@@ -37,7 +38,10 @@ export interface SessionHost {
   reattachSession(sessionId: string): Promise<ConnectedDroidSession>;
   /** Asks the connection to verify the transport and recover if it is down. */
   onConnectionLost(): void;
-  getMessagesPage(sessionId: string, options?: { limit?: number; cursor?: string }): Promise<SessionMessagesPage>;
+  getMessagesPage(
+    sessionId: string,
+    options?: { limit?: number; cursor?: string },
+  ): Promise<SessionMessagesPage>;
   updateSettingsById(sessionId: string, params: UpdateSessionSettingsOptions): Promise<void>;
   archiveById(sessionId: string, options?: { force?: boolean }): Promise<void>;
 }
@@ -50,11 +54,25 @@ export class SessionHandle {
 
   private underlying: ConnectedDroidSession | undefined;
   private attachedDroidToken = -1;
+  private lastSettings: Readonly<SessionSettings> | undefined;
+  private lastCwd: string | undefined;
 
   /** @internal Swaps the underlying session after a (re)attach. */
   attach(session: ConnectedDroidSession, droidToken: number): void {
     this.underlying = session;
     this.attachedDroidToken = droidToken;
+    this.lastSettings = session.settings;
+    this.lastCwd = session.cwd;
+  }
+
+  /** Settings the daemon reported when the session was created or last resumed. */
+  get settings(): Readonly<SessionSettings> | undefined {
+    return this.lastSettings;
+  }
+
+  /** Working directory the daemon reported for the session. */
+  get cwd(): string | undefined {
+    return this.lastCwd;
   }
 
   /** Token of the underlying connection this handle is attached to (-1 = none). */
@@ -97,7 +115,10 @@ export class SessionHandle {
   }
 
   /** Normalized async-iterable of the turn's events (partial deltas included). */
-  async *stream(prompt: string, options?: StreamOptions): AsyncGenerator<NormalizedEvent, void, undefined> {
+  async *stream(
+    prompt: string,
+    options?: StreamOptions,
+  ): AsyncGenerator<NormalizedEvent, void, undefined> {
     let session: ConnectedDroidSession;
     try {
       session = await this.resolveSession();

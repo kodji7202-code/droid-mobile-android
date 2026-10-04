@@ -66,7 +66,6 @@
     "refresh": "Refresh",
     "refreshing": "Refreshing…",
     "new": "New session",
-    "newPending": "Creating sessions arrives in an upcoming update.",
     "newOffline": "Connect to the daemon to start a session.",
     "searchLabel": "Search sessions",
     "searchPlaceholder": "Search sessions",
@@ -81,7 +80,21 @@
     "offlineEmptyTitle": "Not connected",
     "offlineEmpty": "Sessions appear here once the daemon is reachable.",
     "loadMore": "Load more",
-    "loadingMore": "Loading…"
+    "loadingMore": "Loading…",
+    "newTitle": "New session",
+    "newDirectoryLabel": "Working directory",
+    "newDirectoryPlaceholder": "Absolute path on the PC",
+    "newDirectoryInvalid": "This directory cannot be used.",
+    "newDirectoryUnreachable": "Could not check the directory with the daemon.",
+    "newChecking": "Checking the directory…",
+    "newRecent": "Recent directories",
+    "newModel": "Default model: {{model}}",
+    "newModelLoading": "loading…",
+    "newCreateFailed": "Could not create the session. Try again.",
+    "create": "Create session",
+    "trustTitle": "Trust this folder?",
+    "trustMessage": "The agent can read and change files in {{path}}. Only continue if you trust its contents.",
+    "trustAndCreate": "Trust and create"
   },
   "placeholder": {
     "message": "This screen is not built yet."
@@ -191,5 +204,19 @@
     "grace30": "After 30 seconds",
     "grace60": "After 1 minute",
     "grace300": "After 5 minutes"
+  },
+  "session": {
+    "title": "Session",
+    "model": "Model",
+    "modelUnknown": "Unknown model",
+    "offline": "Offline. The conversation reloads when the daemon is reachable again.",
+    "loadFailedTitle": "Could not open the session",
+    "loadFailed": "The daemon could not resume this session. Try again.",
+    "loadOlder": "Load earlier messages",
+    "loadingOlder": "Loading…",
+    "emptyTitle": "No messages yet",
+    "emptyMessage": "This session appears in the list after its first message.",
+    "roleUser": "You",
+    "roleAssistant": "Droid"
   }
 }

@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import type { SessionHandle } from '@droidmobile/daemon-client';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Skeleton } from '../../components/Skeleton';
 import { useToast } from '../../components/Toast';
 import { useConnectionStore } from '../../stores/connection';
+import { useSessionViewStore } from '../../stores/sessionView';
+import { NewSessionSheet } from './newSession/NewSessionSheet';
 import { RenameSessionSheet } from './RenameSessionSheet';
 import { SessionRow } from './SessionRow';
 import { filterRows } from './sessionsPaging';
@@ -28,7 +32,9 @@ export function SessionsScreen() {
   const [query, setQuery] = useState('');
   const [manualRefresh, setManualRefresh] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<SessionRowData | null>(null);
+  const navigate = useNavigate();
   const [renameBusy, setRenameBusy] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -89,9 +95,19 @@ export function SessionsScreen() {
     }
   };
 
-  const onNewSession = () => {
-    showToast(t('sessions.newPending'));
+  const onNewSession = () => setCreating(true);
+
+  const onCreated = (handle: SessionHandle) => {
+    useSessionViewStore.getState().adopt(handle, readyEpoch);
+    setCreating(false);
+    navigate(`/sessions/${handle.id}`);
   };
+
+  const suggestions = useMemo(
+    () =>
+      [...new Set(rows.map((row) => row.cwd).filter((cwd): cwd is string => !!cwd))].slice(0, 4),
+    [rows],
+  );
 
   const transient =
     status === 'connecting' || status === 'authenticating' || status === 'reconnecting';
@@ -187,6 +203,7 @@ export function SessionsScreen() {
                 row={row}
                 now={list.loadedAt}
                 menuOpen={menuId === row.id}
+                onOpen={(target) => navigate(`/sessions/${target.id}`)}
                 onToggleMenu={(id) => setMenuId((current) => (current === id ? null : id))}
                 onRename={(target) => {
                   setMenuId(null);
@@ -253,6 +270,14 @@ export function SessionsScreen() {
         </div>
       ) : null}
 
+      {creating ? (
+        <NewSessionSheet
+          connection={connection}
+          suggestions={suggestions}
+          onCreated={onCreated}
+          onClose={() => setCreating(false)}
+        />
+      ) : null}
       {renaming ? (
         <RenameSessionSheet
           initialTitle={renaming.title}

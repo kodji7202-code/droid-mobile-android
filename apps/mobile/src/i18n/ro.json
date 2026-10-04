@@ -66,7 +66,6 @@
     "refresh": "Reîncarcă",
     "refreshing": "Se reîncarcă…",
     "new": "Sesiune nouă",
-    "newPending": "Crearea de sesiuni vine într-o actualizare viitoare.",
     "newOffline": "Conectează-te la daemon pentru a porni o sesiune.",
     "searchLabel": "Caută sesiuni",
     "searchPlaceholder": "Caută sesiuni",
@@ -81,7 +80,21 @@
     "offlineEmptyTitle": "Neconectat",
     "offlineEmpty": "Sesiunile apar aici când daemonul este accesibil.",
     "loadMore": "Încarcă mai multe",
-    "loadingMore": "Se încarcă…"
+    "loadingMore": "Se încarcă…",
+    "newTitle": "Sesiune nouă",
+    "newDirectoryLabel": "Director de lucru",
+    "newDirectoryPlaceholder": "Calea absolută de pe PC",
+    "newDirectoryInvalid": "Acest director nu poate fi folosit.",
+    "newDirectoryUnreachable": "Nu am putut verifica directorul cu daemonul.",
+    "newChecking": "Se verifică directorul…",
+    "newRecent": "Directoare recente",
+    "newModel": "Model implicit: {{model}}",
+    "newModelLoading": "se încarcă…",
+    "newCreateFailed": "Nu am putut crea sesiunea. Încearcă din nou.",
+    "create": "Creează sesiunea",
+    "trustTitle": "Ai încredere în acest dosar?",
+    "trustMessage": "Agentul poate citi și modifica fișiere în {{path}}. Continuă doar dacă ai încredere în conținut.",
+    "trustAndCreate": "Acordă încredere și creează"
   },
   "placeholder": {
     "message": "Acest ecran nu este construit încă."
@@ -191,5 +204,19 @@
     "grace30": "După 30 de secunde",
     "grace60": "După 1 minut",
     "grace300": "După 5 minute"
+  },
+  "session": {
+    "title": "Sesiune",
+    "model": "Model",
+    "modelUnknown": "Model necunoscut",
+    "offline": "Offline. Conversația se reîncarcă când daemonul e din nou accesibil.",
+    "loadFailedTitle": "Nu am putut deschide sesiunea",
+    "loadFailed": "Daemonul nu a putut relua această sesiune. Încearcă din nou.",
+    "loadOlder": "Încarcă mesajele anterioare",
+    "loadingOlder": "Se încarcă…",
+    "emptyTitle": "Niciun mesaj încă",
+    "emptyMessage": "Sesiunea apare în listă după primul mesaj.",
+    "roleUser": "Tu",
+    "roleAssistant": "Droid"
   }
 }

@@ -50,6 +50,12 @@ type FacadeSessionSearchParams = SessionsResource extends {
 
 export type SessionSearchParams = FacadeSessionSearchParams;
 
+export type DirectoryValidation = Awaited<
+  ReturnType<ConnectedDroid['workspace']['validateDirectory']>
+>;
+export type FolderTrust = Awaited<ReturnType<ConnectedDroid['workspace']['checkTrust']>>;
+export type DefaultSettings = Awaited<ReturnType<ConnectedDroid['settings']['getDefaults']>>;
+
 export interface DaemonConnectionOptions {
   url: string;
   apiKey: string;
@@ -92,6 +98,14 @@ export interface DaemonConnection {
   /** Session ids opened through this connection and still tracked. */
   openedSessionIds(): readonly string[];
 
+  /** Asks the daemon whether a working directory exists and is a directory. */
+  validateDirectory(path: string): Promise<DirectoryValidation>;
+  /** Asks the daemon whether sessions in the folder require a trust confirmation. */
+  checkFolderTrust(path: string): Promise<FolderTrust>;
+  /** Records the user's trust decision for the folder with the daemon. */
+  trustFolder(path: string): Promise<void>;
+  /** Daemon-wide default session settings (model, autonomy, ...). */
+  getDefaultSettings(): Promise<DefaultSettings>;
   createSession(options: CreateDaemonSessionOptions): Promise<SessionHandle>;
   resumeSession(sessionId: string): Promise<SessionHandle>;
   getSession(sessionId: string): SessionHandle | undefined;
@@ -502,6 +516,14 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     },
     getDaemonIdentity: () => mapSdkError(() => probeDaemonIdentity(url, apiKey)),
     openedSessionIds: () => [...handles.keys()],
+
+    validateDirectory: (path) =>
+      mapSdkError(() => requireDroid().workspace.validateDirectory(path)),
+    checkFolderTrust: (path) => mapSdkError(() => requireDroid().workspace.checkTrust(path)),
+    trustFolder: async (path) => {
+      await mapSdkError(() => requireDroid().workspace.trust(path));
+    },
+    getDefaultSettings: () => mapSdkError(() => requireDroid().settings.getDefaults()),
 
     async createSession(createOptions) {
       const droid = requireDroid();

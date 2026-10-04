@@ -7,6 +7,7 @@ interface SessionRowProps {
   row: SessionRowData;
   now: number;
   menuOpen: boolean;
+  onOpen(row: SessionRowData): void;
   onToggleMenu(id: string): void;
   onRename(row: SessionRowData): void;
   onArchive(row: SessionRowData): void;
@@ -16,6 +17,7 @@ export function SessionRow({
   row,
   now,
   menuOpen,
+  onOpen,
   onToggleMenu,
   onRename,
   onArchive,
@@ -25,11 +27,16 @@ export function SessionRow({
 
   return (
     <li className="session-row" data-testid={`session-item-${row.id}`}>
-      <div className="session-row__main">
-        <p className="session-row__title" data-testid={`session-title-${row.id}`}>
+      <button
+        type="button"
+        className="session-row__main"
+        data-testid={`session-open-${row.id}`}
+        onClick={() => onOpen(row)}
+      >
+        <span className="session-row__title" data-testid={`session-title-${row.id}`}>
           {title}
-        </p>
-        <p className="session-row__meta">
+        </span>
+        <span className="session-row__meta">
           <span data-testid={`session-modified-${row.id}`}>
             {formatModified(row.modifiedMs, now, i18n.language)}
           </span>
@@ -37,8 +44,8 @@ export function SessionRow({
           <span data-testid={`session-count-${row.id}`}>
             {t('sessions.messages', { count: row.messageCount })}
           </span>
-        </p>
-      </div>
+        </span>
+      </button>
       <button
         type="button"
         className="btn btn--ghost session-row__more"
