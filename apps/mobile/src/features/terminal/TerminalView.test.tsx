@@ -76,6 +76,8 @@ describe('TerminalView', () => {
       });
     });
     expect(screen.getByRole('tab')).toHaveTextContent('exited (3)');
+    expect(screen.getByRole('tab')).toHaveTextContent('\u00B7 exited (3)');
+    expect(screen.getByRole('tab').textContent).not.toMatch(/[\u00C2\u00C3]/);
     expect(screen.getByRole('tab')).not.toHaveTextContent(/killed|SIGTERM/i);
     expect(screen.getByTestId('terminal-restart')).toBeInTheDocument();
     emulators[0]!.type('x');

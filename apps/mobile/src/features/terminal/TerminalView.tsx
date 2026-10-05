@@ -164,7 +164,7 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
   const tabLabel = (entry: TerminalEntry) => {
     const base = t('terminal.tab', { n: entry.label });
     return entry.status === 'exited'
-      ? `${base} Â· ${t('terminal.exitedSuffix', { code: entry.exitCode ?? '?' })}`
+      ? `${base} \u00B7 ${t('terminal.exitedSuffix', { code: entry.exitCode ?? '?' })}`
       : base;
   };
 
