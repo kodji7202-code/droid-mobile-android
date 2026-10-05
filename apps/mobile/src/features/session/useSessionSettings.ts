@@ -81,6 +81,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export function useApplySettings(
   handle: SessionHandle | undefined,
   refresh: () => void,
+  open: boolean,
 ): {
   pending: SettingsPatch;
   failed: boolean;
@@ -89,6 +90,11 @@ export function useApplySettings(
   const [pending, setPending] = useState<SettingsPatch>({});
   const [failed, setFailed] = useState(false);
   const mounted = useRef(true);
+  const status = useConnectionStore((state) => state.status);
+
+  useEffect(() => {
+    if (!open || status === 'ready') setFailed(false);
+  }, [open, status]);
 
   useEffect(() => {
     mounted.current = true;

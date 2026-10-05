@@ -74,7 +74,7 @@ export function SessionSettingsSheet({ open, onClose, handle }: SessionSettingsS
   const connection = useConnectionStore((state) => state.connection);
   const { snapshot, refresh } = useSettingsSnapshot(handle, FOLLOW_INTERVAL_MS);
   const { state: models, reload } = useModels(connection, open);
-  const { pending, failed, apply } = useApplySettings(handle, refresh);
+  const { pending, failed, apply } = useApplySettings(handle, refresh, open);
 
   const modelList = models.status === 'ready' ? models.models : [];
   const modelId = pending.modelId ?? snapshot?.modelId;

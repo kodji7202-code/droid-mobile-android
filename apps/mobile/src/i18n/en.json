@@ -358,6 +358,25 @@
         "spec": "Spec",
         "mission": "Mission"
       }
+    },
+    "context": {
+      "open": "Context usage",
+      "title": "Context usage",
+      "used": "Used",
+      "free": "Free",
+      "budget": "Budget",
+      "percent": "{{percent}}% of the context window used",
+      "percentLabel": "{{percent}}% used",
+      "categories": "Categories",
+      "noCategories": "No categories reported yet.",
+      "skills": "Skills",
+      "noSkills": "No skills loaded.",
+      "mcpServers": "MCP servers",
+      "noMcpServers": "No MCP servers.",
+      "droids": "Droids",
+      "noDroids": "No droids loaded.",
+      "failedTitle": "Could not load context usage",
+      "failed": "The daemon did not answer. Check the connection and try again."
     }
   }
 }

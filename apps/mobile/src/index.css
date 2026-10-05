@@ -1329,3 +1329,84 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   font-size: 1.25rem;
   cursor: pointer;
 }
+
+.context-usage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.context-usage__model {
+  margin: 0;
+  font-weight: 600;
+}
+
+.context-usage__totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.context-usage__totals dt {
+  color: var(--color-fg-muted);
+  font-size: 0.8rem;
+}
+
+.context-usage__totals dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.context-usage__bar {
+  display: flex;
+  height: 0.75rem;
+  overflow: hidden;
+  border-radius: 0.375rem;
+  background: var(--color-surface-variant);
+}
+
+.context-usage__segment {
+  display: block;
+  height: 100%;
+}
+
+.context-usage__percent {
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.context-usage__heading {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.context-usage__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.context-usage__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+}
+
+.context-usage__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.context-usage__swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 0.2rem;
+}
+
+.context-usage__empty {
+  margin: 0;
+  color: var(--color-fg-muted);
+}

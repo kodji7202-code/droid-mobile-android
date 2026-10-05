@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { BackIcon, SettingsIcon } from '../../components/icons';
+import { BackIcon, ContextIcon, SettingsIcon } from '../../components/icons';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Skeleton } from '../../components/Skeleton';
@@ -13,6 +13,7 @@ import { InteractionHost } from '../chat/InteractionHost';
 import { useChatScroll } from '../chat/useChatScroll';
 import { Transcript } from '../chat/Transcript';
 import { UsageChip } from '../chat/UsageChip';
+import { ContextUsageSheet } from './ContextUsageSheet';
 import { SessionSettingsSheet } from './SessionSettingsSheet';
 import { useSettingsSnapshot } from './useSessionSettings';
 
@@ -43,6 +44,7 @@ export function SessionScreen() {
     state.pending.some((item) => item.sessionId === id),
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
   const { snapshot } = useSettingsSnapshot(view?.handle, HEADER_FOLLOW_INTERVAL_MS);
 
   useEffect(() => {
@@ -70,6 +72,11 @@ export function SessionScreen() {
   const loading = view === undefined ? ready : view.status === 'loading';
   const failed = view?.status === 'error';
   const title = folderName(view?.cwd) ?? t('session.title');
+  const contextRefreshKey = [
+    view?.turnActive ? 'busy' : 'idle',
+    view?.usage?.inputTokens ?? 0,
+    view?.usage?.outputTokens ?? 0,
+  ].join(':');
 
   return (
     <section
@@ -95,6 +102,16 @@ export function SessionScreen() {
           <h2 className="sub-header__title" id="session-title" data-testid="session-title">
             {title}
           </h2>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            data-testid="session-context-open"
+            aria-label={t('session.context.open')}
+            disabled={view?.status !== 'ready'}
+            onClick={() => setContextOpen(true)}
+          >
+            <ContextIcon />
+          </button>
           <button
             type="button"
             className="btn btn--secondary session-screen__model"
@@ -214,6 +231,12 @@ export function SessionScreen() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         handle={view?.handle}
+      />
+      <ContextUsageSheet
+        open={contextOpen}
+        onClose={() => setContextOpen(false)}
+        handle={view?.handle}
+        refreshKey={contextRefreshKey}
       />
       <InteractionHost sessionId={id} />
     </section>

@@ -358,6 +358,25 @@
         "spec": "Spec",
         "mission": "Misiune"
       }
+    },
+    "context": {
+      "open": "Utilizare context",
+      "title": "Utilizare context",
+      "used": "Folosit",
+      "free": "Liber",
+      "budget": "Buget",
+      "percent": "{{percent}}% din fereastra de context folosit",
+      "percentLabel": "{{percent}}% folosit",
+      "categories": "Categorii",
+      "noCategories": "Nicio categorie raportată încă.",
+      "skills": "Abilități",
+      "noSkills": "Nicio abilitate încărcată.",
+      "mcpServers": "Servere MCP",
+      "noMcpServers": "Niciun server MCP.",
+      "droids": "Droizi",
+      "noDroids": "Niciun droid încărcat.",
+      "failedTitle": "Nu s-a putut încărca utilizarea contextului",
+      "failed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou."
     }
   }
 }

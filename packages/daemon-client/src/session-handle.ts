@@ -6,6 +6,7 @@
  */
 import type {
   ConnectedDroidSession,
+  ContextBreakdownResult,
   ForkSessionOptions,
   RewindSessionParams,
   SessionSettings,
@@ -28,6 +29,9 @@ export interface StreamOptions {
   outputFormat?: FacadeStreamOptions['outputFormat'];
   abortSignal?: FacadeStreamOptions['abortSignal'];
 }
+
+/** The daemon's context-window breakdown for a session. */
+export type ContextBreakdown = ContextBreakdownResult;
 
 type FacadeForkResult = Awaited<ReturnType<ConnectedDroidSession['fork']>>;
 type FacadeCompactResult = Awaited<ReturnType<ConnectedDroidSession['compact']>>;
@@ -53,6 +57,7 @@ export interface SessionHost {
   ): Promise<SessionMessagesPage>;
   updateSettingsById(sessionId: string, params: UpdateSessionSettingsOptions): Promise<void>;
   archiveById(sessionId: string, options?: { force?: boolean }): Promise<void>;
+  getContextBreakdownById(sessionId: string): Promise<ContextBreakdown>;
   /** Removes a queued message from the daemon's queue so it is never executed. */
   deleteQueuedById(sessionId: string, requestId: string): Promise<void>;
 }
@@ -293,6 +298,12 @@ export class SessionHandle {
 
   rewind(params: RewindSessionParams): Promise<FacadeRewindResult> {
     return this.withSession((s) => s.rewind(params));
+  }
+
+  /** Token usage of the context window by category, straight from the daemon. */
+  getContextBreakdown(): Promise<ContextBreakdown> {
+    // The daemon only answers for a session it has loaded, so attach first.
+    return this.withSession(() => this.host.getContextBreakdownById(this.id));
   }
 
   /** Hides the session; `force` archives it even while an agent turn runs. */

@@ -35,6 +35,18 @@ describe('SessionHandle settings', () => {
     expect(handle.settingsSnapshot?.autonomyLevel).toBe('medium');
   });
 
+  it('reads the context breakdown through the host for its own session id', async () => {
+    const breakdown = { usedTokens: 1 };
+    const host = {
+      currentDroidToken: () => 1,
+      getContextBreakdownById: vi.fn(async () => breakdown),
+    } as unknown as SessionHost;
+    const handle = new SessionHandle('s-ctx', host);
+    handle.attach({ id: 's-ctx', settings: {}, cwd: '/w' } as unknown as ConnectedDroidSession, 1);
+    await expect(handle.getContextBreakdown()).resolves.toBe(breakdown);
+    expect(host.getContextBreakdownById).toHaveBeenCalledWith('s-ctx');
+  });
+
   it('does not show a rejected change', async () => {
     const { handle, updateSettingsById } = setup({ autonomyLevel: 'off' });
     updateSettingsById.mockRejectedValueOnce(new Error('socket closed'));

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -48,12 +48,13 @@ function setup(
   } as unknown as SessionHandle;
   const connection = { listModels: vi.fn(async () => MODELS) } as unknown as DaemonConnection;
   useConnectionStore.setState({ connection, status: 'ready', readyEpoch: 1 });
-  render(
+  const ui = (open: boolean) => (
     <AppProviders>
-      <SessionSettingsSheet open onClose={() => {}} handle={handle} />
-    </AppProviders>,
+      <SessionSettingsSheet open={open} onClose={() => {}} handle={handle} />
+    </AppProviders>
   );
-  return { apply, state };
+  const view = render(ui(true));
+  return { apply, state, setOpen: (open: boolean) => view.rerender(ui(open)) };
 }
 
 afterEach(() => {
@@ -182,6 +183,33 @@ describe('SessionSettingsSheet', () => {
     expect(await screen.findByTestId('session-settings-error')).toBeInTheDocument();
     expect(apply).not.toHaveBeenCalled();
     expect(screen.getByTestId('session-autonomy-select')).toHaveValue('off');
+  });
+
+  it('clears the failure text when the connection is ready again', async () => {
+    setup(BASE);
+    useConnectionStore.setState({ status: 'offline' });
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByTestId('session-autonomy-select'), 'high');
+    expect(await screen.findByTestId('session-settings-error')).toBeInTheDocument();
+
+    act(() => useConnectionStore.setState({ status: 'ready' }));
+    await waitFor(() =>
+      expect(screen.queryByTestId('session-settings-error')).not.toBeInTheDocument(),
+    );
+  });
+
+  it('clears the failure text when the sheet is closed', async () => {
+    const { setOpen } = setup(BASE, async () => {
+      throw new Error('socket closed');
+    });
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByTestId('session-autonomy-select'), 'high');
+    expect(await screen.findByTestId('session-settings-error')).toBeInTheDocument();
+
+    setOpen(false);
+    setOpen(true);
+    expect(await screen.findByTestId('session-autonomy-select')).toBeInTheDocument();
+    expect(screen.queryByTestId('session-settings-error')).not.toBeInTheDocument();
   });
 
   it('follows an external change without reopening', async () => {
