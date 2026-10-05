@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from 'react-router';
 import type { DaemonConnection, DaemonGetGitDiffResult } from '@droidmobile/daemon-client';
 import { AppProviders } from '../../test/render-app';
 import { useConnectionStore } from '../../stores/connection';
@@ -485,6 +485,94 @@ describe('WorkspaceScreen', () => {
     });
   });
 
+  it('closes the viewer by popping its history entry (VAL-WS-019)', async () => {
+    setupConnection();
+    useSessionViewStore.setState({
+      activeSessionId: 's1',
+      views: {
+        s1: {
+          id: 's1',
+          status: 'ready',
+          cwd: 'D:/alpha',
+          items: [],
+          queued: [],
+          turnActive: false,
+          workingState: 'idle',
+          stopRequested: false,
+          interrupted: false,
+          hasMore: false,
+          loadingOlder: false,
+          epoch: 1,
+        },
+      },
+    });
+    const router = createMemoryRouter(
+      [
+        { path: '/workspace', element: <WorkspaceScreen /> },
+        { path: '/sessions', element: <div data-testid="sessions-screen">Sessions</div> },
+      ],
+      { initialEntries: ['/sessions', '/workspace'], initialIndex: 1 },
+    );
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('tree-file-readme.md')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('tree-file-readme.md'));
+    await waitFor(() => expect(screen.getByTestId('file-viewer')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('file-viewer-back'));
+    await waitFor(() => expect(screen.queryByTestId('file-viewer')).not.toBeInTheDocument());
+    expect(router.state.location.search).toBe('');
+    expect(router.state.historyAction).toBe('POP');
+
+    // One more Back leaves Workspace: no stale viewer entry is left behind.
+    await act(() => router.navigate(-1));
+    expect(router.state.location.pathname).toBe('/sessions');
+  });
+
+  it('replaces a deep-linked viewer instead of popping out of Workspace (VAL-WS-019)', async () => {
+    setupConnection();
+    useSessionViewStore.setState({
+      activeSessionId: 's1',
+      views: {
+        s1: {
+          id: 's1',
+          status: 'ready',
+          cwd: 'D:/alpha',
+          items: [],
+          queued: [],
+          turnActive: false,
+          workingState: 'idle',
+          stopRequested: false,
+          interrupted: false,
+          hasMore: false,
+          loadingOlder: false,
+          epoch: 1,
+        },
+      },
+    });
+    const router = createMemoryRouter(
+      [
+        { path: '/workspace', element: <WorkspaceScreen /> },
+        { path: '/sessions', element: <div data-testid="sessions-screen">Sessions</div> },
+      ],
+      { initialEntries: ['/sessions', '/workspace?file=readme.md'], initialIndex: 1 },
+    );
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+    await waitFor(() => expect(screen.getByTestId('file-viewer')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('file-viewer-back'));
+    await waitFor(() => expect(screen.queryByTestId('file-viewer')).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe('/workspace');
+    expect(router.state.historyAction).toBe('REPLACE');
+  });
+
   it('switches to Changes tab, displays repo diff and PR status (VAL-WS-020, VAL-WS-039)', async () => {
     const { getGitDiff, resolvePullRequestStatuses } = setupConnection();
 
@@ -656,9 +744,9 @@ describe('WorkspaceScreen', () => {
       renderWorkspace('/workspace?tab=changes');
 
       await waitFor(() => {
-        expect(screen.getByTestId(`git-change-${listedPath}`)).toBeInTheDocument();
+        expect(screen.getByTestId('git-change-café.txt')).toBeInTheDocument();
       });
-      fireEvent.click(screen.getByTestId(`git-change-${listedPath}`));
+      fireEvent.click(screen.getByTestId('git-change-café.txt'));
 
       await waitFor(() => {
         expect(screen.getByTestId('git-diff-file-path')).toHaveTextContent('café.txt');

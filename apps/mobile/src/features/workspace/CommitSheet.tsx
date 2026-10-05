@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sheet } from '../../components/Sheet';
 import { useConnectionStore } from '../../stores/connection';
+import { unquoteGitPath } from './diffParser';
 import type { GitDiffFile } from '@droidmobile/daemon-client';
 
 interface CommitSheetProps {
@@ -11,6 +12,8 @@ interface CommitSheetProps {
   online: boolean;
   onClose: () => void;
   onCommitted: () => void;
+  /** Called when a commit attempt starts, so the parent can drop a stale outcome notice. */
+  onAttempt?: () => void;
 }
 
 export function CommitSheet({
@@ -20,6 +23,7 @@ export function CommitSheet({
   online,
   onClose,
   onCommitted,
+  onAttempt,
 }: CommitSheetProps) {
   const { t } = useTranslation();
   const connection = useConnectionStore((s) => s.connection);
@@ -42,6 +46,7 @@ export function CommitSheet({
     if (!connection || !canSubmit) return;
     setBusy(true);
     setError(null);
+    onAttempt?.();
     try {
       const result = await connection.commitGitChanges(sessionId, message.trim());
       if (!result.success) {
@@ -73,15 +78,18 @@ export function CommitSheet({
             overflowY: 'auto',
           }}
         >
-          {files.map((f) => (
-            <li
-              key={f.path}
-              data-testid={`git-commit-file-${f.path}`}
-              style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
-            >
-              {t(`git.status.${f.status}`, { defaultValue: f.status })} {f.path}
-            </li>
-          ))}
+          {files.map((f) => {
+            const displayPath = unquoteGitPath(f.path);
+            return (
+              <li
+                key={f.path}
+                data-testid={`git-commit-file-${displayPath}`}
+                style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
+              >
+                {t(`git.status.${f.status}`, { defaultValue: f.status })} {displayPath}
+              </li>
+            );
+          })}
         </ul>
         <label className="field__label" htmlFor="git-commit-message">
           {t('git.commit.message')}

@@ -43,7 +43,7 @@ describe('PullRequestChip (VAL-WS-039)', () => {
         branch: 'feature-local',
         status: {
           state: 'unavailable',
-          reason: 'unsupported_remote',
+          reason: 'lookup_failed',
         },
         resolvedAt: 1700000000000,
         staleAfterMs: 30000,
@@ -93,6 +93,50 @@ describe('PullRequestChip (VAL-WS-039)', () => {
     expect(noneText).toMatch(/No pull request/i);
     unmount();
   });
+
+  it('renders no chip when the remote is not a supported pull-request host', () => {
+    const status = DaemonResolvePullRequestStatusesResultSchema.parse({
+      statuses: [
+        {
+          subject: { kind: 'branch', sessionId: 's-unsupported' },
+          branch: 'feature-local',
+          status: { state: 'unavailable', reason: 'unsupported_remote' },
+          resolvedAt: 1700000000000,
+          staleAfterMs: 30000,
+        },
+      ],
+    }).statuses[0].status;
+    render(
+      <AppProviders>
+        <PullRequestChip status={status} />
+      </AppProviders>,
+    );
+
+    expect(screen.queryByTestId('pr-status-chip')).toBeNull();
+  });
+
+  it.each(['lookup_failed', 'unknown'] as const)(
+    'renders the unavailable chip for reason %s',
+    (reason) => {
+      const parsed = DaemonResolvePullRequestStatusesResultSchema.parse({
+        statuses: [
+          {
+            subject: { kind: 'branch', sessionId: 's-failed' },
+            branch: 'feature-local',
+            status: { state: 'unavailable', reason },
+            resolvedAt: 1700000000000,
+            staleAfterMs: 30000,
+          },
+        ],
+      });
+      render(
+        <AppProviders>
+          <PullRequestChip status={parsed.statuses[0].status} />
+        </AppProviders>,
+      );
+      expect(screen.getByTestId('pr-status-chip').textContent).toMatch(/PR unavailable/i);
+    },
+  );
 
   it('renders unavailable PR chip with distinct localized label', () => {
     const status = unavailableResult.statuses[0].status;

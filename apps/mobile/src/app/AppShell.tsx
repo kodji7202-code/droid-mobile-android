@@ -1,4 +1,12 @@
-import { matchPath, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
+import { useRef } from 'react';
+import {
+  matchPath,
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+} from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ConnectionBanner } from '../components/ConnectionBanner';
 import { ConnectionNotices } from '../components/ConnectionNotices';
@@ -26,13 +34,18 @@ export function AppShell() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const isWideViewport = useMediaQuery('(min-width: 840px)');
+  // The native router is a memory router, so window.history says nothing about in-app history.
+  const historyDepth = useRef(0);
+  const lastKey = useRef(location.key);
+  if (lastKey.current !== location.key) {
+    lastKey.current = location.key;
+    if (navigationType === 'PUSH') historyDepth.current += 1;
+    else if (navigationType === 'POP') historyDepth.current = Math.max(0, historyDepth.current - 1);
+  }
   const handleAndroidBack = (delta: number) => {
-    if (
-      typeof window !== 'undefined' &&
-      (window.history.state?.idx === 0 || window.history.length <= 1) &&
-      location.pathname !== '/sessions'
-    ) {
+    if (historyDepth.current === 0 && location.pathname !== '/sessions') {
       void navigate('/sessions', { replace: true });
     } else {
       void navigate(delta);

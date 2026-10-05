@@ -103,6 +103,29 @@ describe('GitChangesList (VAL-WS-020 & VAL-WS-023)', () => {
     }
   });
 
+  it('shows Git quoted paths decoded while selecting with the raw path (VAL-WS-020)', () => {
+    const quoted = '"fi\\310\\231ier-\\304\\203.txt"';
+    const handleSelect = vi.fn();
+    render(
+      <AppProviders>
+        <GitChangesList
+          files={[{ path: quoted, additions: 1, deletions: 0, status: 'added' }]}
+          branch="main"
+          baseBranch="main"
+          totalAdditions={1}
+          totalDeletions={0}
+          onSelectFile={handleSelect}
+        />
+      </AppProviders>,
+    );
+    const row = screen.getByTestId('git-change-fișier-ă.txt');
+    expect(screen.getByTestId('git-file-path')).toHaveTextContent('fișier-ă.txt');
+    expect(screen.getByTestId('git-file-path')).toHaveAttribute('title', 'fișier-ă.txt');
+    expect(screen.getByTestId('git-changes-list').textContent).not.toContain('\\310');
+    fireEvent.click(row);
+    expect(handleSelect).toHaveBeenCalledWith(quoted);
+  });
+
   it('renders clean repository "no changes" state (VAL-WS-023)', () => {
     render(
       <AppProviders>

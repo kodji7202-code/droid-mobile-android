@@ -93,7 +93,10 @@ export function GitActions({
           className="btn btn--secondary btn--sm"
           data-testid="git-commit-button"
           disabled={!online}
-          onClick={() => setCommitOpen(true)}
+          onClick={() => {
+            setNotice(null);
+            setCommitOpen(true);
+          }}
           style={{ minHeight: 48 }}
         >
           {t('git.commit.button')}
@@ -162,6 +165,7 @@ export function GitActions({
         files={files}
         online={online}
         onClose={() => setCommitOpen(false)}
+        onAttempt={() => setNotice(null)}
         onCommitted={() => {
           setNotice({
             kind: 'success',

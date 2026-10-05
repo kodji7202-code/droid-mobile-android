@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { GitBranchIcon } from '../../components/icons';
+import { unquoteGitPath } from './diffParser';
 import { PullRequestChip } from './PullRequestChip';
 import type { PullRequestStatusInfo } from './PullRequestChip';
 import type { GitDiffFile } from '@droidmobile/daemon-client';
@@ -193,98 +194,101 @@ export function GitChangesList({
           padding: '4px 0',
         }}
       >
-        {files.map((file) => (
-          <button
-            key={file.path}
-            type="button"
-            className="git-change-row"
-            data-testid={`git-change-${file.path}`}
-            onClick={() => onSelectFile(file.path)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              width: '100%',
-              padding: '10px 16px',
-              border: 'none',
-              background: 'transparent',
-              borderBottom: '1px solid var(--color-border, #eee)',
-              textAlign: 'left',
-              cursor: 'pointer',
-              gap: '10px',
-            }}
-          >
-            {/* Status Badge */}
-            <span
-              className={`chip git-status-badge git-status-badge--${file.status}`}
-              data-testid="git-status-badge"
+        {files.map((file) => {
+          const displayPath = unquoteGitPath(file.path);
+          return (
+            <button
+              key={file.path}
+              type="button"
+              className="git-change-row"
+              data-testid={`git-change-${displayPath}`}
+              onClick={() => onSelectFile(file.path)}
               style={{
-                fontSize: '0.75rem',
-                textTransform: 'uppercase',
-                fontWeight: 700,
-                letterSpacing: '0.5px',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                backgroundColor:
-                  file.status === 'added'
-                    ? 'var(--diff-add-bg, rgba(27, 127, 59, 0.12))'
-                    : file.status === 'deleted'
-                      ? 'var(--diff-del-bg, rgba(179, 38, 30, 0.12))'
-                      : 'var(--color-surface-variant, #ededf0)',
-                color:
-                  file.status === 'added'
-                    ? 'var(--diff-add-fg, var(--color-success, #1b7f3b))'
-                    : file.status === 'deleted'
-                      ? 'var(--diff-del-fg, var(--color-danger, #b3261e))'
-                      : 'var(--color-fg, #1b1d21)',
+                display: 'flex',
+                alignItems: 'center',
+                width: '100%',
+                padding: '10px 16px',
+                border: 'none',
+                background: 'transparent',
+                borderBottom: '1px solid var(--color-border, #eee)',
+                textAlign: 'left',
+                cursor: 'pointer',
+                gap: '10px',
               }}
             >
-              {t(`git.status.${file.status}`, { defaultValue: file.status })}
-            </span>
-
-            {/* File Path */}
-            <span
-              className="git-file-path"
-              data-testid="git-file-path"
-              style={{
-                flex: 1,
-                fontFamily: 'monospace',
-                fontSize: '0.85rem',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-              title={file.path}
-            >
-              {file.path}
-            </span>
-
-            {/* Per-file Additions & Deletions */}
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {/* Status Badge */}
               <span
-                className="git-file-additions"
-                data-testid="git-file-additions"
+                className={`chip git-status-badge git-status-badge--${file.status}`}
+                data-testid="git-status-badge"
                 style={{
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  color: 'var(--color-success, #1b7f3b)',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  letterSpacing: '0.5px',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  backgroundColor:
+                    file.status === 'added'
+                      ? 'var(--diff-add-bg, rgba(27, 127, 59, 0.12))'
+                      : file.status === 'deleted'
+                        ? 'var(--diff-del-bg, rgba(179, 38, 30, 0.12))'
+                        : 'var(--color-surface-variant, #ededf0)',
+                  color:
+                    file.status === 'added'
+                      ? 'var(--diff-add-fg, var(--color-success, #1b7f3b))'
+                      : file.status === 'deleted'
+                        ? 'var(--diff-del-fg, var(--color-danger, #b3261e))'
+                        : 'var(--color-fg, #1b1d21)',
                 }}
               >
-                +{file.additions}
+                {t(`git.status.${file.status}`, { defaultValue: file.status })}
               </span>
+
+              {/* File Path */}
               <span
-                className="git-file-deletions"
-                data-testid="git-file-deletions"
+                className="git-file-path"
+                data-testid="git-file-path"
                 style={{
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  color: 'var(--color-danger, #b3261e)',
+                  flex: 1,
+                  fontFamily: 'monospace',
+                  fontSize: '0.85rem',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}
+                title={displayPath}
               >
-                -{file.deletions}
+                {displayPath}
               </span>
-            </div>
-          </button>
-        ))}
+
+              {/* Per-file Additions & Deletions */}
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <span
+                  className="git-file-additions"
+                  data-testid="git-file-additions"
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'var(--color-success, #1b7f3b)',
+                  }}
+                >
+                  +{file.additions}
+                </span>
+                <span
+                  className="git-file-deletions"
+                  data-testid="git-file-deletions"
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'var(--color-danger, #b3261e)',
+                  }}
+                >
+                  -{file.deletions}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

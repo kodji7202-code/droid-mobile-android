@@ -184,6 +184,55 @@ describe('GitActions', () => {
     expect(screen.queryByTestId('git-commit-success')).not.toBeInTheDocument();
   });
 
+  it('drops the previous commit success notice when the commit sheet opens and when a retry fails', async () => {
+    const user = userEvent.setup();
+    const commitGitChanges = vi
+      .fn()
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({ success: false });
+    setup({ commitGitChanges } as unknown as Partial<DaemonConnection>);
+    await user.click(screen.getByTestId('git-commit-button'));
+    await user.type(screen.getByTestId('git-commit-message'), 'first');
+    await user.click(screen.getByTestId('git-commit-submit'));
+    expect(await screen.findByTestId('git-commit-success')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId('commit-sheet')).not.toBeInTheDocument());
+
+    await user.click(screen.getByTestId('git-commit-button'));
+    expect(screen.queryByTestId('git-commit-success')).not.toBeInTheDocument();
+    await user.type(screen.getByTestId('git-commit-message'), 'second');
+    await user.click(screen.getByTestId('git-commit-submit'));
+    expect(await screen.findByTestId('git-commit-error')).toBeInTheDocument();
+    expect(screen.queryByTestId('git-commit-success')).not.toBeInTheDocument();
+    expect(screen.getByTestId('git-commit-message')).toHaveValue('second');
+  });
+
+  it('clears a stale success notice as soon as a new commit attempt starts', async () => {
+    const user = userEvent.setup();
+    let rejectSecond: (reason: Error) => void = () => undefined;
+    const commitGitChanges = vi
+      .fn()
+      .mockResolvedValueOnce({ success: true })
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectSecond = reject;
+          }),
+      );
+    setup({ commitGitChanges } as unknown as Partial<DaemonConnection>);
+    await user.click(screen.getByTestId('git-commit-button'));
+    await user.type(screen.getByTestId('git-commit-message'), 'first');
+    await user.click(screen.getByTestId('git-commit-submit'));
+    expect(await screen.findByTestId('git-commit-success')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId('commit-sheet')).not.toBeInTheDocument());
+
+    await user.click(screen.getByTestId('git-commit-button'));
+    await user.type(screen.getByTestId('git-commit-message'), 'second');
+    await user.click(screen.getByTestId('git-commit-submit'));
+    expect(screen.queryByTestId('git-commit-success')).not.toBeInTheDocument();
+    rejectSecond(new Error('Failed to commit changes'));
+    expect(await screen.findByTestId('git-commit-error')).toBeInTheDocument();
+  });
+
   it('surfaces a push failure and re-enables the button', async () => {
     const user = userEvent.setup();
     setup({

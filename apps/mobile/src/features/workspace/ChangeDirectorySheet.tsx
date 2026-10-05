@@ -13,6 +13,12 @@ interface ChangeDirectorySheetProps {
   onChanged: (newCwd: string) => void;
 }
 
+const TRUST_RETRY_DELAYS_MS = [250, 500, 1000];
+
+function isNotTrustedError(err: unknown): boolean {
+  return /not trusted/i.test(err instanceof Error ? err.message : String(err));
+}
+
 export function ChangeDirectorySheet({
   open,
   initialPath,
@@ -70,10 +76,19 @@ export function ChangeDirectorySheet({
       if (shouldTrust && valid) {
         await connection.trustFolder(valid.trustRoot || targetPath);
       }
-      const res = await connection.changeDirectory({
-        sessionId,
-        workingDirectory: targetPath,
-      });
+      let res;
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          res = await connection.changeDirectory({ sessionId, workingDirectory: targetPath });
+          break;
+        } catch (err) {
+          // Only the window right after an accepted trust may still answer "not trusted".
+          if (!shouldTrust || attempt >= TRUST_RETRY_DELAYS_MS.length || !isNotTrustedError(err)) {
+            throw err;
+          }
+          await new Promise((resolve) => setTimeout(resolve, TRUST_RETRY_DELAYS_MS[attempt]));
+        }
+      }
       onChanged(res.resolvedPath);
       onClose();
     } catch (err) {
@@ -123,7 +138,10 @@ export function ChangeDirectorySheet({
             </p>
           ) : null}
 
-          <div className="sheet__actions" style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+          <div
+            className="sheet__actions"
+            style={{ marginTop: '16px', display: 'flex', gap: '8px' }}
+          >
             <button
               type="button"
               className="btn btn--secondary"

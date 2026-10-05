@@ -50,6 +50,10 @@ export function PullRequestChip({ status }: PullRequestChipProps) {
   }
 
   if (status.state === 'unavailable') {
+    // A remote that is not a pull-request host has nothing to look up, so a warning would be noise.
+    if (status.reason === 'unsupported_remote') {
+      return null;
+    }
     return (
       <span
         className="chip chip--warning pr-status-chip pr-status-chip--unavailable"

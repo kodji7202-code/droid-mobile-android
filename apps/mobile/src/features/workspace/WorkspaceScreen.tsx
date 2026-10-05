@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { EyeIcon, EyeOffIcon, FolderIcon } from '../../components/icons';
 import { useConnectionStore } from '../../stores/connection';
@@ -29,6 +29,7 @@ const EMPTY_DIFF_FILES: GitDiffFile[] = [];
 export function WorkspaceScreen() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const connection = useConnectionStore((s) => s.connection);
@@ -218,19 +219,33 @@ export function WorkspaceScreen() {
           next.set('file', filePath);
           return next;
         },
-        { replace: false },
+        { replace: false, state: { overlayPushed: true } },
       );
     },
     [setSearchParams],
   );
 
-  const handleBackFromViewer = useCallback(() => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('file');
-      return next;
-    });
-  }, [setSearchParams]);
+  // An overlay the app pushed is closed by popping its entry, so history never grows with
+  // tree/viewer/tree and a later system Back leaves Workspace. A deep link has no entry to pop.
+  const closeOverlay = useCallback(
+    (param: 'file' | 'diff') => {
+      if ((location.state as { overlayPushed?: boolean } | null)?.overlayPushed) {
+        void navigate(-1);
+        return;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete(param);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [location.state, navigate, setSearchParams],
+  );
+
+  const handleBackFromViewer = useCallback(() => closeOverlay('file'), [closeOverlay]);
 
   const handleSelectTab = useCallback(
     (tab: 'files' | 'changes' | 'terminal') => {
@@ -260,19 +275,13 @@ export function WorkspaceScreen() {
           next.set('diff', filePath);
           return next;
         },
-        { replace: false },
+        { replace: false, state: { overlayPushed: true } },
       );
     },
     [setSearchParams],
   );
 
-  const handleBackFromDiffViewer = useCallback(() => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('diff');
-      return next;
-    });
-  }, [setSearchParams]);
+  const handleBackFromDiffViewer = useCallback(() => closeOverlay('diff'), [closeOverlay]);
 
   // Guided empty state if no active session
   if (!activeSessionId) {

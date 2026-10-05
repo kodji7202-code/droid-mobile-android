@@ -222,6 +222,8 @@ const nextFacadeId = (): number => ++facadeSequence;
 const DEFAULT_PAGE_LIMIT = 50;
 const RECONNECT_READY_TIMEOUT_MS = 30_000;
 const DEFAULT_KEEP_ALIVE_MS = 10_000;
+const TRUST_VISIBLE_POLL_MS = 150;
+const TRUST_VISIBLE_CAP_MS = 3_000;
 
 export function createDaemonConnection(options: DaemonConnectionOptions): DaemonConnection {
   const url = options.url;
@@ -634,6 +636,23 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     });
   }
 
+  // The daemon acknowledges trust_folder before change_working_directory can see the new entry, so
+  // callers that act right after trusting wait until the entry is visible (or the cap passes).
+  async function waitUntilTrustVisible(path: string): Promise<void> {
+    const droid = requireDroid();
+    const deadline = Date.now() + TRUST_VISIBLE_CAP_MS;
+    for (;;) {
+      try {
+        const state = await droid.workspace.checkTrust(path);
+        if (state.isTrusted && !state.promptRequired) return;
+      } catch {
+        // The probe only shortens the wait; the caller's own request reports real failures.
+      }
+      if (Date.now() >= deadline) return;
+      await new Promise((resolve) => setTimeout(resolve, TRUST_VISIBLE_POLL_MS));
+    }
+  }
+
   const host: SessionHost = {
     currentDroidToken: () => droidToken,
     reportFailure,
@@ -722,6 +741,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     checkFolderTrust: (path) => mapSdkError(() => requireDroid().workspace.checkTrust(path)),
     trustFolder: async (path) => {
       await mapSdkError(() => requireDroid().workspace.trust(path));
+      await waitUntilTrustVisible(path);
     },
     changeDirectory: (params) => host.changeDirectory(params.sessionId, params.workingDirectory),
     listFiles: (sessionId, showHidden) => host.listFiles(sessionId, showHidden),
