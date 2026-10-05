@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { TranscriptItem } from '@droidmobile/daemon-client';
 import { MarkdownView } from '../../components/MarkdownView';
+import { AttachmentThumb } from './AttachmentThumb';
 import { ThinkingBlock } from './ThinkingBlock';
 import { ToolCallCard } from './ToolCallCard';
 
@@ -46,7 +47,21 @@ export function Transcript({ items, onRetry, retryDisabled = false }: Transcript
                 data-testid={`msg-user-${n}`}
                 data-delivery={item.delivery}
               >
-                <p className="session-message__text">{item.text}</p>
+                {item.attachments ? (
+                  <ul className="session-message__attachments">
+                    {item.attachments.map((attachment, k) => (
+                      <li
+                        key={k}
+                        className="attachment"
+                        data-testid={`msg-attachment-${n}-${k}`}
+                        data-kind={attachment.kind}
+                      >
+                        <AttachmentThumb attachment={attachment} />
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {item.text === '' ? null : <p className="session-message__text">{item.text}</p>}
                 {item.delivery === 'failed' ? (
                   <div className="session-message__failed" role="alert">
                     <span data-testid={`msg-failed-${n}`}>{t('chat.notSent')}</span>

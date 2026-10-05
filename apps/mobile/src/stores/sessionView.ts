@@ -19,7 +19,9 @@ import type {
   SessionHandle,
   TokenUsage,
   TranscriptItem,
+  UserAttachment,
 } from '@droidmobile/daemon-client';
+import { toStreamOptions } from '../features/chat/attachments';
 import { runTurn } from '../features/chat/runTurn';
 import { useConnectionStore } from './connection';
 import { useInteractionStore } from './interactions';
@@ -70,7 +72,7 @@ interface SessionViewStore {
   adopt(handle: SessionHandle, epoch: number): void;
   loadOlder(id: string): Promise<void>;
   /** Shows the user bubble at once and streams the reply into the view. */
-  send(id: string, text: string): Promise<void>;
+  send(id: string, text: string, attachments?: readonly UserAttachment[]): Promise<void>;
   /** Resends a message that never reached the daemon. */
   retry(id: string, itemId: string): Promise<void>;
   interrupt(id: string): Promise<void>;
@@ -131,7 +133,13 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
     });
 
   /** Streams one turn into the view; always leaves the view idle and consistent. */
-  const drive = async (id: string, handle: SessionHandle, localId: string, prompt: string) => {
+  const drive = async (
+    id: string,
+    handle: SessionHandle,
+    localId: string,
+    prompt: string,
+    attachments: readonly UserAttachment[],
+  ) => {
     if (useConnectionStore.getState().status !== 'ready') {
       update(id, (view) => ({
         items: failPendingUser(view.items, localId),
@@ -162,6 +170,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
           }
         },
         lost,
+        toStreamOptions(attachments),
       );
       update(id, (view) => {
         const settled = failPendingUser(settleTurn(view.items), localId);
@@ -300,7 +309,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       }
     },
 
-    async send(id, text) {
+    async send(id, text, attachments = []) {
       const view = get().views[id];
       const prompt = text.trim();
       // A late history response would overwrite the new bubble or resurrect a delivered one.
@@ -316,14 +325,14 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       localSeq += 1;
       const localId = `local-${localSeq}`;
       patch(id, {
-        items: addPendingUser(view.items, localId, prompt),
+        items: addPendingUser(view.items, localId, prompt, attachments),
         turnActive: true,
         workingState: 'thinking',
         interrupted: false,
         stopRequested: false,
       });
       useInteractionStore.getState().dismissExpired(id);
-      await drive(id, view.handle, localId, prompt);
+      await drive(id, view.handle, localId, prompt, attachments);
     },
 
     async retry(id, itemId) {
@@ -339,7 +348,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
         return;
       }
       patch(id, { items: removeItem(view.items, itemId) });
-      await get().send(id, failed.text);
+      await get().send(id, failed.text, failed.attachments);
     },
 
     markDenied(id, tools) {

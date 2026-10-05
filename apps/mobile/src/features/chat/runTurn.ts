@@ -1,4 +1,4 @@
-import type { NormalizedEvent, SessionHandle } from '@droidmobile/daemon-client';
+import type { NormalizedEvent, SessionHandle, StreamOptions } from '@droidmobile/daemon-client';
 
 export type TurnOutcome = 'done' | 'lost';
 
@@ -12,8 +12,9 @@ export async function runTurn(
   prompt: string,
   onEvent: (event: NormalizedEvent) => void,
   lost: Promise<'lost'>,
+  options?: Pick<StreamOptions, 'images' | 'files'>,
 ): Promise<TurnOutcome> {
-  const stream = handle.stream(prompt);
+  const stream = handle.stream(prompt, options);
   try {
     for (;;) {
       const step = await Promise.race([stream.next(), lost]);

@@ -227,6 +227,17 @@
     "send": "Send",
     "interrupt": "Stop",
     "notSent": "Not sent",
+    "attach": {
+      "label": "Attach file",
+      "image": "Attached image",
+      "remove": "Remove {{name}}",
+      "reject": {
+        "type": "Unsupported file type: {{type}} ({{name}}). Attach images (JPEG, PNG, GIF, WebP), PDF or text files.",
+        "size": "{{name}} is larger than {{limitMb}} MB and was not attached.",
+        "count": "{{name}} was not attached: at most {{limit}} attachments per message.",
+        "read": "{{name}} could not be read."
+      }
+    },
     "connectionLost": "Connection lost. The conversation reloads from the daemon when it is reachable again.",
     "working": {
       "thinking": "Thinking…",

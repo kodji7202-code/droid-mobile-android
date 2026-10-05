@@ -68,6 +68,59 @@ describe('itemsFromMessages', () => {
   });
 });
 
+describe('user attachments', () => {
+  const png = { type: 'image', source: { type: 'base64', data: 'AAAA', mediaType: 'image/png' } };
+
+  it('keeps stored images on the user message and shows an image-only message', () => {
+    const items = itemsFromMessages([
+      msg('u1', 'user', 1, [{ type: 'text', text: 'what colour?' }, png]),
+      msg('u2', 'user', 2, [png]),
+    ]);
+    const image = { kind: 'image', mediaType: 'image/png', data: 'AAAA' };
+    expect(items).toEqual([
+      { kind: 'user', id: 'u1', text: 'what colour?', delivery: 'sent', attachments: [image] },
+      { kind: 'user', id: 'u2', text: '', delivery: 'sent', attachments: [image] },
+    ]);
+  });
+
+  it('drops the injected reminder block and restores stored documents as files', () => {
+    const reminder = {
+      type: 'text',
+      text: '<system-reminder>Attached image paths</system-reminder>',
+    };
+    const doc = {
+      type: 'document',
+      source: { type: 'text', mediaType: 'text/plain', data: 'ZEBRA', name: 'token.txt' },
+    };
+    const items = itemsFromMessages([
+      msg('u1', 'user', 1, [png, reminder, { type: 'text', text: 'colour?' }]),
+      msg('u2', 'user', 2, [doc, { type: 'text', text: 'token?' }]),
+    ]);
+    expect(items).toMatchObject([
+      { text: 'colour?', attachments: [{ kind: 'image' }] },
+      {
+        text: 'token?',
+        attachments: [{ kind: 'file', name: 'token.txt', mediaType: 'text/plain', data: 'ZEBRA' }],
+      },
+    ]);
+  });
+
+  it('keeps the local attachments, including files, when the daemon echoes the message', () => {
+    const attachments = [
+      { kind: 'file' as const, name: 'token.txt', mediaType: 'text/plain', data: 'ZEBRA' },
+    ];
+    const pending = addPendingUser([], 'local-1', 'read it', attachments);
+    expect(pending[0]).toMatchObject({ delivery: 'sending', attachments });
+    const echoed = replay(
+      [{ type: 'user', message: msg('u9', 'user', 1, text('read it')) as never }],
+      pending,
+    );
+    expect(echoed).toEqual([
+      { kind: 'user', id: 'u9', text: 'read it', delivery: 'sent', attachments },
+    ]);
+  });
+});
+
 describe('applyStreamEvent', () => {
   it('shows the optimistic user bubble once and adopts the daemon id on echo', () => {
     const pending = addPendingUser([], 'local-1', 'hi');

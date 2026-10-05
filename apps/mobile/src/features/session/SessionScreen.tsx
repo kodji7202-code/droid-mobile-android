@@ -195,7 +195,7 @@ export function SessionScreen() {
           workingState={awaitingApproval ? WAITING_STATE : (view?.workingState ?? 'idle')}
           disabled={view?.status !== 'ready'}
           stopInDialog={awaitingApproval}
-          onSend={(text) => void send(id, text)}
+          onSend={(text, attachments) => void send(id, text, attachments)}
           onInterrupt={() => void interrupt(id)}
         />
       </div>

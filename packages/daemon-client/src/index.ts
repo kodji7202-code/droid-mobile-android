@@ -58,6 +58,7 @@ export type {
   ToolStatus,
   TranscriptItem,
   UserDelivery,
+  UserAttachment,
   UserItem,
 } from './transcript';
 export { SDK_PACKAGE_VERSION } from './version';

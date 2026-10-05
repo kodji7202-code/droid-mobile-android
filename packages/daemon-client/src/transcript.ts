@@ -10,11 +10,18 @@ import type { NormalizedEvent } from './normalize';
 export type UserDelivery = 'sending' | 'sent' | 'failed';
 export type ToolStatus = 'running' | 'completed' | 'error' | 'denied';
 
+/** An image (base64) or file the user sent with a message. */
+export type UserAttachment =
+  | { kind: 'image'; mediaType: string; data: string }
+  | { kind: 'file'; name: string; mediaType: string; data: string };
+
 export interface UserItem {
   kind: 'user';
   id: string;
   text: string;
   delivery: UserDelivery;
+  /** Absent when the message carried none. */
+  attachments?: UserAttachment[];
 }
 
 export interface AssistantItem {
@@ -73,6 +80,29 @@ function textOfBlocks(blocks: readonly Block[]): string {
     .join('\n\n')
     .trim();
 }
+
+function attachmentsOfBlocks(blocks: readonly Block[]): UserAttachment[] {
+  const found: UserAttachment[] = [];
+  for (const block of blocks) {
+    const source = (block as { source?: { data?: unknown; mediaType?: unknown; name?: unknown } })
+      .source;
+    if (typeof source?.data !== 'string') continue;
+    const mediaType = typeof source.mediaType === 'string' ? source.mediaType : '';
+    if (block?.type === 'image') {
+      found.push({ kind: 'image', mediaType: mediaType || 'image/png', data: source.data });
+    } else if (block?.type === 'document') {
+      const name = typeof source.name === 'string' ? source.name : '';
+      found.push({ kind: 'file', name, mediaType, data: source.data });
+    }
+  }
+  return found;
+}
+
+/** The daemon prepends <system-reminder> text blocks (e.g. image paths) to the user's own text. */
+const isReminderBlock = (block: Block) =>
+  block?.type === 'text' &&
+  typeof block.text === 'string' &&
+  block.text.startsWith('<system-reminder>');
 
 function thinkingOfBlocks(blocks: readonly Block[]): string {
   return blocks
@@ -149,17 +179,28 @@ function applyMessage(items: TranscriptItem[], message: SessionMessage): Transcr
   const blocks = blocksOf(message);
   let next = items;
   if (role === 'user') {
-    const text = textOfBlocks(blocks);
-    if (isHiddenUserMessage(id, text)) return next;
+    const text = textOfBlocks(blocks.filter((block) => !isReminderBlock(block)));
+    const images = attachmentsOfBlocks(blocks);
+    if (isHiddenUserMessage(id, text) && !(text === '' && images.length > 0)) return next;
     const pending = next.findIndex(
       (item) => item.kind === 'user' && item.delivery === 'sending' && item.text === text,
     );
+    const local = pending === -1 ? undefined : (next[pending] as UserItem).attachments;
+    // The daemon only echoes images; files the user attached exist only on this device.
+    const attachments = local ?? images;
+    const sent: UserItem = {
+      kind: 'user',
+      id,
+      text,
+      delivery: 'sent',
+      ...(attachments.length > 0 ? { attachments } : {}),
+    };
     if (pending !== -1) {
       const copy = next.slice();
-      copy[pending] = { kind: 'user', id, text, delivery: 'sent' };
+      copy[pending] = sent;
       return copy;
     }
-    return upsert(next, { kind: 'user', id, text, delivery: 'sent' });
+    return upsert(next, sent);
   }
   if (role === 'assistant') {
     const text = textOfBlocks(blocks);
@@ -291,8 +332,18 @@ export function addPendingUser(
   items: readonly TranscriptItem[],
   localId: string,
   text: string,
+  attachments: readonly UserAttachment[] = [],
 ): TranscriptItem[] {
-  return [...items, { kind: 'user', id: localId, text, delivery: 'sending' }];
+  return [
+    ...items,
+    {
+      kind: 'user',
+      id: localId,
+      text,
+      delivery: 'sending',
+      ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
+    },
+  ];
 }
 
 export function removeItem(items: readonly TranscriptItem[], id: string): TranscriptItem[] {

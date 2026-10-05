@@ -227,6 +227,17 @@
     "send": "Trimite",
     "interrupt": "Oprește",
     "notSent": "Netrimis",
+    "attach": {
+      "label": "Ata?eaza fi?ier",
+      "image": "Imagine ata?ata",
+      "remove": "Elimina {{name}}",
+      "reject": {
+        "type": "Tip de fi?ier neacceptat: {{type}} ({{name}}). Ata?eaza imagini (JPEG, PNG, GIF, WebP), PDF sau fi?iere text.",
+        "size": "{{name}} depa?e?te {{limitMb}} MB ?i nu a fost ata?at.",
+        "count": "{{name}} nu a fost ata?at: cel mult {{limit}} ata?amente per mesaj.",
+        "read": "{{name}} nu a putut fi citit."
+      }
+    },
     "connectionLost": "Conexiunea s-a pierdut. Conversația se reîncarcă din daemon când acesta e din nou accesibil.",
     "working": {
       "thinking": "Se gândește…",
