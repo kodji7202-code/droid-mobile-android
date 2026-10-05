@@ -21,6 +21,8 @@ export interface UserItem {
   id: string;
   text: string;
   delivery: UserDelivery;
+  /** Id of the optimistic bubble this echo replaced; ties a later turn failure to it. */
+  localId?: string;
   /** Absent when the message carried none. */
   attachments?: UserAttachment[];
 }
@@ -202,6 +204,9 @@ function applyMessage(items: TranscriptItem[], message: SessionMessage): Transcr
       id,
       text,
       delivery: 'sent',
+      ...(pending !== -1
+        ? { localId: (next[pending] as UserItem).localId ?? (next[pending] as UserItem).id }
+        : {}),
       ...(attachments.length > 0 ? { attachments } : {}),
     };
     if (pending !== -1) {
@@ -416,11 +421,16 @@ export function appendTurnFailure(
   localId: string,
   result: Extract<NormalizedEvent, { type: 'result' }>,
 ): TranscriptItem[] {
-  const start = items.findIndex((item) => item.id === localId);
+  const start = items.findIndex(
+    (item) => item.id === localId || (item.kind === 'user' && item.localId === localId),
+  );
   const visible = start >= 0 && items.slice(start + 1).some((item) => item.kind !== 'user');
   if (result.success || result.interrupted || start < 0 || visible) return [...items];
   const reason = redactSecrets(result.text.trim() || result.subtype);
-  return appendError(items, reason);
+  const failed = items.map((item, index) =>
+    index === start && item.kind === 'user' ? { ...item, delivery: 'failed' as const } : item,
+  );
+  return appendError(failed, reason);
 }
 
 /** Merges one stream event into the transcript. Unrelated events return the same array. */

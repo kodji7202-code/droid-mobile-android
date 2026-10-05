@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AppProviders } from '../../test/render-app';
@@ -59,6 +59,35 @@ describe('composer attachments', () => {
     expect(screen.queryByTestId('chat-attachment-0')).toBeNull();
     expect(screen.getByTestId('chat-send')).toBeDisabled();
     await waitFor(() => expect(onSend).not.toHaveBeenCalled());
+  });
+
+  it('keeps Send disabled while a picked file is still being read, so nothing leaks into the next draft', async () => {
+    let finish: () => void = () => undefined;
+    const read = vi.spyOn(FileReader.prototype, 'readAsText').mockImplementation(function (
+      this: FileReader,
+    ) {
+      finish = () => {
+        Object.defineProperty(this, 'result', { value: 'LATE' });
+        this.onload?.(new ProgressEvent('load') as ProgressEvent<FileReader>);
+      };
+    });
+    const { onSend, input } = setup();
+    const user = userEvent.setup();
+    await user.type(screen.getByTestId('chat-input'), 'read');
+    await user.upload(input, new File(['x'], 'late.txt', { type: 'text/plain' }));
+
+    expect(screen.getByTestId('chat-send')).toBeDisabled();
+    fireEvent.submit(screen.getByTestId('chat-input').closest('form')!);
+    expect(onSend).not.toHaveBeenCalled();
+
+    act(() => finish());
+    expect(await screen.findByTestId('chat-attachment-0')).toHaveTextContent('late.txt');
+    expect(screen.getByTestId('chat-send')).toBeEnabled();
+    await user.click(screen.getByTestId('chat-send'));
+    expect(onSend).toHaveBeenCalledWith('read', [
+      { kind: 'file', name: 'late.txt', mediaType: 'text/plain', data: 'LATE' },
+    ]);
+    read.mockRestore();
   });
 
   it('exposes the attach button under an accessible name', () => {

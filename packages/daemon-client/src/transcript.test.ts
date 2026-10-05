@@ -134,7 +134,14 @@ describe('user attachments', () => {
       pending,
     );
     expect(echoed).toEqual([
-      { kind: 'user', id: 'u9', text: 'read it', delivery: 'sent', attachments },
+      {
+        kind: 'user',
+        id: 'u9',
+        localId: 'local-1',
+        text: 'read it',
+        delivery: 'sent',
+        attachments,
+      },
     ]);
   });
 });
@@ -146,7 +153,9 @@ describe('applyStreamEvent', () => {
       [{ type: 'user', message: msg('u9', 'user', 1, text('hi')) as never }],
       pending,
     );
-    expect(echoed).toEqual([{ kind: 'user', id: 'u9', text: 'hi', delivery: 'sent' }]);
+    expect(echoed).toEqual([
+      { kind: 'user', id: 'u9', localId: 'local-1', text: 'hi', delivery: 'sent' },
+    ]);
   });
 
   it('merges partial deltas into one assistant item and the final message replaces it', () => {
@@ -396,6 +405,22 @@ describe('appendTurnFailure', () => {
     const last = items.at(-1);
     expect(last?.kind === 'error' && last.text).toContain('[REDACTED]');
     expect(last?.kind === 'error' && last.text).not.toContain('abc123');
+  });
+
+  it('explains a failure after the daemon echoed the prompt and marks it for retry', () => {
+    const echoed = applyStreamEvent(pending, {
+      type: 'user',
+      sessionId: 's1',
+      message: msg('daemon-1', 'user', 5, text('hi')),
+    } as unknown as NormalizedEvent);
+    expect(echoed[0]).toMatchObject({ id: 'daemon-1', delivery: 'sent' });
+
+    const items = failPendingUser(appendTurnFailure(echoed, 'local-1', result()), 'local-1');
+    expect(items.at(-1)).toMatchObject({
+      kind: 'error',
+      text: expect.stringContaining('error_during_execution'),
+    });
+    expect(items[0]).toMatchObject({ kind: 'user', delivery: 'failed', text: 'hi' });
   });
 
   it('leaves successful, interrupted and answered turns unchanged', () => {

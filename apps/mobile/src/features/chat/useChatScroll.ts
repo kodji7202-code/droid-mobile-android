@@ -24,7 +24,10 @@ interface ChatScrollOptions {
 /**
  * The window scrolls. While following, new content keeps the bottom in view;
  * scrolling up releases it until the user jumps back. Reaching the top loads the
- * next older page; the browser's scroll anchoring keeps the item being read in place\n * (content-visibility rows change height as they approach the viewport, so a manual\n * offset correction would drift).
+ * next older page; the browser's scroll anchoring keeps the item being read in place
+ * (content-visibility rows change height as they approach the viewport, so a manual
+ * offset correction would drift). Only at offset 0, where anchoring is suppressed, is
+ * the height added by the older page restored by hand.
  */
 export function useChatScroll(options: ChatScrollOptions) {
   const { contentSignal, hasMore, loadingOlder, active, loadOlder } = options;
@@ -64,6 +67,24 @@ export function useChatScroll(options: ChatScrollOptions) {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, [setFollowing]);
+
+  // At offset 0 the browser's scroll anchoring does nothing, so the prepended page
+  // would push the reading position down by its own height.
+  const beforeOlder = useRef<{ top: boolean; height: number } | null>(null);
+  useLayoutEffect(() => {
+    if (loadingOlder) {
+      beforeOlder.current = {
+        top: window.scrollY <= 0,
+        height: document.documentElement.scrollHeight,
+      };
+      return;
+    }
+    const before = beforeOlder.current;
+    beforeOlder.current = null;
+    if (!before?.top || window.scrollY > 0) return;
+    const grown = document.documentElement.scrollHeight - before.height;
+    if (grown > 0) window.scrollTo?.(0, grown);
+  }, [loadingOlder]);
 
   useLayoutEffect(() => {
     if (following.current) {

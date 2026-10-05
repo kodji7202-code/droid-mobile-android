@@ -43,7 +43,9 @@ export function ChatComposer({
   const picker = useRef<HTMLInputElement>(null);
   // Files are read asynchronously; counting what is already queued keeps the limit exact.
   const attachedCount = useRef(0);
-  const canSend = !disabled && !stopInDialog && text.trim() !== '';
+  // Send waits for in-flight reads so a late completion can never miss its turn or land in the next draft.
+  const [reading, setReading] = useState(0);
+  const canSend = !disabled && !stopInDialog && reading === 0 && text.trim() !== '';
 
   useEffect(() => {
     if (!restored) return;
@@ -68,17 +70,22 @@ export function ChatComposer({
     event.target.value = '';
     const accepted: UserAttachment[] = [];
     const rejected: AttachmentRejection[] = [];
-    for (const file of files) {
-      const result = await readAttachment(file, attachedCount.current);
-      if ('attachment' in result) {
-        accepted.push(result.attachment);
-        attachedCount.current += 1;
-      } else {
-        rejected.push(result.rejection);
+    setReading((count) => count + 1);
+    try {
+      for (const file of files) {
+        const result = await readAttachment(file, attachedCount.current);
+        if ('attachment' in result) {
+          accepted.push(result.attachment);
+          attachedCount.current += 1;
+        } else {
+          rejected.push(result.rejection);
+        }
       }
+      setRejections(rejected);
+      if (accepted.length > 0) setAttachments((current) => [...current, ...accepted]);
+    } finally {
+      setReading((count) => count - 1);
     }
-    setRejections(rejected);
-    if (accepted.length > 0) setAttachments((current) => [...current, ...accepted]);
   };
 
   const remove = (index: number) => {

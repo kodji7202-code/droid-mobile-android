@@ -121,6 +121,35 @@ describe('SessionScreen', () => {
     expect(ids).toEqual(['first', 'second', 'third']);
   });
 
+  it('keeps the reading anchor when older history loads while scrolled to the very top', async () => {
+    const { connection, getMessages } = fakeConnection([
+      [message('c', 'user', 3, 'third'), message('b', 'assistant', 2, 'second')],
+      [message('a', 'user', 1, 'first')],
+    ]);
+    const original = getMessages.getMockImplementation()!;
+    getMessages.mockImplementation(async (...args) => {
+      const page = await original(...args);
+      // The prepended page makes the document taller by 2000 px.
+      if (getMessages.mock.calls.length === 2) {
+        Object.defineProperty(document.documentElement, 'scrollHeight', {
+          configurable: true,
+          value: 7000,
+        });
+      }
+      return page;
+    });
+    const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    renderRoute(connection);
+    await screen.findByTestId('msg-user-1');
+
+    scrollTo(1200, 5000);
+    scrollTo(0, 5000);
+
+    await waitFor(() => expect(screen.getByTestId('msg-user-0')).toHaveTextContent('first'));
+    expect(scrollSpy).toHaveBeenLastCalledWith(0, 2000);
+    scrollSpy.mockRestore();
+  });
+
   it('offers jump to latest after scrolling up and hides it once back at the bottom', async () => {
     const { connection } = fakeConnection([[message('a', 'user', 1, 'first')]]);
     renderRoute(connection);
