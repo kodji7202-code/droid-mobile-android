@@ -92,6 +92,8 @@ export class FakeTerminalClient implements TerminalClient {
   /** What the "daemon" holds per session. */
   daemon = new Map<string, TerminalInfo[]>();
   createError: string | null = null;
+  /** "reject" throws, "fail" resolves false; the shell stays alive on the daemon either way. */
+  closeMode: 'ok' | 'reject' | 'fail' = 'ok';
   listGate: Promise<void> | null = null;
   disposed = false;
   private statusListeners = new Set<(s: TerminalLinkStatus) => void>();
@@ -132,6 +134,8 @@ export class FakeTerminalClient implements TerminalClient {
   }
   async close(sessionId: string, terminalId: string): Promise<boolean> {
     this.frames.push({ op: 'close', sessionId, terminalId });
+    if (this.closeMode === 'reject') throw new Error('The terminal connection is not ready.');
+    if (this.closeMode === 'fail') return false;
     this.daemon.set(
       sessionId,
       (this.daemon.get(sessionId) ?? []).filter((t) => t.id !== terminalId),

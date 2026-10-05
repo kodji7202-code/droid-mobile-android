@@ -490,6 +490,7 @@
     "errorTitle": "Terminal indisponibil",
     "retry": "Reîncearcă",
     "linkLost": "Conexiunea terminalului s-a pierdut. Se reconectează…",
+    "closeFailed": "Terminalul nu a putut fi închis. Poate rula în continuare; încearcă din nou când conexiunea revine.",
     "exitedBanner": "Acest terminal s-a încheiat cu codul {{code}}. Introducerea este dezactivată.",
     "restart": "Repornește terminalul",
     "area": "Ieșirea terminalului {{n}}",

@@ -60,4 +60,49 @@ describe('installTextInputGuard', () => {
     input(textarea, { inputType: 'insertText', data: 'a' });
     expect(sent).toEqual([]);
   });
+
+  it('does not resend physical-keyboard characters xterm already sent (uppercase, lowercase)', () => {
+    const { textarea, sent, xtermSaw } = setup();
+    for (const [ch, code] of [
+      ['D', 68],
+      ['d', 68],
+    ] as const) {
+      textarea.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          bubbles: true,
+          key: ch,
+          keyCode: code,
+          shiftKey: ch === 'D',
+        }),
+      );
+      textarea.dispatchEvent(
+        new KeyboardEvent('keypress', { bubbles: true, charCode: ch.charCodeAt(0) }),
+      );
+      textarea.value += ch;
+      input(textarea, { inputType: 'insertText', data: ch });
+      textarea.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: ch, keyCode: code }));
+    }
+    expect(sent).toEqual([]);
+    expect(xtermSaw).toEqual(['keydown:68', 'input:D', 'keydown:68', 'input:d']);
+  });
+
+  it('keeps a held physical key from swallowing overlapping fast physical input', () => {
+    const { textarea, sent } = setup();
+    for (const code of [68, 79]) {
+      textarea.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, keyCode: code }));
+    }
+    input(textarea, { inputType: 'insertText', data: 'D' });
+    input(textarea, { inputType: 'insertText', data: 'O' });
+    expect(sent).toEqual([]);
+  });
+
+  it('intercepts soft-keyboard text again after a physical key was released', () => {
+    const { textarea, sent } = setup();
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, keyCode: 68 }));
+    textarea.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, keyCode: 68 }));
+    input(textarea, { inputType: 'insertText', data: 'x' });
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, keyCode: 229 }));
+    input(textarea, { inputType: 'insertText', data: 'Y' });
+    expect(sent).toEqual(['x', 'Y']);
+  });
 });

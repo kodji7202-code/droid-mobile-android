@@ -14,16 +14,29 @@ export function installTextInputGuard(
   textarea: HTMLTextAreaElement,
   send: (data: string) => void,
 ): () => void {
+  // A physical key emits keydown (real keyCode), keypress and a trailing insertText
+  // `input`; xterm already sent the character from keypress and suppresses that
+  // `input` itself, so the guard must not send it a second time.
+  let physicalKeyDown = false;
+
   const onKeyDown = (event: KeyboardEvent): void => {
-    if (event.target === textarea && event.keyCode === 229 && !event.isComposing) {
+    if (event.target !== textarea) return;
+    if (event.keyCode !== 229) {
+      physicalKeyDown = true;
+    } else if (!event.isComposing) {
+      physicalKeyDown = false;
       event.stopImmediatePropagation();
     }
+  };
+
+  const onKeyUp = (event: KeyboardEvent): void => {
+    if (event.target === textarea) physicalKeyDown = false;
   };
 
   const onInput = (event: Event): void => {
     if (event.target !== textarea) return;
     const input = event as InputEvent;
-    if (input.isComposing) return;
+    if (input.isComposing || physicalKeyDown) return;
     if (input.inputType === 'insertText' && input.data) {
       event.stopImmediatePropagation();
       send(input.data);
@@ -36,9 +49,11 @@ export function installTextInputGuard(
   };
 
   container.addEventListener('keydown', onKeyDown, true);
+  container.addEventListener('keyup', onKeyUp, true);
   container.addEventListener('input', onInput, true);
   return () => {
     container.removeEventListener('keydown', onKeyDown, true);
+    container.removeEventListener('keyup', onKeyUp, true);
     container.removeEventListener('input', onInput, true);
   };
 }

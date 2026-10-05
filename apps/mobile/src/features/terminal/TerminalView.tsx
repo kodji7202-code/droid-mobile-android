@@ -196,6 +196,7 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
                 data-testid={`terminal-close-${entry.id}`}
                 aria-label={t('terminal.close', { n: entry.label })}
                 title={t('terminal.close', { n: entry.label })}
+                disabled={link !== 'ready' && entry.status !== 'exited'}
                 onClick={() => void manager?.close(sessionId, entry.id)}
               >
                 <CloseIcon width={16} height={16} />
@@ -251,6 +252,16 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
           role="status"
         >
           {t('terminal.linkLost')}
+        </div>
+      ) : null}
+
+      {snapshot?.closeFailed ? (
+        <div
+          className="terminal-banner terminal-banner--warn"
+          data-testid="terminal-close-error"
+          role="alert"
+        >
+          {t('terminal.closeFailed')}
         </div>
       ) : null}
 

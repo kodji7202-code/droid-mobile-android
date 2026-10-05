@@ -95,6 +95,27 @@ describe('TerminalView', () => {
     expect(client.count('create')).toBe(2);
   });
 
+  it('disables close while the sidecar is reconnecting and enables it again when ready', async () => {
+    mount();
+    await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(1));
+    const close = screen.getByRole('button', { name: 'Close terminal 1' });
+    act(() => client.setStatus('reconnecting'));
+    expect(close).toBeDisabled();
+    await userEvent.click(close);
+    expect(client.count('close')).toBe(0);
+    act(() => client.setStatus('ready'));
+    await waitFor(() => expect(close).toBeEnabled());
+  });
+
+  it('keeps the tab and tells the user when the daemon did not confirm the close', async () => {
+    mount();
+    await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(1));
+    client.closeMode = 'fail';
+    await userEvent.click(screen.getByRole('button', { name: 'Close terminal 1' }));
+    expect(await screen.findByTestId('terminal-close-error')).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(1);
+  });
+
   it('shows the failure with a retry when the sidecar cannot be created', async () => {
     client.createError = 'no shell';
     mount();

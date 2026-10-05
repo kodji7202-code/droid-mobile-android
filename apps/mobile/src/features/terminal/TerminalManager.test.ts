@@ -202,4 +202,50 @@ describe('TerminalManager', () => {
     expect(emulators[0]!.disposed).toBe(true);
     expect(client.count('close')).toBe(0);
   });
+
+  it('keeps the terminal and flags the failure while a close is rejected, then closes on retry', async () => {
+    const { client, manager, emulators } = setup();
+    await manager.attach('s1', 'C:\\w', null);
+    client.closeMode = 'reject';
+    client.setStatus('reconnecting');
+    await manager.close('s1', 't1');
+    expect(manager.getSession('s1').entries.map((e) => e.id)).toEqual(['t1']);
+    expect(manager.getSession('s1').closeFailed).toBe(true);
+    expect(emulators[0]!.disposed).toBe(false);
+    // The shell is still on the daemon, so it must still be listed after reconnect.
+    client.closeMode = 'ok';
+    client.setStatus('ready');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(manager.getSession('s1').entries.map((e) => e.id)).toEqual(['t1']);
+    expect(manager.getSession('s1').closeFailed).toBe(false);
+    await manager.close('s1', 't1');
+    expect(manager.getSession('s1').entries).toEqual([]);
+    expect(client.daemon.get('s1')).toEqual([]);
+  });
+
+  it('keeps the terminal when the daemon answers a close with false', async () => {
+    const { client, manager } = setup();
+    await manager.attach('s1', 'C:\\w', null);
+    client.closeMode = 'fail';
+    await manager.close('s1', 't1');
+    expect(manager.getSession('s1').entries.map((e) => e.id)).toEqual(['t1']);
+    expect(manager.getSession('s1').closeFailed).toBe(true);
+  });
+
+  it('drops the tab when a failed close was only because the daemon no longer has the shell', async () => {
+    const { client, manager } = setup();
+    await manager.attach('s1', 'C:\\w', null);
+    client.closeMode = 'fail';
+    client.daemon.set('s1', []);
+    await manager.close('s1', 't1');
+    expect(manager.getSession('s1').entries).toEqual([]);
+    expect(manager.getSession('s1').closeFailed).toBe(false);
+  });
+
+  it('ignores a second close while the first is in flight', async () => {
+    const { client, manager } = setup();
+    await manager.attach('s1', 'C:\\w', null);
+    await Promise.all([manager.close('s1', 't1'), manager.close('s1', 't1')]);
+    expect(client.count('close')).toBe(1);
+  });
 });

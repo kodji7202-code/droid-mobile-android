@@ -168,4 +168,96 @@ describe('createTerminalClient', () => {
     await client.connect();
     await expect(client.write('s1', 't1', 'x')).rejects.not.toThrow(/fk-super-secret/);
   });
+
+  it('an explicit connect during a pending retry cancels the timer and keeps one owning socket', async () => {
+    vi.useFakeTimers();
+    const lows: FakeLow[] = [];
+    const client = createTerminalClient({
+      url: 'ws://x',
+      apiKey: 'k',
+      backoff: { initialMs: 10, jitterFraction: 0 },
+      createLowLevel: () => {
+        const l = fakeLow();
+        lows.push(l);
+        return l;
+      },
+    });
+    await client.connect();
+    lows[0]!.drop();
+    expect(client.status).toBe('reconnecting');
+    await client.connect();
+    expect(client.status).toBe('ready');
+    await vi.advanceTimersByTimeAsync(100);
+    expect(lows).toHaveLength(2);
+    const seen: string[] = [];
+    client.onEvent((e) => seen.push(e.type === 'data' ? e.data : 'exit'));
+    lows[1]!.emit(frame({ type: 'daemon.terminal_data', terminalId: 't1', data: 'live' }));
+    expect(seen).toEqual(['live']);
+    await client.write('s1', 't1', 'x');
+    expect(lows[1]!.calls.some((c) => c[0] === 'write')).toBe(true);
+    expect(lows[0]!.calls.some((c) => c[0] === 'write')).toBe(false);
+  });
+
+  it('an explicit connect joins an in-flight automatic dial instead of opening a second socket', async () => {
+    vi.useFakeTimers();
+    const lows: FakeLow[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const client = createTerminalClient({
+      url: 'ws://x',
+      apiKey: 'k',
+      backoff: { initialMs: 10, jitterFraction: 0 },
+      createLowLevel: () => {
+        const first = lows.length === 0;
+        const l = fakeLow(first ? {} : { authenticate: async () => gate });
+        lows.push(l);
+        return l;
+      },
+    });
+    await client.connect();
+    lows[0]!.drop();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(lows).toHaveLength(2);
+    const explicit = client.connect();
+    release();
+    await explicit;
+    expect(lows).toHaveLength(2);
+    expect(client.status).toBe('ready');
+    await client.write('s1', 't1', 'x');
+    expect(lows[1]!.calls.some((c) => c[0] === 'write')).toBe(true);
+  });
+
+  it('a failed explicit connect during a reconnect keeps retrying automatically', async () => {
+    vi.useFakeTimers();
+    const lows: FakeLow[] = [];
+    let failNext = false;
+    const client = createTerminalClient({
+      url: 'ws://x',
+      apiKey: 'k',
+      backoff: { initialMs: 10, jitterFraction: 0 },
+      createLowLevel: () => {
+        const fail = failNext;
+        failNext = false;
+        const l = fakeLow(
+          fail
+            ? {
+                connect: async () => {
+                  throw new Error('down');
+                },
+              }
+            : {},
+        );
+        lows.push(l);
+        return l;
+      },
+    });
+    await client.connect();
+    lows[0]!.drop();
+    failNext = true;
+    await expect(client.connect()).rejects.toThrow();
+    expect(client.status).toBe('reconnecting');
+    await vi.advanceTimersByTimeAsync(100);
+    expect(client.status).toBe('ready');
+    expect(lows).toHaveLength(3);
+  });
 });

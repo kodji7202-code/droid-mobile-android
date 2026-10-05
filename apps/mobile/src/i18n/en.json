@@ -490,6 +490,7 @@
     "errorTitle": "Terminal unavailable",
     "retry": "Retry",
     "linkLost": "Terminal connection lost. Reconnecting…",
+    "closeFailed": "The terminal could not be closed. It may still be running; try again once the connection is back.",
     "exitedBanner": "This terminal exited with code {{code}}. Input is disabled.",
     "restart": "Restart terminal",
     "area": "Terminal {{n}} output",

@@ -167,8 +167,26 @@ export function createTerminalClient(options: TerminalClientOptions): TerminalCl
     for (const l of [...statusListeners]) l(next);
   };
 
+  /** All dials go through here so at most one is ever in flight. */
+  function startDial(): Promise<void> {
+    if (connecting) return connecting;
+    const run: Promise<void> = dial().finally(() => {
+      if (connecting === run) connecting = null;
+    });
+    connecting = run;
+    return run;
+  }
+
   async function dial(): Promise<void> {
     const mine = ++generation;
+    const replaced = low;
+    if (replaced) {
+      try {
+        replaced.disconnect();
+      } catch {
+        // already closed
+      }
+    }
     const client = makeLowLevel();
     low = client;
     client.onMessage((raw) => {
@@ -204,6 +222,8 @@ export function createTerminalClient(options: TerminalClientOptions): TerminalCl
       throw new ConnectionError('The terminal connection was closed.');
     }
     attempt = 0;
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = null;
     setStatus('ready');
   }
 
@@ -215,7 +235,7 @@ export function createTerminalClient(options: TerminalClientOptions): TerminalCl
       () => {
         retryTimer = null;
         if (disposed) return;
-        dial().catch(() => {
+        startDial().catch(() => {
           if (!disposed) scheduleReconnect();
         });
       },
@@ -245,16 +265,16 @@ export function createTerminalClient(options: TerminalClientOptions): TerminalCl
     connect() {
       if (status === 'ready') return Promise.resolve();
       if (connecting) return connecting;
-      setStatus('connecting');
-      connecting = dial()
-        .catch((err: unknown) => {
-          if (!disposed) setStatus('closed');
-          throw err;
-        })
-        .finally(() => {
-          connecting = null;
-        });
-      return connecting;
+      const wasReconnecting = status === 'reconnecting';
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = null;
+      if (!wasReconnecting) setStatus('connecting');
+      return startDial().catch((err: unknown) => {
+        if (disposed) throw err;
+        if (wasReconnecting) scheduleReconnect();
+        else setStatus('closed');
+        throw err;
+      });
     },
     onStatus(listener) {
       statusListeners.add(listener);

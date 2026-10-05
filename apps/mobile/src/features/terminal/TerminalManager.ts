@@ -67,11 +67,19 @@ export interface SessionTerminals {
   readonly loading: boolean;
   /** Sticky failure of the last attach/create, shown with a retry action. */
   readonly error: string | null;
+  /** The last close was not confirmed by the daemon, so the shell may still be running. */
+  readonly closeFailed: boolean;
 }
 
 export type LinkStatus = TerminalClient['status'];
 
-const EMPTY: SessionTerminals = { entries: [], activeId: null, loading: false, error: null };
+const EMPTY: SessionTerminals = {
+  entries: [],
+  activeId: null,
+  loading: false,
+  error: null,
+  closeFailed: false,
+};
 const DEFAULT_SIZE = { cols: 80, rows: 24 };
 
 interface SessionState {
@@ -79,6 +87,7 @@ interface SessionState {
   activeId: string | null;
   loading: boolean;
   error: string | null;
+  closeFailed: boolean;
   loaded: boolean;
   nextLabel: number;
   cwd: string;
@@ -108,6 +117,7 @@ export class TerminalManager {
   private readonly sessions = new Map<string, SessionState>();
   private readonly internals = new Map<string, Internal>();
   private readonly attaching = new Map<string, Promise<void>>();
+  private readonly closing = new Set<string>();
   private readonly listeners = new Set<() => void>();
   private readonly offs: Array<() => void> = [];
   private factory: (() => Emulator) | null = null;
@@ -224,9 +234,35 @@ export class TerminalManager {
   async close(sessionId: string, terminalId: string): Promise<void> {
     const state = this.sessions.get(sessionId);
     const entry = state?.entries.find((e) => e.id === terminalId);
-    if (!state || !entry) return;
-    this.removeEntry(sessionId, terminalId);
-    await this.client.close(sessionId, terminalId).catch(() => undefined);
+    if (!state || !entry || this.closing.has(terminalId)) return;
+    if (entry.status === 'exited') {
+      this.removeEntry(sessionId, terminalId);
+      await this.client.close(sessionId, terminalId).catch(() => undefined);
+      return;
+    }
+    // The tab stays until the daemon confirms the close, otherwise a shell that
+    // survived an offline close would reappear after the next re-list.
+    this.closing.add(terminalId);
+    this.patch(state, { closeFailed: false });
+    try {
+      const closed = await this.client.close(sessionId, terminalId).catch(() => false);
+      if (this.disposed) return;
+      if (closed || (await this.isGone(sessionId, terminalId))) {
+        this.removeEntry(sessionId, terminalId);
+      } else {
+        this.patch(state, { closeFailed: true });
+      }
+    } finally {
+      this.closing.delete(terminalId);
+    }
+  }
+
+  private async isGone(sessionId: string, terminalId: string): Promise<boolean> {
+    try {
+      return !(await this.client.list(sessionId)).some((t) => t.id === terminalId);
+    } catch {
+      return false;
+    }
   }
 
   /** Replaces an exited terminal with a fresh shell in the same folder. */
@@ -343,7 +379,7 @@ export class TerminalManager {
         this.restoreState(fresh, info);
       }
     }
-    this.emit();
+    this.patch(state, { closeFailed: false });
   }
 
   private restoreState(entry: TerminalEntry, info: TerminalInfo): void {
@@ -426,6 +462,7 @@ export class TerminalManager {
         activeId: null,
         loading: false,
         error: null,
+        closeFailed: false,
         loaded: false,
         nextLabel: 1,
         cwd: '',
@@ -483,7 +520,7 @@ export class TerminalManager {
 
   private patch(
     state: SessionState,
-    changes: Partial<Pick<SessionState, 'activeId' | 'loading' | 'error'>>,
+    changes: Partial<Pick<SessionState, 'activeId' | 'loading' | 'error' | 'closeFailed'>>,
   ): void {
     Object.assign(state, changes);
     state.snapshot = {
@@ -491,6 +528,7 @@ export class TerminalManager {
       activeId: state.activeId,
       loading: state.loading,
       error: state.error,
+      closeFailed: state.closeFailed,
     };
     this.emit();
   }
