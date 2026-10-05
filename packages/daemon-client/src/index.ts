@@ -16,7 +16,7 @@ export type {
 export { SessionHandle } from './session-handle';
 export type { SessionHost, StreamOptions } from './session-handle';
 export type { SessionMessagesPage } from './paging';
-export type { SessionMessage } from '@factory/droid-sdk';
+export type { SessionMessage, TokenUsage } from '@factory/droid-sdk';
 export { canApproveAlways, cancelledAskUser, permissionAnswer } from './interactions';
 export type {
   AskUserAnswer,

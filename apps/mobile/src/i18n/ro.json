@@ -244,6 +244,13 @@
       "errorOutput": "Eroare",
       "noResult": "Încă fără rezultat"
     },
+    "thinking": {
+      "label": "Raționament"
+    },
+    "usage": {
+      "label": "Utilizare tokeni",
+      "summary": "Tokeni: {{input}} intrare, {{output}} ieșire"
+    },
     "stopped": "Oprit",
     "requestExpired": "Cererea a expirat înainte să primească răspuns. Daemonul nu o mai așteaptă.",
     "permission": {

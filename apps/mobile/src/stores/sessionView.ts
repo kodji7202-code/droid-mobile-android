@@ -14,7 +14,12 @@ import {
   settleTurn,
   appendError,
 } from '@droidmobile/daemon-client';
-import type { DaemonConnection, SessionHandle, TranscriptItem } from '@droidmobile/daemon-client';
+import type {
+  DaemonConnection,
+  SessionHandle,
+  TokenUsage,
+  TranscriptItem,
+} from '@droidmobile/daemon-client';
 import { runTurn } from '../features/chat/runTurn';
 import { useConnectionStore } from './connection';
 import { useInteractionStore } from './interactions';
@@ -41,6 +46,8 @@ export interface SessionView {
   turnActive: boolean;
   /** Last working state reported by the daemon during the active turn. */
   workingState: string;
+  /** Latest token usage the daemon reported for the session (absent until a turn ran). */
+  usage?: TokenUsage;
   /** True after the user pressed stop and until the next send. */
   stopRequested: boolean;
   /** Set when the connection dropped mid-turn; cleared on the next send. */
@@ -147,6 +154,8 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
         (event) => {
           if (event.type === 'working_state') {
             update(id, () => ({ workingState: event.state }));
+          } else if (event.type === 'token_usage') {
+            update(id, () => ({ usage: event.usage }));
           } else {
             if (event.type === 'result' && event.interrupted) stoppedByDaemon = true;
             update(id, (view) => ({ items: [...applyStreamEvent(view.items, event)] }));

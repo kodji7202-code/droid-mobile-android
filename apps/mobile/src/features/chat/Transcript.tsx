@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { TranscriptItem } from '@droidmobile/daemon-client';
+import { MarkdownView } from '../../components/MarkdownView';
+import { ThinkingBlock } from './ThinkingBlock';
 import { ToolCallCard } from './ToolCallCard';
 
 interface TranscriptProps {
@@ -74,7 +76,12 @@ export function Transcript({ items, onRetry, retryDisabled = false }: Transcript
                 data-streaming={item.streaming}
                 data-stopped={item.stopped === true}
               >
-                <p className="session-message__text">{item.text}</p>
+                {item.thinking ? <ThinkingBlock index={n} text={item.thinking} /> : null}
+                {item.text === '' ? null : (
+                  <div className="session-message__text session-message__text--markdown">
+                    <MarkdownView text={item.text} />
+                  </div>
+                )}
                 {item.stopped ? (
                   <span className="session-message__stopped" data-testid={`msg-stopped-${n}`}>
                     {t('chat.stopped')}

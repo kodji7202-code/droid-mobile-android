@@ -255,3 +255,43 @@ describe('reconcileLocalItems', () => {
     ]);
   });
 });
+
+describe('thinking text', () => {
+  it('accumulates thinking deltas on the assistant message and keeps them when the final text lands', () => {
+    const streamed = replay([
+      { type: 'thinking_text_delta', messageId: 'a1', blockIndex: 0, text: '17 times ' },
+      { type: 'thinking_text_delta', messageId: 'a1', blockIndex: 0, text: '23 is 391.' },
+      { type: 'thinking_text_complete', messageId: 'a1', blockIndex: 0 },
+      { type: 'assistant_text_delta', messageId: 'a1', blockIndex: 1, text: '391' },
+    ]);
+    expect(streamed).toHaveLength(1);
+    expect(streamed[0]).toMatchObject({ kind: 'assistant', thinking: '17 times 23 is 391.' });
+    const finished = applyStreamEvent(streamed, {
+      type: 'assistant',
+      messageId: 'a1',
+      text: '391',
+      message: msg('a1', 'assistant', 1, text('391')) as never,
+    });
+    expect(finished[0]).toMatchObject({ text: '391', thinking: '17 times 23 is 391.' });
+  });
+
+  it('reads thinking blocks from stored messages and shows thinking-only messages', () => {
+    const items = itemsFromMessages([
+      msg('a1', 'assistant', 1, [
+        { type: 'thinking', thinking: 'plan', signature: 's' },
+        { type: 'text', text: 'ok' },
+      ]),
+      msg('a2', 'assistant', 2, [
+        { type: 'thinking', thinking: 'more', signature: 's' },
+        { type: 'tool_use', id: 't1', name: 'LS', input: {} },
+      ]),
+    ]);
+    expect(items[0]).toMatchObject({ id: 'a1', text: 'ok', thinking: 'plan' });
+    expect(items[1]).toMatchObject({ kind: 'assistant', id: 'a2', text: '', thinking: 'more' });
+  });
+
+  it('omits the thinking key when there is none', () => {
+    const items = itemsFromMessages([msg('a1', 'assistant', 1, text('hi'))]);
+    expect(items[0]).not.toHaveProperty('thinking');
+  });
+});

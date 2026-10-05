@@ -11,6 +11,7 @@ import { useSessionViewStore } from '../../stores/sessionView';
 import { ChatComposer, WAITING_STATE } from '../chat/ChatComposer';
 import { InteractionHost } from '../chat/InteractionHost';
 import { Transcript } from '../chat/Transcript';
+import { UsageChip } from '../chat/UsageChip';
 
 /** Last path segment of a working directory, for a compact header title. */
 function folderName(cwd: string | undefined): string | undefined {
@@ -115,6 +116,8 @@ export function SessionScreen() {
             {view.cwd}
           </p>
         ) : null}
+
+        <UsageChip usage={view?.usage} />
 
         {!ready ? (
           <p

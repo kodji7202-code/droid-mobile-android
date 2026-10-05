@@ -26,6 +26,10 @@ export interface AssistantItem {
   stopped?: boolean;
   /** Partial text per content block while streaming; dropped when the final message lands. */
   blocks?: string[];
+  /** The model's reasoning text, when the turn produced any. */
+  thinking?: string;
+  /** Partial thinking per content block while streaming; dropped when the turn settles. */
+  thinkingBlocks?: string[];
 }
 
 export interface ToolItem {
@@ -54,6 +58,7 @@ interface Block {
   toolUseId?: unknown;
   content?: unknown;
   isError?: unknown;
+  thinking?: unknown;
 }
 
 function blocksOf(message: unknown): Block[] {
@@ -67,6 +72,18 @@ function textOfBlocks(blocks: readonly Block[]): string {
     .map((block) => block.text as string)
     .join('\n\n')
     .trim();
+}
+
+function thinkingOfBlocks(blocks: readonly Block[]): string {
+  return blocks
+    .filter((block) => block?.type === 'thinking' && typeof block.thinking === 'string')
+    .map((block) => block.thinking as string)
+    .join('\n\n')
+    .trim();
+}
+
+function findAssistant(items: readonly TranscriptItem[], id: string): AssistantItem | undefined {
+  return items.find((item): item is AssistantItem => item.kind === 'assistant' && item.id === id);
 }
 
 function idOf(message: unknown): string {
@@ -146,9 +163,16 @@ function applyMessage(items: TranscriptItem[], message: SessionMessage): Transcr
   }
   if (role === 'assistant') {
     const text = textOfBlocks(blocks);
+    const thinking = thinkingOfBlocks(blocks) || findAssistant(next, id)?.thinking || '';
     // Tool-use blocks come first in arrival order when a message carries both.
-    if (text !== '') {
-      next = upsert(next, { kind: 'assistant', id, text, streaming: false });
+    if (text !== '' || thinking !== '') {
+      next = upsert(next, {
+        kind: 'assistant',
+        id,
+        text,
+        streaming: false,
+        ...(thinking === '' ? {} : { thinking }),
+      });
     }
     for (const block of blocks) {
       if (block?.type === 'tool_use' && typeof block.id === 'string') {
@@ -291,7 +315,7 @@ export function failPendingUser(
 export function settleTurn(items: readonly TranscriptItem[]): TranscriptItem[] {
   return items.map((item) => {
     if (item.kind === 'assistant' && item.streaming) {
-      const { blocks: _blocks, ...rest } = item;
+      const { blocks: _blocks, thinkingBlocks: _thinking, ...rest } = item;
       return { ...rest, streaming: false };
     }
     return item;
@@ -333,18 +357,31 @@ export function applyStreamEvent(
     case 'assistant':
       return applyMessage(items as TranscriptItem[], event.message as SessionMessage);
     case 'assistant_text_delta': {
-      const existing = items.find(
-        (item): item is AssistantItem => item.kind === 'assistant' && item.id === event.messageId,
-      );
+      const existing = findAssistant(items, event.messageId);
       const blocks = [...(existing?.blocks ?? [])];
       blocks[event.blockIndex] = (blocks[event.blockIndex] ?? '') + event.text;
       const text = Array.from(blocks, (block) => block ?? '').join('\n\n');
       return upsert(items as TranscriptItem[], {
+        ...existing,
         kind: 'assistant',
         id: event.messageId,
         text,
         streaming: true,
         blocks,
+      });
+    }
+    case 'thinking_text_delta': {
+      const existing = findAssistant(items, event.messageId);
+      const thinkingBlocks = [...(existing?.thinkingBlocks ?? [])];
+      thinkingBlocks[event.blockIndex] = (thinkingBlocks[event.blockIndex] ?? '') + event.text;
+      return upsert(items as TranscriptItem[], {
+        text: '',
+        ...existing,
+        kind: 'assistant',
+        id: event.messageId,
+        streaming: true,
+        thinking: Array.from(thinkingBlocks, (block) => block ?? '').join('\n\n'),
+        thinkingBlocks,
       });
     }
     case 'assistant_message_retracted':

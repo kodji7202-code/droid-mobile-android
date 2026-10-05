@@ -244,6 +244,13 @@
       "errorOutput": "Error",
       "noResult": "No result yet"
     },
+    "thinking": {
+      "label": "Thinking"
+    },
+    "usage": {
+      "label": "Token usage",
+      "summary": "Tokens: {{input}} in, {{output}} out"
+    },
     "stopped": "Stopped",
     "requestExpired": "The request expired before it could be answered. The daemon no longer waits for it.",
     "permission": {
