@@ -22,7 +22,6 @@ export function NewSessionSheet({
   const { t } = useTranslation();
   const [directory, setDirectory] = useState('');
   const [useWorktree, setUseWorktree] = useState(false);
-  const [worktreeDir, setWorktreeDir] = useState('');
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [createFailed, setCreateFailed] = useState(false);
@@ -72,11 +71,8 @@ export function NewSessionSheet({
         await connection.trustFolder(valid.path);
       }
       if (dismissed.current) return;
-      const folder = worktreeDir.trim();
       const handle = await connection.createSession(
-        useWorktree
-          ? { cwd: valid.path, worktree: true, ...(folder ? { worktreeDir: folder } : {}) }
-          : { cwd: valid.path },
+        useWorktree ? { cwd: valid.path, worktree: true } : { cwd: valid.path },
       );
       if (dismissed.current) {
         void handle.close().catch(() => undefined);
@@ -167,25 +163,9 @@ export function NewSessionSheet({
           <span>{t('sessions.worktreeToggle')}</span>
         </label>
         {useWorktree ? (
-          <>
-            <label className="field__label" htmlFor="session-new-worktree-dir">
-              {t('sessions.worktreeDirLabel')}
-            </label>
-            <input
-              id="session-new-worktree-dir"
-              className="field__control"
-              data-testid="session-new-worktree-dir"
-              value={worktreeDir}
-              onChange={(event) => setWorktreeDir(event.target.value)}
-              placeholder={t('sessions.worktreeDirPlaceholder')}
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-            <p className="field__description" data-testid="session-new-worktree-help">
-              {t('sessions.worktreeHelp')}
-            </p>
-          </>
+          <p className="field__description" data-testid="session-new-worktree-help">
+            {t('sessions.worktreeHelp')}
+          </p>
         ) : null}
         <p className="field__description" data-testid="session-new-model">
           {t('sessions.newModel', {

@@ -162,51 +162,46 @@ describe('NewSessionSheet', () => {
     expect(onCreated).not.toHaveBeenCalled();
   });
 
-  it('does not offer a worktree folder until the worktree option is on', async () => {
+  it('shows worktree help with cleanup instructions only when the option is on', async () => {
     const { connection } = fakeConnection();
     renderSheet(connection);
     const user = userEvent.setup();
 
     const toggle = screen.getByTestId('session-new-worktree');
     expect(toggle).not.toBeChecked();
-    expect(screen.queryByTestId('session-new-worktree-dir')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('session-new-worktree-help')).not.toBeInTheDocument();
     await user.click(toggle);
-    expect(screen.getByTestId('session-new-worktree-dir')).toBeInTheDocument();
-    expect(screen.getByTestId('session-new-worktree-help')).toHaveTextContent(
-      'git worktree remove',
-    );
+    expect(screen.queryByTestId('session-new-worktree-dir')).not.toBeInTheDocument();
+    const help = screen.getByTestId('session-new-worktree-help');
+    expect(help).toHaveTextContent('~/.factory/worktrees');
+    expect(help).toHaveTextContent('git worktree remove --force');
+    expect(help).toHaveTextContent('git branch -D <branch>-wt');
   });
 
-  it('creates a worktree session with the optional worktree folder', async () => {
+  it('creates a worktree session without sending worktreeDir', async () => {
     const { connection, createSession } = fakeConnection();
     const { onCreated } = renderSheet(connection);
     const user = userEvent.setup();
 
     await user.click(screen.getByTestId('session-new-suggestion-0'));
     await user.click(screen.getByTestId('session-new-worktree'));
-    await user.type(screen.getByTestId('session-new-worktree-dir'), ' C:\\w\\trees ');
     await waitFor(() => expect(screen.getByTestId('session-new-create')).toBeEnabled());
     await user.click(screen.getByTestId('session-new-create'));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
-    expect(createSession).toHaveBeenCalledWith({
-      cwd: 'C:\\w',
-      worktree: true,
-      worktreeDir: 'C:\\w\\trees',
-    });
+    expect(createSession).toHaveBeenCalledWith({ cwd: 'C:\\w', worktree: true });
   });
 
-  it('omits worktreeDir when the folder is blank and the flag when the option is off', async () => {
+  it('omits the worktree flag when the option is off', async () => {
     const { connection, createSession } = fakeConnection();
     renderSheet(connection);
     const user = userEvent.setup();
 
     await user.click(screen.getByTestId('session-new-suggestion-0'));
-    await user.click(screen.getByTestId('session-new-worktree'));
     await waitFor(() => expect(screen.getByTestId('session-new-create')).toBeEnabled());
     await user.click(screen.getByTestId('session-new-create'));
     await waitFor(() => expect(createSession).toHaveBeenCalledTimes(1));
-    expect(createSession).toHaveBeenLastCalledWith({ cwd: 'C:\\w', worktree: true });
+    expect(createSession).toHaveBeenLastCalledWith({ cwd: 'C:\\w' });
   });
 
   it('reports a failed creation inline and stays usable', async () => {
