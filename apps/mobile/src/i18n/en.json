@@ -227,6 +227,12 @@
     "send": "Send",
     "interrupt": "Stop",
     "notSent": "Not sent",
+    "queue": {
+      "label": "Queued messages",
+      "badge": "Queued",
+      "cancel": "Cancel queued message: {{text}}",
+      "cancelShort": "Cancel"
+    },
     "attach": {
       "label": "Attach file",
       "image": "Attached image",

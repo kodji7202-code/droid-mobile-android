@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UserAttachment } from '@droidmobile/daemon-client';
 import { ATTACH_ACCEPT, readAttachment } from './attachments';
 import type { AttachmentRejection } from './attachments';
 import { AttachmentThumb } from './AttachmentThumb';
+import { QueuedMessages } from './QueuedMessages';
+import type { QueuedMessage } from '../../stores/sessionView';
 
 interface ChatComposerProps {
   turnActive: boolean;
@@ -12,6 +14,10 @@ interface ChatComposerProps {
   disabled: boolean;
   /** Stop lives in the open request dialog, which covers the composer. */
   stopInDialog?: boolean;
+  /** Queued text the daemon dropped; appended to the draft once per `nonce`. */
+  restored?: { text: string; nonce: number };
+  queued?: readonly QueuedMessage[];
+  onCancelQueued?(requestId: string): void;
   onSend(text: string, attachments: UserAttachment[]): void;
   onInterrupt(): void;
 }
@@ -24,6 +30,9 @@ export function ChatComposer({
   workingState,
   disabled,
   stopInDialog = false,
+  restored,
+  queued = [],
+  onCancelQueued,
   onSend,
   onInterrupt,
 }: ChatComposerProps) {
@@ -34,7 +43,13 @@ export function ChatComposer({
   const picker = useRef<HTMLInputElement>(null);
   // Files are read asynchronously; counting what is already queued keeps the limit exact.
   const attachedCount = useRef(0);
-  const canSend = !disabled && !turnActive && text.trim() !== '';
+  const canSend = !disabled && !stopInDialog && text.trim() !== '';
+
+  useEffect(() => {
+    if (!restored) return;
+    setText((current) => (current === '' ? restored.text : `${current}\n${restored.text}`));
+    // Only a new restore event may touch the draft, not later renders with the same event.
+  }, [restored?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
   const indicator = KNOWN_STATES.includes(workingState) ? workingState : 'thinking';
 
   const submit = (event: FormEvent) => {
@@ -83,6 +98,7 @@ export function ChatComposer({
           {t(`chat.working.${indicator}`)}
         </p>
       ) : null}
+      <QueuedMessages messages={queued} onCancel={(requestId) => onCancelQueued?.(requestId)} />
       {rejections.length > 0 ? (
         <ul className="chat-composer__rejections" role="alert" data-testid="chat-attach-error">
           {rejections.map((rejection, index) => (

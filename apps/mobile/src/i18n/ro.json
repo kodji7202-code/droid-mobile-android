@@ -227,6 +227,12 @@
     "send": "Trimite",
     "interrupt": "Oprește",
     "notSent": "Netrimis",
+    "queue": {
+      "label": "Mesaje în coadă",
+      "badge": "În coadă",
+      "cancel": "Anulează mesajul din coadă: {{text}}",
+      "cancelShort": "Anulează"
+    },
     "attach": {
       "label": "Ata?eaza fi?ier",
       "image": "Imagine ata?ata",

@@ -583,6 +583,14 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     archiveById: async (sessionId, archiveOptions) => {
       await mapSdkError(() => requireDroid().sessions.archive(sessionId, archiveOptions));
     },
+    deleteQueuedById: async (sessionId, requestId) => {
+      await mapSdkError(() =>
+        requireDroid().sessions.resolveQueuedMessage(sessionId, {
+          requestId,
+          action: 'delete',
+        } as Parameters<ReturnType<typeof requireDroid>['sessions']['resolveQueuedMessage']>[1]),
+      );
+    },
   };
 
   const connection: DaemonConnection = {

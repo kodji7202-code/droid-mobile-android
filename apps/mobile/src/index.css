@@ -939,6 +939,42 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   color: var(--color-fg-muted);
 }
 
+.chat-queue {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.chat-queue__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.chat-queue__badge {
+  flex: none;
+  color: var(--color-fg-muted);
+}
+
+.chat-queue__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-queue__cancel {
+  flex: none;
+  min-width: 48px;
+  min-height: 48px;
+}
+
 .app-shell:has(.app-nav-bar) .chat-composer {
   bottom: 53px;
 }

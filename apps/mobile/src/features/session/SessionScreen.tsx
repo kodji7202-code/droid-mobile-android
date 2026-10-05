@@ -34,6 +34,7 @@ export function SessionScreen() {
   const send = useSessionViewStore((state) => state.send);
   const retry = useSessionViewStore((state) => state.retry);
   const interrupt = useSessionViewStore((state) => state.interrupt);
+  const cancelQueued = useSessionViewStore((state) => state.cancelQueued);
   const awaitingApproval = useInteractionStore((state) =>
     state.pending.some((item) => item.sessionId === id),
   );
@@ -191,6 +192,9 @@ export function SessionScreen() {
         ) : null}
 
         <ChatComposer
+          queued={view?.queued ?? []}
+          restored={view?.restored}
+          onCancelQueued={(requestId) => void cancelQueued(id, requestId)}
           turnActive={Boolean(view?.turnActive) || awaitingApproval}
           workingState={awaitingApproval ? WAITING_STATE : (view?.workingState ?? 'idle')}
           disabled={view?.status !== 'ready'}

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SessionHandle: the adapter's per-session wrapper (architecture.md 3.1).
  * Survives reconnects: after the connection re-resumes opened sessions, the
  * same handle delegates to the new underlying SDK session; if a call hits a
@@ -51,6 +51,39 @@ export interface SessionHost {
   ): Promise<SessionMessagesPage>;
   updateSettingsById(sessionId: string, params: UpdateSessionSettingsOptions): Promise<void>;
   archiveById(sessionId: string, options?: { force?: boolean }): Promise<void>;
+  /** Removes a queued message from the daemon's queue so it is never executed. */
+  deleteQueuedById(sessionId: string, requestId: string): Promise<void>;
+}
+
+/**
+ * The facade's stream() refuses to start while a turn runs, and its public
+ * surface has no way to add a queued message. The controller underneath owns
+ * the ddUserMessage call the daemon queues on; this is the one place that
+ * reaches for it (pinned SDK 0.9.1), checked at runtime so a changed SDK fails
+ * with a clear error instead of a TypeError.
+ */
+interface QueueingController {
+  addUserMessage(
+    sessionId: string,
+    params: {
+      messageId: string;
+      text: string;
+      images?: StreamOptions['images'];
+      files?: StreamOptions['files'];
+      queuePlacement: 'end_of_loop';
+      userMessageSource: 'sdk';
+    },
+    requestId: string,
+  ): Promise<unknown>;
+}
+
+function queueingController(session: ConnectedDroidSession): QueueingController {
+  const controller = (session as unknown as { controller?: Partial<QueueingController> })
+    .controller;
+  if (!controller || typeof controller.addUserMessage !== 'function') {
+    throw new Error('This SDK version cannot queue messages during a running turn.');
+  }
+  return controller as QueueingController;
 }
 
 export class SessionHandle {
@@ -153,6 +186,42 @@ export class SessionHandle {
       if (options?.abortSignal?.aborted || isNonTransportFailure(err)) {
         throw this.host.reportFailure(err).error;
       }
+      throw this.failed(err);
+    }
+  }
+
+  /**
+   * Queues a message behind the running turn (held until the agent loop ends,
+   * then executed once). Resolves with the request id that identifies it in the
+   * daemon's queue and, once processed, as the id of the stored user message.
+   */
+  queueMessage(
+    text: string,
+    options?: Pick<StreamOptions, 'images' | 'files'>,
+  ): Promise<{ requestId: string }> {
+    return this.withSession(async (session) => {
+      const requestId = globalThis.crypto.randomUUID();
+      await queueingController(session).addUserMessage(
+        session.id,
+        {
+          messageId: requestId,
+          text,
+          images: options?.images,
+          files: options?.files,
+          queuePlacement: 'end_of_loop',
+          userMessageSource: 'sdk',
+        },
+        requestId,
+      );
+      return { requestId };
+    });
+  }
+
+  /** Deletes a queued message; the daemon will not execute it. */
+  async cancelQueued(requestId: string): Promise<void> {
+    try {
+      await this.host.deleteQueuedById(this.id, requestId);
+    } catch (err) {
       throw this.failed(err);
     }
   }

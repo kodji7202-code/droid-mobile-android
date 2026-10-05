@@ -33,7 +33,22 @@ export const HISTORY_PAGE_SIZE = 50;
 const FOLLOW_INTERVAL_MS = 2000;
 const FOLLOW_ATTEMPTS = 60;
 
+const QUEUE_SETTLE_ATTEMPTS = 6;
+const QUEUE_SETTLE_INTERVAL_MS = 1000;
+
 export type SessionViewStatus = 'loading' | 'ready' | 'error';
+
+/** A message the daemon holds until the running turn ends; `requestId` is its id in the daemon's queue. */
+export interface QueuedMessage {
+  requestId: string;
+  text: string;
+}
+
+/** Text handed back to the composer; `nonce` makes a repeat of the same text a new event. */
+export interface RestoredText {
+  text: string;
+  nonce: number;
+}
 
 /**
  * Per-session state consumed by the chat features: the handle, the loaded
@@ -49,6 +64,10 @@ export interface SessionView {
   turnActive: boolean;
   /** Last working state reported by the daemon during the active turn. */
   workingState: string;
+  /** Messages sent during the active turn that the daemon has not executed yet, oldest first. */
+  queued: QueuedMessage[];
+  /** Queued text the daemon dropped (interrupt) and the composer should show again. */
+  restored?: RestoredText;
   /** Latest token usage the daemon reported for the session (absent until a turn ran). */
   usage?: TokenUsage;
   /** True after the user pressed stop and until the next send. */
@@ -76,6 +95,8 @@ interface SessionViewStore {
   send(id: string, text: string, attachments?: readonly UserAttachment[]): Promise<void>;
   /** Resends a message that never reached the daemon. */
   retry(id: string, itemId: string): Promise<void>;
+  /** Removes a queued message from the daemon's queue so it is never executed. */
+  cancelQueued(id: string, requestId: string): Promise<void>;
   interrupt(id: string): Promise<void>;
   /** Shows the tool calls of a refused permission request as denied. */
   markDenied(id: string, tools: Parameters<typeof markToolsDenied>[1]): void;
@@ -92,6 +113,7 @@ function emptyView(id: string, epoch: number): SessionView {
     id,
     status: 'loading',
     items: [],
+    queued: [],
     turnActive: false,
     workingState: 'idle',
     stopRequested: false,
@@ -103,6 +125,7 @@ function emptyView(id: string, epoch: number): SessionView {
 }
 
 let localSeq = 0;
+let restoreSeq = 0;
 
 /**
  * Bumped whenever a session's latest history window is replaced. An older-page
@@ -156,6 +179,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       });
     });
     let stoppedByDaemon = false;
+    let connectionLost: boolean;
     let failedResult: Parameters<typeof appendTurnFailure>[2] | undefined;
     try {
       const outcome = await runTurn(
@@ -167,6 +191,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
           } else if (event.type === 'token_usage') {
             update(id, () => ({ usage: event.usage }));
           } else {
+            if (event.type === 'user') dequeue(id, event.message.id);
             if (event.type === 'result' && event.interrupted) stoppedByDaemon = true;
             if (event.type === 'result' && !event.success) failedResult = event;
             update(id, (view) => ({ items: [...applyStreamEvent(view.items, event)] }));
@@ -175,6 +200,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
         lost,
         toStreamOptions(attachments),
       );
+      connectionLost = outcome === 'lost';
       update(id, (view) => {
         const ended = settleTurn(view.items);
         const explained = failedResult ? appendTurnFailure(ended, localId, failedResult) : ended;
@@ -186,6 +212,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       });
     } catch (err) {
       const connectionDown = err instanceof DaemonClientError && err.kind === 'connection';
+      connectionLost = connectionDown;
       const message = redactSecrets(err instanceof Error ? err.message : String(err));
       update(id, (view) => {
         const failed = failPendingUser(settleTurn(view.items), localId);
@@ -199,6 +226,93 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       useInteractionStore.getState().expire({ sessionId: id });
       update(id, () => ({ turnActive: false, workingState: 'idle' }));
     }
+    const stopped = stoppedByDaemon || Boolean(get().views[id]?.stopRequested);
+    await settleQueue(id, handle, connectionLost ? 'forget' : stopped ? 'restore' : 'wait');
+  };
+
+  const enqueue = async (
+    id: string,
+    handle: SessionHandle,
+    prompt: string,
+    attachments: readonly UserAttachment[],
+  ) => {
+    try {
+      const { requestId } = await handle.queueMessage(prompt, toStreamOptions(attachments));
+      const view = get().views[id];
+      // The echo may already have arrived: the message ran and must not be shown as queued.
+      const ran = view?.items.some((item) => item.id === requestId);
+      if (view && !ran) {
+        patch(id, { queued: [...view.queued, { requestId, text: prompt }] });
+        if (!view.turnActive) await settleQueue(id, handle, 'wait');
+      }
+    } catch (err) {
+      const message = redactSecrets(err instanceof Error ? err.message : String(err));
+      update(id, (view) => ({ items: appendError(view.items, message) }));
+      restoreText(id, [{ requestId: '', text: prompt }]);
+    }
+  };
+
+  const dequeue = (id: string, requestId: string) =>
+    update(id, (view) =>
+      view.queued.some((entry) => entry.requestId === requestId)
+        ? { queued: view.queued.filter((entry) => entry.requestId !== requestId) }
+        : {},
+    );
+
+  const restoreText = (id: string, entries: readonly QueuedMessage[]) => {
+    if (entries.length === 0) return;
+    const text = entries.map((entry) => entry.text).join('\n');
+    restoreSeq += 1;
+    update(id, () => ({ restored: { text, nonce: restoreSeq } }));
+  };
+
+  /**
+   * Accounts for every message still queued when a turn ends, exactly once:
+   * either the daemon stored it (it ran, the stored copy is the only one) or it
+   * is dropped and handed back to the composer. `restore` is for a stopped turn
+   * (the daemon discards its queue and stores nothing); `wait` gives a turn that
+   * ended normally a moment to start the queued message; `forget` is for a lost
+   * connection, where the reload from the daemon decides what exists.
+   */
+  const settleQueue = async (
+    id: string,
+    handle: SessionHandle,
+    mode: 'restore' | 'wait' | 'forget',
+  ) => {
+    const attempts = mode === 'wait' ? QUEUE_SETTLE_ATTEMPTS : 1;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const pending = get().views[id]?.queued ?? [];
+      if (pending.length === 0) return;
+      if (mode === 'forget') {
+        patch(id, { queued: [] });
+        return;
+      }
+      if (attempt > 0)
+        await new Promise((resolve) => setTimeout(resolve, QUEUE_SETTLE_INTERVAL_MS));
+      let stored: Set<string> | undefined;
+      try {
+        const page = await handle.getMessages({ limit: HISTORY_PAGE_SIZE });
+        stored = new Set(page.messages.map((message) => message.id));
+        const latest = get().views[id];
+        if (latest && latest.handle === handle && !latest.turnActive) {
+          bumpWindow(id);
+          patch(id, {
+            items: reconcileLocalItems(itemsFromMessages(page.messages), latest.items),
+            hasMore: page.hasMore,
+            nextCursor: page.nextCursor,
+          });
+        }
+      } catch {
+        // Nothing is known about the queue; the final attempt restores the text.
+      }
+      const current = get().views[id]?.queued ?? [];
+      const unresolved = current.filter((entry) => !stored?.has(entry.requestId));
+      patch(id, { queued: unresolved });
+      if (unresolved.length === 0) return;
+    }
+    const left = get().views[id]?.queued ?? [];
+    patch(id, { queued: [] });
+    restoreText(id, left);
   };
 
   /**
@@ -318,13 +432,11 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       const view = get().views[id];
       const prompt = text.trim();
       // A late history response would overwrite the new bubble or resurrect a delivered one.
-      if (
-        !view?.handle ||
-        view.status === 'loading' ||
-        view.turnActive ||
-        prompt === '' ||
-        hasPending(id)
-      ) {
+      if (!view?.handle || view.status === 'loading' || prompt === '' || hasPending(id)) {
+        return;
+      }
+      if (view.turnActive) {
+        await enqueue(id, view.handle, prompt, attachments);
         return;
       }
       localSeq += 1;
@@ -354,6 +466,20 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       }
       patch(id, { items: removeItem(view.items, itemId) });
       await get().send(id, failed.text, failed.attachments);
+    },
+
+    async cancelQueued(id, requestId) {
+      const handle = get().views[id]?.handle;
+      if (!handle) return;
+      try {
+        await handle.cancelQueued(requestId);
+      } catch (err) {
+        // The message may have just started running; its echo then clears the queue entry.
+        const message = redactSecrets(err instanceof Error ? err.message : String(err));
+        update(id, (view) => ({ items: appendError(view.items, message) }));
+        return;
+      }
+      dequeue(id, requestId);
     },
 
     markDenied(id, tools) {

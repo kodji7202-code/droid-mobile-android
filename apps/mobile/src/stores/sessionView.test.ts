@@ -334,6 +334,7 @@ describe('send gate while history loads', () => {
             { kind: 'user', id: 'u0', text: 'first', delivery: 'sent' },
             { kind: 'user', id: 'local-1', text: 'hello', delivery: 'failed' },
           ],
+          queued: [],
           turnActive: false,
           workingState: 'idle',
           stopRequested: false,
