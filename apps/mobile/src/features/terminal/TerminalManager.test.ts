@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FakeEmulator, FakeTerminalClient } from './fakes';
 import { TerminalManager } from './TerminalManager';
 
@@ -247,5 +247,118 @@ describe('TerminalManager', () => {
     await manager.attach('s1', 'C:\\w', null);
     await Promise.all([manager.close('s1', 't1'), manager.close('s1', 't1')]);
     expect(client.count('close')).toBe(1);
+  });
+});
+
+describe('TerminalManager reconcile after the sidecar becomes ready', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const flush = (ms = 0) => vi.advanceTimersByTimeAsync(ms);
+
+  it('marks entries stale and blocks input while the link is down, then restores them', async () => {
+    const { client, manager, emulators } = setup();
+    await manager.attach('s1', 'C:\\w', null);
+    client.setStatus('reconnecting');
+    expect(manager.getSession('s1').stale).toBe(true);
+    emulators[0]!.type('x');
+    expect(client.count('write')).toBe(0);
+    client.setStatus('ready');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(manager.getSession('s1').stale).toBe(false);
+    expect(manager.getSession('s1').entries.map((e) => [e.id, e.status])).toEqual([
+      ['t1', 'running'],
+    ]);
+    emulators[0]!.type('y');
+    expect(client.count('write')).toBe(1);
+  });
+
+  it('retries the list with backoff until the daemon answers, then drops vanished terminals', async () => {
+    vi.useFakeTimers();
+    const { client, manager } = setup();
+    await manager.attach('s1', 'C:\\w', null);
+    await manager.create('s1', 'C:\\w', null);
+    client.daemon.set('s1', []);
+    client.setStatus('reconnecting');
+    client.listFailures = 2;
+    client.setStatus('ready');
+    await flush();
+    expect(client.count('list')).toBe(2);
+    expect(manager.getSession('s1').entries).toHaveLength(2);
+    expect(manager.getSession('s1').stale).toBe(true);
+    await flush(500);
+    expect(client.count('list')).toBe(3);
+    await flush(1000);
+    expect(client.count('list')).toBe(4);
+    expect(manager.getSession('s1').entries).toEqual([]);
+    expect(manager.getSession('s1').stale).toBe(false);
+    expect(client.count('create')).toBe(2);
+  });
+
+  it('times out a hung list for one session without blocking the others', async () => {
+    vi.useFakeTimers();
+    const { client, manager } = setup();
+    await manager.attach('s1', 'C:\\w', null);
+    await manager.attach('s2', 'C:\\w', null);
+    client.daemon.set('s1', []);
+    client.daemon.set('s2', []);
+    client.setStatus('reconnecting');
+    client.listHangs = 1;
+    client.setStatus('ready');
+    await flush();
+    expect(manager.getSession('s2').entries).toEqual([]);
+    expect(manager.getSession('s1').entries).toHaveLength(1);
+    await flush(5000 + 500);
+    expect(manager.getSession('s1').entries).toEqual([]);
+    expect(manager.getSession('s1').stale).toBe(false);
+  });
+
+  it('stops retrying when the link leaves ready or the manager is disposed', async () => {
+    vi.useFakeTimers();
+    const { client, manager } = setup();
+    await manager.attach('s1', 'C:\\w', null);
+    client.setStatus('reconnecting');
+    client.listFailures = 99;
+    client.setStatus('ready');
+    await flush();
+    expect(client.count('list')).toBe(2);
+    client.setStatus('reconnecting');
+    await flush(20_000);
+    expect(client.count('list')).toBe(2);
+    client.setStatus('ready');
+    await flush();
+    expect(client.count('list')).toBe(3);
+    manager.dispose();
+    await flush(20_000);
+    expect(client.count('list')).toBe(3);
+  });
+
+  it('shows the shells as exited with input disabled once the retries are exhausted', async () => {
+    vi.useFakeTimers();
+    const { client, manager, emulators } = setup();
+    await manager.attach('s1', 'C:\\w', null);
+    client.setStatus('reconnecting');
+    client.listFailures = 99;
+    client.setStatus('ready');
+    await flush(60_000);
+    expect(client.count('list')).toBe(1 + 6);
+    expect(manager.getSession('s1').entries.map((e) => e.status)).toEqual(['exited']);
+    expect(manager.getSession('s1').stale).toBe(false);
+    emulators[0]!.type('z');
+    expect(client.count('write')).toBe(0);
+  });
+
+  it('never resurrects a terminal that was closed while a relist was in flight', async () => {
+    const { client, manager } = setup();
+    await manager.attach('s1', 'C:\\w', null);
+    await manager.create('s1', 'C:\\w', null);
+    client.setStatus('reconnecting');
+    let release!: () => void;
+    client.listGate = new Promise((r) => (release = r));
+    client.setStatus('ready');
+    await new Promise((r) => setTimeout(r, 0));
+    await manager.close('s1', 't2');
+    release();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(manager.getSession('s1').entries.map((e) => e.id)).toEqual(['t1']);
   });
 });

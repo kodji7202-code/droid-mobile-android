@@ -1720,6 +1720,9 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   border-color: var(--color-accent);
   background: var(--color-surface);
 }
+.terminal-tab--stale .terminal-tab__select {
+  opacity: 0.55;
+}
 .terminal-tab__select,
 .terminal-tab__close {
   min-height: 48px;

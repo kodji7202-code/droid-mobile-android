@@ -37,6 +37,9 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
   const entries = snapshot?.entries ?? [];
   const active = entries.find((e) => e.id === snapshot?.activeId);
   const link = manager?.linkStatus() ?? 'idle';
+  const stale = !!snapshot?.stale;
+  const statusOf = (entry: TerminalEntry) =>
+    stale && entry.status === 'running' ? 'stale' : entry.status;
   const [viewEl, setViewEl] = useState<HTMLDivElement | null>(null);
   useSoftKeyboardMarker(viewEl);
   const [selectMode, setSelectMode] = useState(false);
@@ -123,7 +126,7 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
   };
 
   const pasteClipboard = async () => {
-    if (!active || active.status !== 'running') return;
+    if (!active || active.status !== 'running' || stale) return;
     const text = await readClipboardText();
     if (text) active.emulator.paste(text);
     active.emulator.focus();
@@ -177,7 +180,7 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
           {entries.map((entry) => (
             <div
               key={entry.id}
-              className={`terminal-tab${entry.id === active?.id ? ' terminal-tab--active' : ''}`}
+              className={`terminal-tab${entry.id === active?.id ? ' terminal-tab--active' : ''}${stale ? ' terminal-tab--stale' : ''}`}
             >
               <button
                 type="button"
@@ -185,7 +188,7 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
                 aria-selected={entry.id === active?.id}
                 className="terminal-tab__select"
                 data-testid={`terminal-tab-${entry.id}`}
-                data-status={entry.status}
+                data-status={statusOf(entry)}
                 onClick={() => select(entry)}
               >
                 {tabLabel(entry)}
@@ -238,7 +241,7 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
           type="button"
           className="btn btn--secondary btn--sm terminal-action"
           data-testid="terminal-paste"
-          disabled={!active || active.status !== 'running'}
+          disabled={!active || active.status !== 'running' || stale}
           onClick={() => void pasteClipboard()}
         >
           {t('terminal.paste')}
@@ -252,6 +255,16 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
           role="status"
         >
           {t('terminal.linkLost')}
+        </div>
+      ) : null}
+
+      {stale && link === 'ready' ? (
+        <div
+          className="terminal-banner terminal-banner--warn"
+          data-testid="terminal-sync-banner"
+          role="status"
+        >
+          {t('terminal.syncing')}
         </div>
       ) : null}
 
@@ -349,7 +362,7 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
 
       <ExtraKeysBar
         ctrlArmed={!!active && !!manager?.isCtrlArmed(active.id)}
-        disabled={!active || active.status !== 'running'}
+        disabled={!active || active.status !== 'running' || stale}
         onKey={sendKey}
         onToggleCtrl={() => active && manager?.toggleCtrl(active.id)}
       />

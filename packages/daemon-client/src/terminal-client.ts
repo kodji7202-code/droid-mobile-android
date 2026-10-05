@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Sidecar terminal client. The SDK facade swallows `daemon.terminal_data` and
  * `daemon.terminal_exit`, so terminals use their own low-level connection
  * (architecture.md section 2): `createWebSocketDaemonClient` + `onMessage`.
@@ -189,13 +189,16 @@ export function createTerminalClient(options: TerminalClientOptions): TerminalCl
     }
     const client = makeLowLevel();
     low = client;
+    // The SDK retries a failing connect on its own and reports a close for every failed
+    // try, so a close only means the link dropped once this dial has authenticated.
+    let established = false;
     client.onMessage((raw) => {
       if (mine !== generation) return;
       const event = parseTerminalFrame(raw);
       if (event) for (const l of [...eventListeners]) l(event);
     });
     client.onConnectionClose(() => {
-      if (mine !== generation || disposed) return;
+      if (mine !== generation || disposed || !established) return;
       low = null;
       scheduleReconnect();
     });
@@ -221,6 +224,7 @@ export function createTerminalClient(options: TerminalClientOptions): TerminalCl
       }
       throw new ConnectionError('The terminal connection was closed.');
     }
+    established = true;
     attempt = 0;
     if (retryTimer) clearTimeout(retryTimer);
     retryTimer = null;

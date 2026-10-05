@@ -95,6 +95,26 @@ describe('TerminalView', () => {
     expect(client.count('create')).toBe(2);
   });
 
+  it('shows tabs as stale with input disabled until the daemon confirms them, then drops ghosts', async () => {
+    mount();
+    await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(1));
+    const tab = screen.getAllByRole('tab')[0]!;
+    expect(tab).toHaveAttribute('data-status', 'running');
+    let release!: () => void;
+    act(() => client.setStatus('reconnecting'));
+    expect(tab).toHaveAttribute('data-status', 'stale');
+    expect(screen.getByTestId('terminal-key-esc')).toBeDisabled();
+    client.daemon.set('s1', []);
+    client.listGate = new Promise((r) => (release = r));
+    act(() => client.setStatus('ready'));
+    expect(screen.getByTestId('terminal-sync-banner')).toBeInTheDocument();
+    expect(tab).toHaveAttribute('data-status', 'stale');
+    act(() => release());
+    await waitFor(() => expect(screen.getByTestId('terminal-empty')).toBeInTheDocument());
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.queryByTestId('terminal-sync-banner')).toBeNull();
+  });
+
   it('disables close while the sidecar is reconnecting and enables it again when ready', async () => {
     mount();
     await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(1));

@@ -95,6 +95,10 @@ export class FakeTerminalClient implements TerminalClient {
   /** "reject" throws, "fail" resolves false; the shell stays alive on the daemon either way. */
   closeMode: 'ok' | 'reject' | 'fail' = 'ok';
   listGate: Promise<void> | null = null;
+  /** The next N list calls reject like a sidecar that is not usable yet. */
+  listFailures = 0;
+  /** The next N list calls never settle. */
+  listHangs = 0;
   disposed = false;
   private statusListeners = new Set<(s: TerminalLinkStatus) => void>();
   private eventListeners = new Set<(e: TerminalEvent) => void>();
@@ -144,6 +148,14 @@ export class FakeTerminalClient implements TerminalClient {
   }
   async list(sessionId: string): Promise<TerminalInfo[]> {
     this.frames.push({ op: 'list', sessionId });
+    if (this.listHangs > 0) {
+      this.listHangs -= 1;
+      return new Promise<TerminalInfo[]>(() => undefined);
+    }
+    if (this.listFailures > 0) {
+      this.listFailures -= 1;
+      throw new Error('The terminal connection is not ready.');
+    }
     const snapshot = [...(this.daemon.get(sessionId) ?? [])];
     if (this.listGate) await this.listGate;
     return snapshot;

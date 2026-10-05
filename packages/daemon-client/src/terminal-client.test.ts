@@ -137,6 +137,34 @@ describe('createTerminalClient', () => {
     expect(seen).toEqual([]);
   });
 
+  it('stays usable when its own dial reports closes while the SDK retries the connect', async () => {
+    vi.useFakeTimers();
+    const lows: FakeLow[] = [];
+    const client = createTerminalClient({
+      url: 'ws://x',
+      apiKey: 'k',
+      backoff: { initialMs: 10, jitterFraction: 0 },
+      createLowLevel: () => {
+        const dialing = lows.length === 1;
+        const l: FakeLow = fakeLow({
+          connect: async () => {
+            if (dialing) {
+              l.drop();
+              l.drop();
+            }
+          },
+        });
+        lows.push(l);
+        return l;
+      },
+    });
+    await client.connect();
+    lows[0]!.drop();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(client.status).toBe('ready');
+    await expect(client.list('s1')).resolves.toHaveLength(1);
+  });
+
   it('dispose stops reconnecting and closes the socket', async () => {
     vi.useFakeTimers();
     const lows: FakeLow[] = [];

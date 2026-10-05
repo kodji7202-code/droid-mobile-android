@@ -1,4 +1,4 @@
-/**
+﻿/**
  * App-level owner of the terminals of one daemon connection. It lives outside
  * React so that navigating away neither closes shells nor loses their output:
  * every terminal keeps a detached emulator that captures data in the
@@ -69,6 +69,8 @@ export interface SessionTerminals {
   readonly error: string | null;
   /** The last close was not confirmed by the daemon, so the shell may still be running. */
   readonly closeFailed: boolean;
+  /** The terminals have not been confirmed by the daemon since the sidecar link dropped. */
+  readonly stale: boolean;
 }
 
 export type LinkStatus = TerminalClient['status'];
@@ -79,8 +81,12 @@ const EMPTY: SessionTerminals = {
   loading: false,
   error: null,
   closeFailed: false,
+  stale: false,
 };
 const DEFAULT_SIZE = { cols: 80, rows: 24 };
+const LIST_TIMEOUT_MS = 5000;
+/** Waits before each retry of a failed relist; the total attempts are one more than this. */
+const RETRY_DELAYS_MS = [500, 1000, 2000, 4000, 4000];
 
 interface SessionState {
   entries: TerminalEntry[];
@@ -88,6 +94,9 @@ interface SessionState {
   loading: boolean;
   error: string | null;
   closeFailed: boolean;
+  stale: boolean;
+  /** Bumped to cancel the relist loop that is currently running for the session. */
+  syncRun: number;
   loaded: boolean;
   nextLabel: number;
   cwd: string;
@@ -118,6 +127,8 @@ export class TerminalManager {
   private readonly internals = new Map<string, Internal>();
   private readonly attaching = new Map<string, Promise<void>>();
   private readonly closing = new Set<string>();
+  /** Terminals the user closed, so a relist taken before the close cannot bring them back. */
+  private readonly dismissed = new Set<string>();
   private readonly listeners = new Set<() => void>();
   private readonly offs: Array<() => void> = [];
   private factory: (() => Emulator) | null = null;
@@ -135,8 +146,9 @@ export class TerminalManager {
       this.client.onStatus((status) => {
         const wasReady = this.link === 'ready';
         this.link = status;
+        if (status !== 'ready' && wasReady) this.markStale();
         this.emit();
-        if (status === 'ready' && !wasReady) void this.resyncAll();
+        if (status === 'ready' && !wasReady) this.resyncAll();
       }),
     );
   }
@@ -237,6 +249,7 @@ export class TerminalManager {
     if (!state || !entry || this.closing.has(terminalId)) return;
     if (entry.status === 'exited') {
       this.removeEntry(sessionId, terminalId);
+      this.dismissed.add(terminalId);
       await this.client.close(sessionId, terminalId).catch(() => undefined);
       return;
     }
@@ -249,6 +262,7 @@ export class TerminalManager {
       if (this.disposed) return;
       if (closed || (await this.isGone(sessionId, terminalId))) {
         this.removeEntry(sessionId, terminalId);
+        this.dismissed.add(terminalId);
       } else {
         this.patch(state, { closeFailed: true });
       }
@@ -269,6 +283,7 @@ export class TerminalManager {
   async restart(sessionId: string, terminalId: string, host: HTMLElement | null): Promise<void> {
     const state = this.state(sessionId);
     this.removeEntry(sessionId, terminalId);
+    this.dismissed.add(terminalId);
     await this.create(sessionId, state.cwd, host);
   }
 
@@ -324,18 +339,59 @@ export class TerminalManager {
     }
   }
 
-  private async resyncAll(): Promise<void> {
-    for (const [sessionId, state] of [...this.sessions]) {
+  private markStale(): void {
+    for (const state of this.sessions.values()) {
       if (!state.loaded) continue;
-      try {
-        await this.reconcile(sessionId);
-      } catch {
-        // The next ready transition retries.
-      }
+      state.syncRun += 1;
+      this.patch(state, { stale: true });
     }
   }
 
-  private async reconcile(sessionId: string): Promise<void> {
+  private resyncAll(): void {
+    for (const [sessionId, state] of [...this.sessions]) {
+      if (state.loaded) void this.resync(sessionId, state);
+    }
+  }
+
+  /**
+   * Re-lists one session after the sidecar became ready. The daemon may not know the
+   * session yet right after a restart, so failures and hangs are retried with backoff
+   * while the link stays ready; when it never answers the shells are shown as exited.
+   */
+  private async resync(sessionId: string, state: SessionState): Promise<void> {
+    const run = ++state.syncRun;
+    const current = () => !this.disposed && this.link === 'ready' && state.syncRun === run;
+    this.patch(state, { stale: true });
+    for (let attempt = 0; ; attempt++) {
+      if (!current()) return;
+      try {
+        await this.reconcile(sessionId, current, LIST_TIMEOUT_MS);
+        return;
+      } catch {
+        const delay = RETRY_DELAYS_MS[attempt];
+        if (delay === undefined) break;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+    if (current()) this.markUnreachable(state);
+  }
+
+  private markUnreachable(state: SessionState): void {
+    state.entries = state.entries.map((e) =>
+      e.status === 'exited' ? e : { ...e, status: 'exited' },
+    );
+    for (const entry of state.entries) {
+      const internal = this.internals.get(entry.id);
+      if (internal) internal.syncing = false;
+    }
+    this.patch(state, { stale: false });
+  }
+
+  private async reconcile(
+    sessionId: string,
+    current: () => boolean = () => true,
+    timeoutMs?: number,
+  ): Promise<void> {
     const state = this.state(sessionId);
     const existing = [...state.entries];
     for (const entry of existing) {
@@ -344,7 +400,7 @@ export class TerminalManager {
     }
     let listed: TerminalInfo[];
     try {
-      listed = await this.client.list(sessionId);
+      listed = await this.listWithin(sessionId, timeoutMs);
     } catch (err) {
       for (const entry of existing) {
         const internal = this.internals.get(entry.id);
@@ -352,13 +408,14 @@ export class TerminalManager {
       }
       throw err;
     }
-    if (this.disposed) return;
+    if (this.disposed || !current()) return;
     const ids = new Set(listed.map((t) => t.id));
     for (const entry of existing) {
       if (entry.status === 'exited') continue;
       if (!ids.has(entry.id)) this.removeEntry(sessionId, entry.id);
     }
     for (const info of listed) {
+      if (this.dismissed.has(info.id)) continue;
       const entry = state.entries.find((e) => e.id === info.id);
       if (entry) {
         this.restoreState(entry, info);
@@ -379,7 +436,25 @@ export class TerminalManager {
         this.restoreState(fresh, info);
       }
     }
-    this.patch(state, { closeFailed: false });
+    this.patch(state, { closeFailed: false, stale: false });
+  }
+
+  private listWithin(sessionId: string, timeoutMs: number | undefined): Promise<TerminalInfo[]> {
+    const listing = this.client.list(sessionId);
+    if (timeoutMs === undefined) return listing;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('The terminal list timed out.')), timeoutMs);
+      listing.then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (err: unknown) => {
+          clearTimeout(timer);
+          reject(err);
+        },
+      );
+    });
   }
 
   private restoreState(entry: TerminalEntry, info: TerminalInfo): void {
@@ -408,6 +483,7 @@ export class TerminalManager {
     const current = this.sessions.get(sessionId)?.entries.find((e) => e.id === terminalId);
     const internal = this.internals.get(terminalId);
     if (!current || !internal || current.status !== 'running') return;
+    if (this.sessions.get(sessionId)?.stale) return;
     let out = data;
     if (internal.ctrl) {
       internal.ctrl = false;
@@ -463,6 +539,8 @@ export class TerminalManager {
         loading: false,
         error: null,
         closeFailed: false,
+        stale: false,
+        syncRun: 0,
         loaded: false,
         nextLabel: 1,
         cwd: '',
@@ -520,7 +598,9 @@ export class TerminalManager {
 
   private patch(
     state: SessionState,
-    changes: Partial<Pick<SessionState, 'activeId' | 'loading' | 'error' | 'closeFailed'>>,
+    changes: Partial<
+      Pick<SessionState, 'activeId' | 'loading' | 'error' | 'closeFailed' | 'stale'>
+    >,
   ): void {
     Object.assign(state, changes);
     state.snapshot = {
@@ -529,6 +609,7 @@ export class TerminalManager {
       loading: state.loading,
       error: state.error,
       closeFailed: state.closeFailed,
+      stale: state.stale,
     };
     this.emit();
   }
