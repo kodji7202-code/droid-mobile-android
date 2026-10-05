@@ -7,6 +7,7 @@ import { ThemeProvider } from '../theme/ThemeProvider';
 import { ToastProvider } from '../components/Toast';
 import { LockGate } from '../features/lock/LockGate';
 import { Skeleton } from '../components/Skeleton';
+import { useAppResume } from './useAppResume';
 
 /**
  * App root: global error boundary, theme and toast providers, and the router
@@ -14,6 +15,7 @@ import { Skeleton } from '../components/Skeleton';
  * WebView's file/origin model).
  */
 export default function App() {
+  useAppResume();
   const router = useMemo(() => {
     const routes = createAppRoutes();
     return Capacitor.isNativePlatform()

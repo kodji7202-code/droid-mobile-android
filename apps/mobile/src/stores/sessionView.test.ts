@@ -365,3 +365,26 @@ describe('send gate while history loads', () => {
     expect(texts()).toEqual(['first', 'hello']);
   });
 });
+
+describe('sessionView.refreshOnResume', () => {
+  beforeEach(() => useSessionViewStore.getState().reset());
+
+  it('re-reads idle ready views once and skips views streaming a turn', async () => {
+    const { connection, getMessages } = setup([
+      [message('u1', 'user', 1, 'first')],
+      [message('u2', 'user', 2, 'external'), message('u1', 'user', 1, 'first')],
+    ]);
+    await useSessionViewStore.getState().open(connection, 's1', 1);
+
+    await useSessionViewStore.getState().refreshOnResume();
+
+    expect(getMessages).toHaveBeenCalledTimes(2);
+    expect(texts()).toEqual(['first', 'external']);
+
+    useSessionViewStore.setState((state) => ({
+      views: { s1: { ...state.views['s1']!, turnActive: true } },
+    }));
+    await useSessionViewStore.getState().refreshOnResume();
+    expect(getMessages).toHaveBeenCalledTimes(2);
+  });
+});

@@ -105,6 +105,8 @@ interface SessionViewStore {
    * a reload): polls the stored history until the daemon is done working.
    */
   follow(id: string): Promise<void>;
+  /** Re-reads the latest history of every idle ready view after the app returns to the foreground. */
+  refreshOnResume(): Promise<void>;
   reset(): void;
 }
 
@@ -379,6 +381,15 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
         if (!current()) return;
         patch(id, { status: 'error', error: err instanceof Error ? err.message : String(err) });
       }
+    },
+
+    async refreshOnResume() {
+      const refreshes = Object.values(get().views).flatMap((view) =>
+        view.status === 'ready' && view.handle && !view.turnActive
+          ? [refreshLatest(view.id, view.handle)]
+          : [],
+      );
+      await Promise.all(refreshes);
     },
 
     adopt(handle, epoch) {
