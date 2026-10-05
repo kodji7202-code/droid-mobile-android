@@ -70,18 +70,17 @@ export function useChatScroll(options: ChatScrollOptions) {
 
   // At offset 0 the browser's scroll anchoring does nothing, so the prepended page
   // would push the reading position down by its own height.
-  const beforeOlder = useRef<{ top: boolean; height: number } | null>(null);
+  // The reader may reach offset 0 while the request is pending, so the position is
+  // checked when the page arrives, not when it was requested.
+  const beforeOlder = useRef<{ height: number } | null>(null);
   useLayoutEffect(() => {
     if (loadingOlder) {
-      beforeOlder.current = {
-        top: window.scrollY <= 0,
-        height: document.documentElement.scrollHeight,
-      };
+      beforeOlder.current = { height: document.documentElement.scrollHeight };
       return;
     }
     const before = beforeOlder.current;
     beforeOlder.current = null;
-    if (!before?.top || window.scrollY > 0) return;
+    if (!before || window.scrollY > 0) return;
     const grown = document.documentElement.scrollHeight - before.height;
     if (grown > 0) window.scrollTo?.(0, grown);
   }, [loadingOlder]);

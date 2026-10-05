@@ -54,6 +54,21 @@ describe('knownSessionIds', () => {
     const known = await knownSessionIds(connection);
     expect(known.size).toBe(130);
   });
+
+  it('rejects instead of returning a partial set when the history exceeds the paging budget', async () => {
+    const rows = Array.from({ length: 130 }, (_, index) => row(`old-${index}`, 1000 + index * 2));
+    const { connection } = fakeConnection(rows);
+    await expect(knownSessionIds(connection, 1)).rejects.toThrow();
+  });
+
+  it('rejects when paging fails', async () => {
+    const connection = {
+      listSessions: vi.fn(async () => {
+        throw new Error('offline');
+      }),
+    } as unknown as DaemonConnection;
+    await expect(knownSessionIds(connection)).rejects.toThrow();
+  });
 });
 
 describe('waitForNewSession', () => {

@@ -150,6 +150,42 @@ describe('SessionScreen', () => {
     scrollSpy.mockRestore();
   });
 
+  it('keeps the reading anchor when the reader reaches the top while the older page is pending', async () => {
+    const { connection, getMessages } = fakeConnection([
+      [message('c', 'user', 3, 'third'), message('b', 'assistant', 2, 'second')],
+      [message('a', 'user', 1, 'first')],
+    ]);
+    const original = getMessages.getMockImplementation()!;
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    getMessages.mockImplementation(async (...args) => {
+      const page = await original(...args);
+      if (getMessages.mock.calls.length === 2) {
+        await gate;
+        Object.defineProperty(document.documentElement, 'scrollHeight', {
+          configurable: true,
+          value: 7000,
+        });
+      }
+      return page;
+    });
+    const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    renderRoute(connection);
+    await screen.findByTestId('msg-user-1');
+
+    scrollTo(1200, 5000);
+    scrollTo(300, 5000);
+    await waitFor(() => expect(getMessages).toHaveBeenCalledTimes(2));
+    scrollTo(0, 5000);
+    release();
+
+    await waitFor(() => expect(screen.getByTestId('msg-user-0')).toHaveTextContent('first'));
+    expect(scrollSpy).toHaveBeenLastCalledWith(0, 2000);
+    scrollSpy.mockRestore();
+  });
+
   it('offers jump to latest after scrolling up and hides it once back at the bottom', async () => {
     const { connection } = fakeConnection([[message('a', 'user', 1, 'first')]]);
     renderRoute(connection);

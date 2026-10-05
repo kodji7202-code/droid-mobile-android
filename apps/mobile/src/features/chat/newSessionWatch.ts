@@ -25,10 +25,13 @@ export function expectedAutonomy(value: string): string | undefined {
  * Every existing session id. A partial snapshot would let an older session
  * pass as new, so the whole list is paged through before the answer is sent.
  */
-export async function knownSessionIds(connection: DaemonConnection): Promise<Set<string>> {
+export async function knownSessionIds(
+  connection: DaemonConnection,
+  maxPages = MAX_PRE_STATE_PAGES,
+): Promise<Set<string>> {
   let rows: SessionRowData[] = [];
   let cursor: PageCursor | undefined;
-  for (let index = 0; index < MAX_PRE_STATE_PAGES; index += 1) {
+  for (let index = 0; index < maxPages; index += 1) {
     const limit = cursor?.limit ?? MAX_PAGE_SIZE;
     const page = await connection.listSessions({
       limit,
@@ -36,11 +39,12 @@ export async function knownSessionIds(connection: DaemonConnection): Promise<Set
     });
     const pageRows = page.map(toRow);
     rows = mergeRows(rows, pageRows);
-    if (page.length < limit) break;
+    if (page.length < limit) return new Set(rows.map((row) => row.id));
     cursor = nextCursor(pageRows, cursor);
     if (cursor === undefined) break;
   }
-  return new Set(rows.map((row) => row.id));
+  // An incomplete pre-state must not be used: an older session could pass as new.
+  throw new Error('Session history could not be read completely');
 }
 
 /**
