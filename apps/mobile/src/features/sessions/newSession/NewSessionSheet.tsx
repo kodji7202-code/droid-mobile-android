@@ -21,6 +21,8 @@ export function NewSessionSheet({
 }: NewSessionSheetProps) {
   const { t } = useTranslation();
   const [directory, setDirectory] = useState('');
+  const [useWorktree, setUseWorktree] = useState(false);
+  const [worktreeDir, setWorktreeDir] = useState('');
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [createFailed, setCreateFailed] = useState(false);
@@ -70,7 +72,12 @@ export function NewSessionSheet({
         await connection.trustFolder(valid.path);
       }
       if (dismissed.current) return;
-      const handle = await connection.createSession({ cwd: valid.path });
+      const folder = worktreeDir.trim();
+      const handle = await connection.createSession(
+        useWorktree
+          ? { cwd: valid.path, worktree: true, ...(folder ? { worktreeDir: folder } : {}) }
+          : { cwd: valid.path },
+      );
       if (dismissed.current) {
         void handle.close().catch(() => undefined);
         return;
@@ -148,6 +155,37 @@ export function NewSessionSheet({
             <p className="new-session__trust-title">{t('sessions.trustTitle')}</p>
             <p>{t('sessions.trustMessage', { path: valid.trustRoot })}</p>
           </div>
+        ) : null}
+        <label className="new-session__toggle" htmlFor="session-new-worktree">
+          <input
+            id="session-new-worktree"
+            type="checkbox"
+            data-testid="session-new-worktree"
+            checked={useWorktree}
+            onChange={(event) => setUseWorktree(event.target.checked)}
+          />
+          <span>{t('sessions.worktreeToggle')}</span>
+        </label>
+        {useWorktree ? (
+          <>
+            <label className="field__label" htmlFor="session-new-worktree-dir">
+              {t('sessions.worktreeDirLabel')}
+            </label>
+            <input
+              id="session-new-worktree-dir"
+              className="field__control"
+              data-testid="session-new-worktree-dir"
+              value={worktreeDir}
+              onChange={(event) => setWorktreeDir(event.target.value)}
+              placeholder={t('sessions.worktreeDirPlaceholder')}
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <p className="field__description" data-testid="session-new-worktree-help">
+              {t('sessions.worktreeHelp')}
+            </p>
+          </>
         ) : null}
         <p className="field__description" data-testid="session-new-model">
           {t('sessions.newModel', {

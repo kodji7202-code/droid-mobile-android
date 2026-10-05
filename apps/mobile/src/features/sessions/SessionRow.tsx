@@ -51,6 +51,17 @@ export function SessionRow({
             </>
           ) : null}
         </span>
+        {row.worktree ? (
+          <span className="session-row__worktree">
+            <span className="session-row__badge" data-testid={`session-worktree-badge-${row.id}`}>
+              {t('sessions.worktreeBadge')}
+            </span>{' '}
+            <span data-testid={`session-worktree-branch-${row.id}`}>{row.worktree.branch}</span>
+            <span className="session-row__path" data-testid={`session-worktree-path-${row.id}`}>
+              {row.worktree.path}
+            </span>
+          </span>
+        ) : null}
       </button>
       <button
         type="button"

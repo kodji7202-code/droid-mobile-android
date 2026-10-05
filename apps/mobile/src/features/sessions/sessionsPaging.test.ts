@@ -58,6 +58,21 @@ describe('row mapping', () => {
     );
   });
 
+  it('reads worktree metadata the daemon reports beyond the typed summary', () => {
+    const base = { id: 'a', messageCount: 1, modifiedTime: new Date(5_000), cwd: 'C:\\wt\\S' };
+    const withWorktree = {
+      ...base,
+      worktree: { branch: 'main-wt', path: 'C:\\wt\\S', repoRoot: 'C:/S', lifecycle: 'ephemeral' },
+    };
+    expect(toRow(withWorktree as unknown as DaemonSessionSummary).worktree).toEqual({
+      branch: 'main-wt',
+      path: 'C:\\wt\\S',
+    });
+    expect(toRow(base as DaemonSessionSummary).worktree).toBeUndefined();
+    const malformed = { ...base, worktree: { branch: 3 } };
+    expect(toRow(malformed as unknown as DaemonSessionSummary).worktree).toBeUndefined();
+  });
+
   it('maps a search hit without a message count', () => {
     const hit = { id: 'a', title: ' Fix ', modifiedTime: new Date(5_000), hits: [] };
     expect(toSearchRow(hit as unknown as DaemonSearchSummary)).toEqual({

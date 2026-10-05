@@ -16,10 +16,22 @@ export interface SessionRowData {
   modifiedMs: number;
   cwd?: string;
   archived?: boolean;
+  /** Present only for sessions the daemon runs in a git worktree checkout. */
+  worktree?: { branch: string; path: string };
+}
+
+/** The daemon reports `worktree` on list entries although the SDK summary type omits it. */
+function readWorktree(summary: object): SessionRowData['worktree'] {
+  const candidate = (summary as { worktree?: unknown }).worktree;
+  if (typeof candidate !== 'object' || candidate === null) return undefined;
+  const { branch, path } = candidate as { branch?: unknown; path?: unknown };
+  if (typeof branch !== 'string' || typeof path !== 'string' || path === '') return undefined;
+  return { branch, path };
 }
 
 export function toRow(summary: DaemonSessionSummary): SessionRowData {
   return {
+    worktree: readWorktree(summary),
     id: summary.id,
     title: summary.title?.trim() ?? '',
     messageCount: summary.messageCount,

@@ -727,6 +727,37 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   text-align: start;
 }
 
+.new-session__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 48px;
+}
+
+.new-session__toggle input {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.session-row__worktree {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--color-fg-muted);
+}
+
+.session-row__badge {
+  display: inline-block;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.session-row__path {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
 .new-session__trust {
   padding: 0.75rem;
   border: 1px solid var(--color-warning);
@@ -1655,4 +1686,3 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   font-size: inherit;
   line-height: inherit;
 }
-
