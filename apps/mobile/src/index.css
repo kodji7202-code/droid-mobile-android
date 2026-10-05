@@ -788,6 +788,7 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
 }
 
 .model-list__provider,
+.model-list__reason,
 .model-list__current {
   color: var(--color-fg-muted);
   font-size: 0.875rem;

@@ -47,6 +47,34 @@ describe('SessionHandle settings', () => {
     expect(host.getContextBreakdownById).toHaveBeenCalledWith('s-ctx');
   });
 
+  it('starts a turn only after an in-flight settings write was acknowledged', async () => {
+    const { handle, session, updateSettingsById } = setup({ autonomyLevel: 'off' });
+    const order: string[] = [];
+    let ack: () => void = () => {};
+    updateSettingsById.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          ack = () => {
+            order.push('acked');
+            resolve();
+          };
+        }),
+    );
+    (session as unknown as { stream: unknown }).stream = () => {
+      order.push('stream');
+      return (async function* () {})();
+    };
+    const write = handle.applySettings({ autonomyLevel: 'high' });
+    const turn = (async () => {
+      for await (const event of handle.stream('hi')) void event;
+    })();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(order).toEqual([]);
+    ack();
+    await Promise.all([write, turn]);
+    expect(order).toEqual(['acked', 'stream']);
+  });
+
   it('does not show a rejected change', async () => {
     const { handle, updateSettingsById } = setup({ autonomyLevel: 'off' });
     updateSettingsById.mockRejectedValueOnce(new Error('socket closed'));

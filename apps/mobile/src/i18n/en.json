@@ -122,7 +122,16 @@
     "themeDark": "Dark",
     "themeSystem": "System",
     "connection": "Connection",
-    "security": "Security"
+    "security": "Security",
+    "defaults": "Defaults"
+  },
+  "defaults": {
+    "description": "New sessions start with these settings.",
+    "daemonDefault": "Daemon default",
+    "loading": "Loading defaults",
+    "loadFailedTitle": "Could not load defaults",
+    "loadFailed": "The daemon did not answer. Check the connection and try again.",
+    "saveFailed": "The change was not saved. The previous value is still in effect."
   },
   "about": {
     "title": "About",

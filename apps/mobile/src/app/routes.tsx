@@ -13,6 +13,7 @@ import { LanguageScreen } from '../features/settings/LanguageScreen';
 import { ConnectionScreen } from '../features/settings/ConnectionScreen';
 import { AboutScreen } from '../features/settings/AboutScreen';
 import { SecurityScreen } from '../features/settings/SecurityScreen';
+import { DefaultsScreen } from '../features/settings/DefaultsScreen';
 
 /**
  * Route table shared by the production app (hash on web, memory on native)
@@ -36,6 +37,7 @@ export function createAppRoutes(): RouteObject[] {
         { path: 'settings/language', element: <LanguageScreen /> },
         { path: 'settings/connection', element: <ConnectionScreen /> },
         { path: 'settings/security', element: <SecurityScreen /> },
+        { path: 'settings/defaults', element: <DefaultsScreen /> },
         { path: 'settings/about', element: <AboutScreen /> },
         { path: '*', element: <NotFoundScreen /> },
       ],

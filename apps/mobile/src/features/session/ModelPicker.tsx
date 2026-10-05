@@ -14,6 +14,8 @@ interface ModelPickerProps {
   onRetry: () => void;
   onSelect: (model: ModelSummary) => void;
   disabled?: boolean;
+  /** Shown on the opener when no model is selected (instead of the unknown-model text). */
+  emptyLabel?: string;
 }
 
 /** Opens a searchable list of every model the daemon offers. */
@@ -25,6 +27,7 @@ export function ModelPicker({
   onRetry,
   onSelect,
   disabled,
+  emptyLabel,
 }: ModelPickerProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -52,7 +55,7 @@ export function ModelPicker({
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        {current?.displayName ?? value ?? t('session.modelUnknown')}
+        {current?.displayName ?? value ?? emptyLabel ?? t('session.modelUnknown')}
       </button>
       <Sheet open={open} onClose={close} title={label} testId={`${testId}-picker`}>
         <div className="field">
@@ -92,6 +95,7 @@ export function ModelPicker({
                   className={`btn btn--ghost model-list__row${selected ? ' model-list__row--selected' : ''}`}
                   data-testid={`${testId}-option-${model.id}`}
                   aria-pressed={selected}
+                  disabled={model.disabledReason !== undefined}
                   onClick={() => {
                     close();
                     onSelect(model);
@@ -99,6 +103,14 @@ export function ModelPicker({
                 >
                   <span className="model-list__name">{model.displayName}</span>
                   <span className="model-list__provider">{model.provider}</span>
+                  {model.disabledReason !== undefined ? (
+                    <span
+                      className="model-list__reason"
+                      data-testid={`${testId}-reason-${model.id}`}
+                    >
+                      {model.disabledReason}
+                    </span>
+                  ) : null}
                   {selected ? (
                     <span className="model-list__current">{t('session.settings.current')}</span>
                   ) : null}

@@ -37,12 +37,20 @@ export type SettingsPatch = Pick<
   | 'specModeReasoningEffort'
 >;
 
+/** The session defaults the app edits through settings.updateDefaults. */
+export type DefaultsPatch = Pick<
+  SettingsPatch,
+  'modelId' | 'reasoningEffort' | 'autonomyLevel' | 'interactionMode'
+>;
+
 export interface ModelSummary {
   id: string;
   displayName: string;
   provider: string;
   supportedReasoningEfforts: EffortValue[];
   defaultReasoningEffort: EffortValue;
+  /** Set when the daemon lists the model but refuses it (plan, region, ...). */
+  disabledReason?: string;
 }
 
 export function snapshotOf(settings: Readonly<SessionSettings>): SessionSettingsSnapshot {
@@ -64,6 +72,7 @@ export function toModelSummary(model: ModelInfo): ModelSummary {
     provider: model.modelProvider,
     supportedReasoningEfforts: [...model.supportedReasoningEfforts],
     defaultReasoningEffort: model.defaultReasoningEffort,
+    ...(model.disabled ? { disabledReason: model.disabledReason } : {}),
   };
 }
 

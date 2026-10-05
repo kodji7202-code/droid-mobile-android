@@ -122,7 +122,16 @@
     "themeDark": "Închisă",
     "themeSystem": "Sistem",
     "connection": "Conexiune",
-    "security": "Securitate"
+    "security": "Securitate",
+    "defaults": "Valori implicite"
+  },
+  "defaults": {
+    "description": "Sesiunile noi pornesc cu aceste setări.",
+    "daemonDefault": "Implicit al daemonului",
+    "loading": "Se încarcă valorile implicite",
+    "loadFailedTitle": "Nu am putut încărca valorile implicite",
+    "loadFailed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou.",
+    "saveFailed": "Modificarea nu a fost salvată. Valoarea anterioară rămâne în vigoare."
   },
   "about": {
     "title": "Despre",

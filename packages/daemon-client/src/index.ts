@@ -27,6 +27,7 @@ export type {
 export type { SessionMessagesPage } from './paging';
 export type {
   AutonomyValue,
+  DefaultsPatch,
   EffortValue,
   InteractionModeValue,
   ModelSummary,

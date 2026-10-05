@@ -11,6 +11,7 @@ export function SettingsScreen() {
   const sections = [
     { to: '/settings/connection', testId: 'settings-connection', label: t('settings.connection') },
     { to: '/settings/security', testId: 'settings-security', label: t('settings.security') },
+    { to: '/settings/defaults', testId: 'settings-defaults', label: t('settings.defaults') },
     { to: '/settings/appearance', testId: 'settings-appearance', label: t('settings.appearance') },
     { to: '/settings/language', testId: 'settings-language', label: t('settings.language') },
     { to: '/settings/about', testId: 'settings-about', label: t('settings.about') },

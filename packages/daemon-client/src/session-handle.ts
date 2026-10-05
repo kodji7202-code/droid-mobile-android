@@ -109,6 +109,8 @@ export class SessionHandle {
   private lastCwd: string | undefined;
   private pendingDetach: Promise<void> | undefined;
   private accepted: { base: Readonly<SessionSettings>; patch: SettingsPatch } | undefined;
+  /** Settings writes not yet acknowledged; a turn waits for them so it runs with the new values. */
+  private readonly settingsInFlight = new Set<Promise<unknown>>();
 
   /** @internal Swaps the underlying session after a (re)attach. */
   attach(session: ConnectedDroidSession, droidToken: number): void {
@@ -174,6 +176,7 @@ export class SessionHandle {
 
   private async withSession<T>(op: (session: ConnectedDroidSession) => Promise<T>): Promise<T> {
     let session: ConnectedDroidSession;
+    await Promise.allSettled([...this.settingsInFlight]);
     try {
       session = await this.resolveSession();
     } catch (err) {
@@ -192,6 +195,7 @@ export class SessionHandle {
     options?: StreamOptions,
   ): AsyncGenerator<NormalizedEvent, void, undefined> {
     let session: ConnectedDroidSession;
+    await Promise.allSettled([...this.settingsInFlight]);
     try {
       session = await this.resolveSession();
     } catch (err) {
@@ -275,7 +279,13 @@ export class SessionHandle {
   /** Persists a settings change; resolves only once the daemon accepted it. */
   async applySettings(patch: SettingsPatch): Promise<void> {
     const base = this.settings;
-    await this.updateSettings(toUpdateOptions(patch));
+    const write = this.updateSettings(toUpdateOptions(patch));
+    this.settingsInFlight.add(write);
+    try {
+      await write;
+    } finally {
+      this.settingsInFlight.delete(write);
+    }
     const live = this.settings;
     // A notification that already merged the change replaced the SDK copy.
     if (live && live === base) {
