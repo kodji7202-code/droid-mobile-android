@@ -13,6 +13,7 @@ import type {
   SessionSettings,
   UpdateSessionSettingsOptions,
 } from '@factory/droid-sdk';
+import type { ChangeDirectoryResult, WorkspaceFileContent } from './connection';
 import type { NormalizedEvent } from './normalize';
 import { normalizeStreamEvent } from './normalize';
 import { isNonTransportFailure } from './classify';
@@ -64,6 +65,20 @@ export interface SessionHost {
   getRewindInfoById(sessionId: string, messageId: string): Promise<GetRewindInfoResult>;
   /** Removes a queued message from the daemon's queue so it is never executed. */
   deleteQueuedById(sessionId: string, requestId: string): Promise<void>;
+  changeDirectory(sessionId: string, workingDirectory: string): Promise<ChangeDirectoryResult>;
+  listFiles(sessionId: string, showHidden?: boolean): Promise<string[]>;
+  searchFiles(
+    sessionId: string,
+    query: string,
+    maxResults?: number,
+    showHidden?: boolean,
+  ): Promise<string[]>;
+  getFileContent(params: {
+    sessionId: string;
+    filePath: string;
+    metadataOnly?: boolean;
+    encoding?: 'utf8' | 'base64';
+  }): Promise<WorkspaceFileContent>;
 }
 
 /**
@@ -144,6 +159,40 @@ export class SessionHandle {
     return this.lastCwd;
   }
 
+  /** Updates the session working directory recorded on the handle. */
+  setCwd(newCwd: string): void {
+    this.lastCwd = newCwd;
+  }
+
+  /** Changes the session's working directory. */
+  async changeDirectory(workingDirectory: string): Promise<ChangeDirectoryResult> {
+    const result = await this.host.changeDirectory(this.id, workingDirectory);
+    this.setCwd(result.resolvedPath);
+    return result;
+  }
+
+  /** Lists files relative to this session's working directory. */
+  listFiles(showHidden?: boolean): Promise<string[]> {
+    return this.host.listFiles(this.id, showHidden);
+  }
+
+  /** Searches for files under this session's working directory. */
+  searchFiles(query: string, maxResults?: number, showHidden?: boolean): Promise<string[]> {
+    return this.host.searchFiles(this.id, query, maxResults, showHidden);
+  }
+
+  /** Retrieves content and metadata of a file under this session's working directory. */
+  getFileContent(params: {
+    filePath: string;
+    metadataOnly?: boolean;
+    encoding?: 'utf8' | 'base64';
+  }): Promise<WorkspaceFileContent> {
+    return this.host.getFileContent({
+      sessionId: this.id,
+      ...params,
+    });
+  }
+
   /** Token of the underlying connection this handle is attached to (-1 = none). */
   attachedToken(): number {
     return this.attachedDroidToken;
@@ -210,7 +259,11 @@ export class SessionHandle {
         abortSignal: options?.abortSignal,
       });
       for await (const raw of rawStream) {
-        yield normalizeStreamEvent(raw);
+        const ev = normalizeStreamEvent(raw);
+        if (ev.type === 'session_working_directory_changed') {
+          this.lastCwd = ev.cwd;
+        }
+        yield ev;
       }
     } catch (err) {
       if (options?.abortSignal?.aborted || isNonTransportFailure(err)) {

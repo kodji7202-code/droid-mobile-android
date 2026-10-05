@@ -6,12 +6,14 @@
  */
 export { createDaemonConnection } from './connection';
 export type {
+  ChangeDirectoryResult,
   DaemonConnection,
   DaemonConnectionOptions,
   DefaultSettings,
   DirectoryValidation,
   FolderTrust,
   SessionSearchParams,
+  WorkspaceFileContent,
 } from './connection';
 export { SessionHandle } from './session-handle';
 export type {

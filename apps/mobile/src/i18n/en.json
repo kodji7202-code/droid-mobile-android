@@ -439,5 +439,35 @@
       "failedTitle": "Could not load context usage",
       "failed": "The daemon did not answer. Check the connection and try again."
     }
+  },
+  "workspace": {
+    "title": "Workspace",
+    "emptyTitle": "No active session",
+    "emptyDescription": "Select or start a session to browse its workspace files.",
+    "pickSession": "Pick a session",
+    "startSession": "New session",
+    "changeDirectory": "Change directory",
+    "changeDirectoryTitle": "Change working directory",
+    "changeDirectoryPlaceholder": "Working directory path",
+    "change": "Change",
+    "invalidDirectory": "Directory does not exist or is not a folder",
+    "trustTitle": "Trust this folder?",
+    "trustMessage": "The daemon requires you to confirm trust for {{path}} before switching to it.",
+    "trustAccept": "Trust and switch",
+    "trustDecline": "Cancel",
+    "showHidden": "Show hidden files",
+    "hideHidden": "Hide hidden files",
+    "searchPlaceholder": "Search files…",
+    "clearSearch": "Clear search",
+    "searchNoResults": "No files match your search",
+    "emptyFolder": "This folder is empty",
+    "loading": "Loading…",
+    "fileViewerBack": "Back",
+    "fileViewerLoading": "Loading file…",
+    "fileViewerError": "Could not read file",
+    "fileViewerRetry": "Retry",
+    "fileViewerClose": "Close",
+    "fileViewerBinary": "Binary file ({{bytes}} bytes). Cannot be displayed as text.",
+    "fileViewerTruncated": "Showing first 1 MiB of {{total}}"
   }
 }

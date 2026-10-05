@@ -439,5 +439,35 @@
       "failedTitle": "Nu s-a putut încărca utilizarea contextului",
       "failed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou."
     }
+  },
+  "workspace": {
+    "title": "Spațiu de lucru",
+    "emptyTitle": "Nicio sesiune activă",
+    "emptyDescription": "Selectați sau începeți o sesiune pentru a explora fișierele din spațiul de lucru.",
+    "pickSession": "Alegeți o sesiune",
+    "startSession": "Sesiune nouă",
+    "changeDirectory": "Schimbă directorul",
+    "changeDirectoryTitle": "Schimbă directorul de lucru",
+    "changeDirectoryPlaceholder": "Calea directorului de lucru",
+    "change": "Schimbă",
+    "invalidDirectory": "Directorul nu există sau nu este un folder",
+    "trustTitle": "Aveți încredere în acest folder?",
+    "trustMessage": "Daemonul necesită confirmarea încrederii pentru {{path}} înainte de a comuta la acesta.",
+    "trustAccept": "Acordă încredere și comută",
+    "trustDecline": "Anulează",
+    "showHidden": "Afișează fișierele ascunse",
+    "hideHidden": "Ascunde fișierele ascunse",
+    "searchPlaceholder": "Caută fișiere…",
+    "clearSearch": "Șterge căutarea",
+    "searchNoResults": "Niciun fișier nu se potrivește căutării",
+    "emptyFolder": "Acest folder este gol",
+    "loading": "Se încarcă…",
+    "fileViewerBack": "Înapoi",
+    "fileViewerLoading": "Se încarcă fișierul…",
+    "fileViewerError": "Nu s-a putut citi fișierul",
+    "fileViewerRetry": "Reîncearcă",
+    "fileViewerClose": "Închide",
+    "fileViewerBinary": "Fișier binar ({{bytes}} octeți). Nu poate fi afișat ca text.",
+    "fileViewerTruncated": "Se afișează primul 1 MiB din {{total}}"
   }
 }

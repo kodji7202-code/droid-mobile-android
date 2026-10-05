@@ -9,8 +9,8 @@ import { useInteractionStore } from '../stores/interactions';
 import { useAndroidBackHandler } from './useAndroidBackHandler';
 import { useMediaQuery } from './useMediaQuery';
 
-/** Route paths that are roots of the four primary destinations. */
-export const ROOT_DESTINATIONS = ['/sessions', '/workspace', '/extensions', '/settings'] as const;
+/** Route paths that are roots of the primary destinations where back exits the app. */
+export const ROOT_DESTINATIONS = ['/sessions'] as const;
 
 export function isRootDestination(pathname: string): boolean {
   return (ROOT_DESTINATIONS as readonly string[]).includes(pathname);
@@ -27,7 +27,18 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const isWideViewport = useMediaQuery('(min-width: 840px)');
-  useAndroidBackHandler(navigate, isRootDestination(location.pathname));
+  const handleAndroidBack = (delta: number) => {
+    if (
+      typeof window !== 'undefined' &&
+      (window.history.state?.idx === 0 || window.history.length <= 1) &&
+      location.pathname !== '/sessions'
+    ) {
+      void navigate('/sessions', { replace: true });
+    } else {
+      void navigate(delta);
+    }
+  };
+  useAndroidBackHandler(handleAndroidBack, isRootDestination(location.pathname));
   const hasConnection = useConnectionStore((state) => state.connection !== null);
   const openSessionId = matchPath('/sessions/:id', location.pathname)?.params.id;
   // The request dialog of the open session is modal: only it (and Stop inside it) stays operable.

@@ -83,4 +83,66 @@ describe('workspace and session creation (real daemon 3101)', () => {
       conn.disconnect();
     },
   );
+
+  it(
+    'lists files, searches files, changes directory and gets file content',
+    {
+      timeout: 30_000,
+    },
+    async () => {
+      const conn = createDaemonConnection({ url: DAEMON_URL, apiKey: API_KEY });
+      await conn.connect();
+      const dir1 = await scratch();
+      const dir2 = await scratch();
+      await conn.trustFolder(dir1);
+      await conn.trustFolder(dir2);
+
+      // Setup files in dir1
+      await mkdir(join(dir1, 'src'));
+      await writeFile(join(dir1, 'hello.txt'), 'hello world');
+      await writeFile(join(dir1, 'src', 'hello-world.ts'), 'export const greeting = "hello";');
+      await writeFile(join(dir1, 'other.md'), '# Documentation');
+      await writeFile(join(dir1, '.hidden-note'), 'secret');
+
+      // Setup files in dir2
+      await writeFile(join(dir2, 'readme-2.txt'), 'second directory');
+
+      const handle = await conn.createSession({ cwd: dir1 });
+      expect(handle.cwd).toBe(dir1);
+
+      // listFiles without hidden
+      const filesWithoutHidden = await handle.listFiles(false);
+      const normalizedWithoutHidden = filesWithoutHidden.map((f) => f.replace(/\\/g, '/')).sort();
+      expect(normalizedWithoutHidden).toContain('hello.txt');
+      expect(normalizedWithoutHidden).toContain('other.md');
+      expect(normalizedWithoutHidden).toContain('src/hello-world.ts');
+      expect(normalizedWithoutHidden).not.toContain('.hidden-note');
+
+      // listFiles with hidden
+      const filesWithHidden = await handle.listFiles(true);
+      const normalizedWithHidden = filesWithHidden.map((f) => f.replace(/\\/g, '/')).sort();
+      expect(normalizedWithHidden).toContain('.hidden-note');
+
+      // searchFiles
+      const searchHits = await handle.searchFiles('hello');
+      const normalizedHits = searchHits.map((f) => f.replace(/\\/g, '/'));
+      expect(normalizedHits.some((h) => h.includes('hello.txt'))).toBe(true);
+
+      // getFileContent
+      const fileContent = await handle.getFileContent({ filePath: 'hello.txt' });
+      expect(fileContent.content).toBe('hello world');
+      expect(fileContent.byteLength).toBe(11);
+
+      // changeDirectory to dir2
+      const changeRes = await handle.changeDirectory(dir2);
+      expect(changeRes.resolvedPath.toLowerCase()).toBe(dir2.toLowerCase());
+      expect(handle.cwd?.toLowerCase()).toBe(dir2.toLowerCase());
+
+      // listFiles in dir2
+      const dir2Files = await handle.listFiles(false);
+      expect(dir2Files.map((f) => f.replace(/\\/g, '/'))).toEqual(['readme-2.txt']);
+
+      conn.disconnect();
+    },
+  );
 });

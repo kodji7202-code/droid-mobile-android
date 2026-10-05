@@ -88,6 +88,9 @@ export interface SessionView {
 
 interface SessionViewStore {
   views: Record<string, SessionView>;
+  /** Id of the session currently active or selected in the app (null on cold start until chosen). */
+  activeSessionId: string | null;
+  setActiveSessionId(id: string | null): void;
   /** Resumes the session on the daemon and loads the latest page of history. */
   open(connection: DaemonConnection, id: string, epoch: number): Promise<void>;
   /** Registers a session that was just created (no history yet). */
@@ -109,6 +112,8 @@ interface SessionViewStore {
    * a reload): polls the stored history until the daemon is done working.
    */
   follow(id: string): Promise<void>;
+  /** Updates the active working directory of a session view. */
+  updateCwd(id: string, cwd: string): void;
   /** Re-reads the latest history of every idle ready view after the app returns to the foreground. */
   refreshOnResume(): Promise<void>;
   reset(): void;
@@ -196,6 +201,8 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
             update(id, () => ({ workingState: event.state }));
           } else if (event.type === 'token_usage') {
             update(id, () => ({ usage: event.usage }));
+          } else if (event.type === 'session_working_directory_changed') {
+            update(id, () => ({ cwd: event.cwd }));
           } else {
             if (event.type === 'user') dequeue(id, event.message.id);
             if (event.type === 'result' && event.interrupted) stoppedByDaemon = true;
@@ -346,6 +353,10 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
 
   return {
     views: {},
+    activeSessionId: null,
+    setActiveSessionId(id) {
+      set({ activeSessionId: id });
+    },
 
     async open(connection, id, epoch) {
       const existing = get().views[id];
@@ -400,6 +411,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
     adopt(handle, epoch) {
       bumpWindow(handle.id);
       set((state) => ({
+        activeSessionId: handle.id,
         views: {
           ...state.views,
           [handle.id]: {
@@ -557,8 +569,12 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       }
     },
 
+    updateCwd(id, cwd) {
+      patch(id, { cwd });
+    },
+
     reset() {
-      set({ views: {} });
+      set({ views: {}, activeSessionId: null });
     },
   };
 });

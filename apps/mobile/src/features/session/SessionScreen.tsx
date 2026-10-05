@@ -42,6 +42,7 @@ export function SessionScreen() {
   const ready = status === 'ready';
   const view = useSessionViewStore((state) => state.views[id]);
   const open = useSessionViewStore((state) => state.open);
+  const setActiveSessionId = useSessionViewStore((state) => state.setActiveSessionId);
   const loadOlder = useSessionViewStore((state) => state.loadOlder);
   const send = useSessionViewStore((state) => state.send);
   const retry = useSessionViewStore((state) => state.retry);
@@ -60,6 +61,12 @@ export function SessionScreen() {
   );
   const { showToast } = useToast();
   const { snapshot } = useSettingsSnapshot(view?.handle, HEADER_FOLLOW_INTERVAL_MS);
+
+  useEffect(() => {
+    if (id !== '') {
+      setActiveSessionId(id);
+    }
+  }, [id, setActiveSessionId]);
 
   useEffect(() => {
     if (ready && connection && id !== '') {

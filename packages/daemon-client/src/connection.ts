@@ -58,6 +58,12 @@ export type DirectoryValidation = Awaited<
   ReturnType<ConnectedDroid['workspace']['validateDirectory']>
 >;
 export type FolderTrust = Awaited<ReturnType<ConnectedDroid['workspace']['checkTrust']>>;
+export type ChangeDirectoryResult = Awaited<
+  ReturnType<ConnectedDroid['workspace']['changeDirectory']>
+>;
+export type WorkspaceFileContent = Awaited<
+  ReturnType<ConnectedDroid['workspace']['getFileContent']>
+>;
 export type DefaultSettings = Awaited<ReturnType<ConnectedDroid['settings']['getDefaults']>>;
 
 export interface DaemonConnectionOptions {
@@ -121,6 +127,27 @@ export interface DaemonConnection {
   checkFolderTrust(path: string): Promise<FolderTrust>;
   /** Records the user's trust decision for the folder with the daemon. */
   trustFolder(path: string): Promise<void>;
+  /** Changes the working directory of the given session. */
+  changeDirectory(params: {
+    sessionId: string;
+    workingDirectory: string;
+  }): Promise<ChangeDirectoryResult>;
+  /** Lists files relative to the session's working directory. */
+  listFiles(sessionId: string, showHidden?: boolean): Promise<string[]>;
+  /** Searches for files matching a query under the session's working directory. */
+  searchFiles(
+    sessionId: string,
+    query: string,
+    maxResults?: number,
+    showHidden?: boolean,
+  ): Promise<string[]>;
+  /** Retrieves content and metadata of a file under the session's working directory. */
+  getFileContent(params: {
+    sessionId: string;
+    filePath: string;
+    metadataOnly?: boolean;
+    encoding?: 'utf8' | 'base64';
+  }): Promise<WorkspaceFileContent>;
   /** Daemon-wide default session settings (model, autonomy, ...). */
   getDefaultSettings(): Promise<DefaultSettings>;
   /** Writes daemon-wide defaults; resolves once the daemon acknowledged them. */
@@ -601,6 +628,26 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
         } as Parameters<ReturnType<typeof requireDroid>['sessions']['resolveQueuedMessage']>[1]),
       );
     },
+    changeDirectory: (sessionId, workingDirectory) =>
+      mapSdkError(async () => {
+        const result = await requireDroid().workspace.changeDirectory({
+          sessionId,
+          workingDirectory,
+        });
+        const handle = handles.get(sessionId);
+        if (handle) {
+          handle.setCwd(result.resolvedPath);
+        }
+        return result;
+      }),
+    listFiles: (sessionId, showHidden) =>
+      mapSdkError(() => requireDroid().workspace.listFiles(sessionId, showHidden)),
+    searchFiles: (sessionId, query, maxResults, showHidden) =>
+      mapSdkError(() =>
+        requireDroid().workspace.searchFiles(sessionId, query, maxResults, showHidden),
+      ),
+    getFileContent: (params) =>
+      mapSdkError(() => requireDroid().workspace.getFileContent(params)),
   };
 
   const connection: DaemonConnection = {
@@ -625,6 +672,11 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     trustFolder: async (path) => {
       await mapSdkError(() => requireDroid().workspace.trust(path));
     },
+    changeDirectory: (params) => host.changeDirectory(params.sessionId, params.workingDirectory),
+    listFiles: (sessionId, showHidden) => host.listFiles(sessionId, showHidden),
+    searchFiles: (sessionId, query, maxResults, showHidden) =>
+      host.searchFiles(sessionId, query, maxResults, showHidden),
+    getFileContent: (params) => host.getFileContent(params),
     getDefaultSettings: () => mapSdkError(() => requireDroid().settings.getDefaults()),
     updateDefaultSettings: async (patch) => {
       await mapSdkError(() =>
