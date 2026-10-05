@@ -10,6 +10,20 @@ export type DaemonResolvePullRequestStatusesResult = Awaited<
   ReturnType<ConnectedDroid['git']['resolvePullRequestStatuses']>
 >;
 
+export type DaemonListGitBranchesResult = Awaited<
+  ReturnType<ConnectedDroid['git']['listBranches']>
+>;
+export type DaemonCheckoutGitBranchRequestParams = Parameters<
+  ConnectedDroid['git']['checkoutBranch']
+>[0];
+export type DaemonCheckoutGitBranchResult = Awaited<
+  ReturnType<ConnectedDroid['git']['checkoutBranch']>
+>;
+export type DaemonGitPushResult = Awaited<ReturnType<ConnectedDroid['git']['push']>>;
+export type DaemonGitCommitResult = Awaited<ReturnType<ConnectedDroid['git']['commit']>>;
+export type DaemonCreatePRRequestParams = Parameters<ConnectedDroid['git']['createPullRequest']>[0];
+export type DaemonCreatePRResult = Awaited<ReturnType<ConnectedDroid['git']['createPullRequest']>>;
+
 export const DaemonPullRequestUnavailableReason = {
   UnsupportedRemote: 'unsupported_remote',
   LookupFailed: 'lookup_failed',

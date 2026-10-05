@@ -39,6 +39,13 @@ import type { SessionMessagesPage } from './paging';
 import { toModelSummary } from './settings';
 import type { DefaultsPatch, ModelSummary } from './settings';
 import type {
+  DaemonCheckoutGitBranchRequestParams,
+  DaemonCheckoutGitBranchResult,
+  DaemonCreatePRRequestParams,
+  DaemonCreatePRResult,
+  DaemonGitCommitResult,
+  DaemonGitPushResult,
+  DaemonListGitBranchesResult,
   DaemonGetGitDiffResult,
   DaemonResolvePullRequestStatusesRequestParams,
   DaemonResolvePullRequestStatusesResult,
@@ -159,6 +166,18 @@ export interface DaemonConnection {
     baseBranch?: string;
     statsOnly?: boolean;
   }): Promise<DaemonGetGitDiffResult>;
+  /** Lists local and origin branches of the repository at `cwd`. */
+  listGitBranches(cwd: string): Promise<DaemonListGitBranchesResult>;
+  /** Switches or creates a branch; the daemon may answer `needs_resolution`. */
+  checkoutGitBranch(
+    params: DaemonCheckoutGitBranchRequestParams,
+  ): Promise<DaemonCheckoutGitBranchResult>;
+  /** Commits the session's changes with the daemon's own file selection. */
+  commitGitChanges(sessionId: string, message: string): Promise<DaemonGitCommitResult>;
+  /** Pushes the session's current branch to its remote. */
+  pushGitBranch(sessionId: string): Promise<DaemonGitPushResult>;
+  /** Creates a pull request for the session's branch (needs a GitHub remote). */
+  createPullRequest(params: DaemonCreatePRRequestParams): Promise<DaemonCreatePRResult>;
   /** Resolves pull request statuses for branches across sessions (at most 20 lookups per call). */
   resolvePullRequestStatuses(
     params: DaemonResolvePullRequestStatusesRequestParams,
@@ -702,6 +721,12 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       host.searchFiles(sessionId, query, maxResults, showHidden),
     getFileContent: (params) => host.getFileContent(params),
     getGitDiff: (params) => host.getGitDiff(params.sessionId, params),
+    listGitBranches: (cwd) => mapSdkError(() => requireDroid().git.listBranches(cwd)),
+    checkoutGitBranch: (params) => mapSdkError(() => requireDroid().git.checkoutBranch(params)),
+    commitGitChanges: (sessionId, message) =>
+      mapSdkError(() => requireDroid().git.commit(sessionId, message)),
+    pushGitBranch: (sessionId) => mapSdkError(() => requireDroid().git.push(sessionId)),
+    createPullRequest: (params) => mapSdkError(() => requireDroid().git.createPullRequest(params)),
     resolvePullRequestStatuses: (params) => host.resolvePullRequestStatuses(params),
     getDefaultSettings: () => mapSdkError(() => requireDroid().settings.getDefaults()),
     updateDefaultSettings: async (patch) => {

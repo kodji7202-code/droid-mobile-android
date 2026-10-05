@@ -9,11 +9,13 @@ import { ChangeDirectorySheet } from './ChangeDirectorySheet';
 import { FileSearch } from './FileSearch';
 import { FileViewer } from './FileViewer';
 import { FilesTree } from './FilesTree';
+import { GitActions } from './GitActions';
 import { GitChangesList } from './GitChangesList';
 import { GitDiffViewer } from './GitDiffViewer';
 import { splitUnifiedDiffByFile } from './diffParser';
 import { buildTree, flattenTree } from './treeBuilder';
 import type {
+  GitDiffFile,
   DaemonGetGitDiffResult,
   DaemonResolvePullRequestStatusesRequestParams,
 } from '@droidmobile/daemon-client';
@@ -21,6 +23,7 @@ import type { PullRequestStatusInfo } from './PullRequestChip';
 
 const EMPTY_EXPANDED: string[] = [];
 const EMPTY_FILES: string[] = [];
+const EMPTY_DIFF_FILES: GitDiffFile[] = [];
 
 export function WorkspaceScreen() {
   const { t } = useTranslation();
@@ -29,6 +32,7 @@ export function WorkspaceScreen() {
 
   const connection = useConnectionStore((s) => s.connection);
   const readyEpoch = useConnectionStore((s) => s.readyEpoch);
+  const online = useConnectionStore((s) => s.status === 'ready');
 
   const activeSessionId = useSessionViewStore((s) => s.activeSessionId);
   const activeView = useSessionViewStore((s) =>
@@ -109,7 +113,7 @@ export function WorkspaceScreen() {
       return;
     }
     void loadFiles(activeSessionId, showHidden);
-  }, [activeSessionId, cwd, showHidden, loadFiles]);
+  }, [activeSessionId, cwd, showHidden, loadFiles, readyEpoch]);
 
   // Load Git diff and PR status
   const loadGitDiff = useCallback(
@@ -172,7 +176,17 @@ export function WorkspaceScreen() {
     if (activeTab === 'changes' || viewingDiffFile) {
       void loadGitDiff(activeSessionId);
     }
-  }, [activeSessionId, cwd, activeTab, viewingDiffFile, loadGitDiff]);
+  }, [activeSessionId, cwd, activeTab, viewingDiffFile, loadGitDiff, readyEpoch]);
+
+  const handleGitMutated = useCallback(() => {
+    if (!activeSessionId) return;
+    void loadGitDiff(activeSessionId);
+    void loadFiles(activeSessionId, showHidden);
+  }, [activeSessionId, loadGitDiff, loadFiles, showHidden]);
+
+  // `unstagedFiles` is the working tree against HEAD (staged, unstaged and untracked), i.e. what
+  // the daemon's commit picks up; `files` also contains commits ahead of the base branch.
+  const commitFiles = gitDiffData?.success ? gitDiffData.data.unstagedFiles : EMPTY_DIFF_FILES;
 
   const tree = useMemo(() => buildTree(rawFiles), [rawFiles]);
   const flattenedItems = useMemo(() => flattenTree(tree, expandedPaths), [tree, expandedPaths]);
@@ -395,6 +409,7 @@ export function WorkspaceScreen() {
               type="button"
               className="btn btn--secondary btn--sm"
               data-testid="workspace-change-directory"
+              disabled={!online}
               onClick={() => setChangeDirOpen(true)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
             >
@@ -481,6 +496,18 @@ export function WorkspaceScreen() {
           flexDirection: 'column',
         }}
       >
+        {activeTab === 'changes' && gitDiffData?.success ? (
+          <GitActions
+            sessionId={activeSessionId}
+            cwd={cwd}
+            branch={gitDiffData.data.branch}
+            baseBranch={gitDiffData.data.baseBranch}
+            pushableCommitCount={gitDiffData.data.pushableCommitCount}
+            files={commitFiles}
+            online={online}
+            onRefresh={handleGitMutated}
+          />
+        ) : null}
         {activeTab === 'changes' ? (
           <GitChangesList
             files={gitDiffData?.success ? gitDiffData.data.files : []}

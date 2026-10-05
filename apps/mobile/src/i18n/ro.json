@@ -491,7 +491,15 @@
     "pr": {
       "open": "PR deschis",
       "none": "Niciun pull request",
-      "unavailable": "PR indisponibil"
+      "unavailable": "PR indisponibil",
+      "createButton": "Creează PR",
+      "createTitle": "Creează pull request",
+      "titleLabel": "Titlu",
+      "bodyLabel": "Descriere",
+      "baseLabel": "Ramura de bază",
+      "draftLabel": "Ciornă",
+      "submit": "Creează pull request",
+      "creating": "Se creează…"
     },
     "diff": {
       "back": "Înapoi",
@@ -499,6 +507,47 @@
       "empty": "Nicio modificare în acest fișier",
       "loading": "Se încarcă diferențele…",
       "error": "Eroare la încărcarea diferențelor"
+    },
+    "offline": "Offline: acțiunile git sunt indisponibile până la reconectarea daemonului.",
+    "branches": {
+      "title": "Ramuri",
+      "search": "Caută ramuri",
+      "current": "curentă",
+      "remote": "origin",
+      "empty": "Nicio ramură potrivită",
+      "newName": "Numele noii ramuri",
+      "create": "Creează ramura",
+      "detached": "HEAD detașat",
+      "resolveTitle": "Modificări necomise",
+      "changedFiles_one": "{{count}} fișier modificat",
+      "changedFiles_other": "{{count}} de fișiere modificate",
+      "additions_one": "{{count}} adăugare",
+      "additions_other": "{{count}} de adăugări",
+      "deletions_one": "{{count}} ștergere",
+      "deletions_other": "{{count}} de ștergeri",
+      "untrackedFiles_one": "{{count}} fișier neurmărit",
+      "untrackedFiles_other": "{{count}} de fișiere neurmărite",
+      "stash": "Stash",
+      "commit": "Commit"
+    },
+    "commit": {
+      "button": "Commit",
+      "title": "Commit modificări",
+      "filesTitle_one": "{{count}} fișier modificat va fi comis",
+      "filesTitle_other": "{{count}} de fișiere modificate vor fi comise",
+      "message": "Mesajul commit-ului",
+      "submit": "Commit",
+      "committing": "Se face commit…",
+      "failed": "Commit-ul a eșuat",
+      "success": "Modificări comise"
+    },
+    "push": {
+      "button": "Push",
+      "pushing": "Se trimite…",
+      "success": "Ramură trimisă",
+      "failed": "Trimiterea ramurii a eșuat",
+      "pending_one": "{{count}} commit de trimis",
+      "pending_other": "{{count}} de commit-uri de trimis"
     }
   }
 }

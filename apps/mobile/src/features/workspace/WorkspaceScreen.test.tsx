@@ -120,7 +120,7 @@ function setupConnection(overrides: Partial<DaemonConnection> = {}) {
     ...overrides,
   } as unknown as DaemonConnection;
 
-  useConnectionStore.setState({ connection, readyEpoch: 1 });
+  useConnectionStore.setState({ connection, readyEpoch: 1, status: 'ready' });
   return {
     connection,
     listFiles,

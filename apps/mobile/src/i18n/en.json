@@ -491,7 +491,15 @@
     "pr": {
       "open": "Open PR",
       "none": "No pull request",
-      "unavailable": "PR unavailable"
+      "unavailable": "PR unavailable",
+      "createButton": "Create PR",
+      "createTitle": "Create pull request",
+      "titleLabel": "Title",
+      "bodyLabel": "Description",
+      "baseLabel": "Base branch",
+      "draftLabel": "Draft",
+      "submit": "Create pull request",
+      "creating": "Creating…"
     },
     "diff": {
       "back": "Back",
@@ -499,6 +507,47 @@
       "empty": "No changes in this file",
       "loading": "Loading diff…",
       "error": "Failed to load diff"
+    },
+    "offline": "Offline: git actions are unavailable until the daemon reconnects.",
+    "branches": {
+      "title": "Branches",
+      "search": "Search branches",
+      "current": "current",
+      "remote": "origin",
+      "empty": "No matching branches",
+      "newName": "New branch name",
+      "create": "Create branch",
+      "detached": "detached HEAD",
+      "resolveTitle": "Uncommitted changes",
+      "changedFiles_one": "{{count}} changed file",
+      "changedFiles_other": "{{count}} changed files",
+      "additions_one": "{{count}} addition",
+      "additions_other": "{{count}} additions",
+      "deletions_one": "{{count}} deletion",
+      "deletions_other": "{{count}} deletions",
+      "untrackedFiles_one": "{{count}} untracked file",
+      "untrackedFiles_other": "{{count}} untracked files",
+      "stash": "Stash",
+      "commit": "Commit"
+    },
+    "commit": {
+      "button": "Commit",
+      "title": "Commit changes",
+      "filesTitle_one": "{{count}} changed file will be committed",
+      "filesTitle_other": "{{count}} changed files will be committed",
+      "message": "Commit message",
+      "submit": "Commit",
+      "committing": "Committing…",
+      "failed": "Failed to commit changes",
+      "success": "Changes committed"
+    },
+    "push": {
+      "button": "Push",
+      "pushing": "Pushing…",
+      "success": "Branch pushed",
+      "failed": "Failed to push branch to remote",
+      "pending_one": "{{count}} commit to push",
+      "pending_other": "{{count}} commits to push"
     }
   }
 }
