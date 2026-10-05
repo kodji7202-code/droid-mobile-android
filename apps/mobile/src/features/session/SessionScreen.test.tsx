@@ -153,6 +153,20 @@ describe('SessionScreen', () => {
     expect(resumeSession).toHaveBeenCalledTimes(2);
   });
 
+  it('offers fork, compact and rewind from the actions menu', async () => {
+    const { connection } = fakeConnection([[message('u1', 'user', 1, 'hi')]]);
+    renderRoute(connection);
+    const user = userEvent.setup();
+    await screen.findByTestId('msg-user-0');
+
+    await user.click(screen.getByTestId('session-actions-open'));
+    expect(screen.getByTestId('session-action-fork')).toBeInTheDocument();
+    expect(screen.getByTestId('session-action-compact')).toBeInTheDocument();
+    await user.click(screen.getByTestId('session-action-rewind'));
+    expect(await screen.findByTestId('session-rewind')).toBeInTheDocument();
+    expect(screen.queryByTestId('session-actions-menu')).not.toBeInTheDocument();
+  });
+
   it('goes back to the list', async () => {
     const { connection } = fakeConnection([[]]);
     renderRoute(connection);

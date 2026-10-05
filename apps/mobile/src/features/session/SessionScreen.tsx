@@ -5,6 +5,7 @@ import { BackIcon, ContextIcon, SettingsIcon } from '../../components/icons';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Skeleton } from '../../components/Skeleton';
+import { useToast } from '../../components/Toast';
 import { useConnectionStore } from '../../stores/connection';
 import { useInteractionStore } from '../../stores/interactions';
 import { useSessionViewStore } from '../../stores/sessionView';
@@ -13,6 +14,12 @@ import { InteractionHost } from '../chat/InteractionHost';
 import { useChatScroll } from '../chat/useChatScroll';
 import { Transcript } from '../chat/Transcript';
 import { UsageChip } from '../chat/UsageChip';
+import type { SessionHandle } from '@droidmobile/daemon-client';
+import { CompactSheet } from './actions/CompactSheet';
+import { ForkSheet } from './actions/ForkSheet';
+import { RewindSheet } from './actions/RewindSheet';
+import { SessionActionsMenu } from './actions/SessionActionsMenu';
+import type { SessionAction } from './actions/SessionActionsMenu';
 import { ContextUsageSheet } from './ContextUsageSheet';
 import { SessionSettingsSheet } from './SessionSettingsSheet';
 import { useSettingsSnapshot } from './useSessionSettings';
@@ -45,6 +52,12 @@ export function SessionScreen() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  // The handle is captured when the action opens so a sheet that is still showing its result survives the switch to another session.
+  const [action, setAction] = useState<{ kind: SessionAction; handle?: SessionHandle } | null>(
+    null,
+  );
+  const { showToast } = useToast();
   const { snapshot } = useSettingsSnapshot(view?.handle, HEADER_FOLLOW_INTERVAL_MS);
 
   useEffect(() => {
@@ -112,6 +125,15 @@ export function SessionScreen() {
           >
             <ContextIcon />
           </button>
+          <SessionActionsMenu
+            open={menuOpen}
+            disabled={view?.status !== 'ready' || view.turnActive}
+            onToggle={() => setMenuOpen((value) => !value)}
+            onSelect={(kind) => {
+              setMenuOpen(false);
+              setAction({ kind, handle: view?.handle });
+            }}
+          />
           <button
             type="button"
             className="btn btn--secondary session-screen__model"
@@ -238,6 +260,37 @@ export function SessionScreen() {
         handle={view?.handle}
         refreshKey={contextRefreshKey}
       />
+      {action?.kind === 'fork' ? (
+        <ForkSheet
+          handle={action.handle}
+          onClose={() => setAction(null)}
+          onForked={(newId) => {
+            setAction(null);
+            showToast(t('session.actions.fork.done'), 'success');
+            navigate(`/sessions/${newId}`);
+          }}
+        />
+      ) : null}
+      {action?.kind === 'compact' ? (
+        <CompactSheet
+          handle={action.handle}
+          onClose={() => setAction(null)}
+          onCompacted={(result) => {
+            if (result.newSessionId !== id) {
+              navigate(`/sessions/${result.newSessionId}`);
+            } else if (connection) {
+              void open(connection, id, readyEpoch);
+            }
+          }}
+        />
+      ) : null}
+      {action?.kind === 'rewind' ? (
+        <RewindSheet
+          handle={action.handle}
+          onClose={() => setAction(null)}
+          onRewound={(result) => navigate(`/sessions/${result.newSessionId}`)}
+        />
+      ) : null}
       <InteractionHost sessionId={id} />
     </section>
   );

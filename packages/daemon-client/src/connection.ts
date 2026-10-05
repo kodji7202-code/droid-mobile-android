@@ -589,6 +589,8 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     },
     getContextBreakdownById: (sessionId) =>
       mapSdkError(() => requireDroid().sessions.getContextBreakdown(sessionId)),
+    getRewindInfoById: (sessionId, messageId) =>
+      mapSdkError(() => requireDroid().sessions.getRewindInfo(sessionId, messageId)),
     deleteQueuedById: async (sessionId, requestId) => {
       await mapSdkError(() =>
         requireDroid().sessions.resolveQueuedMessage(sessionId, {

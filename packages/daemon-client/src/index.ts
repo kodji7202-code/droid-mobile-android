@@ -14,7 +14,16 @@ export type {
   SessionSearchParams,
 } from './connection';
 export { SessionHandle } from './session-handle';
-export type { ContextBreakdown, SessionHost, StreamOptions } from './session-handle';
+export type {
+  CompactResult,
+  ContextBreakdown,
+  ForkResult,
+  RewindInfo,
+  RewindParams,
+  RewindResult,
+  SessionHost,
+  StreamOptions,
+} from './session-handle';
 export type { SessionMessagesPage } from './paging';
 export type {
   AutonomyValue,

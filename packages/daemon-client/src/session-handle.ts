@@ -8,6 +8,7 @@ import type {
   ConnectedDroidSession,
   ContextBreakdownResult,
   ForkSessionOptions,
+  GetRewindInfoResult,
   RewindSessionParams,
   SessionSettings,
   UpdateSessionSettingsOptions,
@@ -33,9 +34,11 @@ export interface StreamOptions {
 /** The daemon's context-window breakdown for a session. */
 export type ContextBreakdown = ContextBreakdownResult;
 
-type FacadeForkResult = Awaited<ReturnType<ConnectedDroidSession['fork']>>;
-type FacadeCompactResult = Awaited<ReturnType<ConnectedDroidSession['compact']>>;
-type FacadeRewindResult = Awaited<ReturnType<ConnectedDroidSession['rewind']>>;
+export type ForkResult = Awaited<ReturnType<ConnectedDroidSession['fork']>>;
+export type CompactResult = Awaited<ReturnType<ConnectedDroidSession['compact']>>;
+export type RewindResult = Awaited<ReturnType<ConnectedDroidSession['rewind']>>;
+export type RewindInfo = GetRewindInfoResult;
+export type RewindParams = RewindSessionParams;
 
 /** Minimal view of the owning connection that the handle needs. */
 export interface SessionHost {
@@ -58,6 +61,7 @@ export interface SessionHost {
   updateSettingsById(sessionId: string, params: UpdateSessionSettingsOptions): Promise<void>;
   archiveById(sessionId: string, options?: { force?: boolean }): Promise<void>;
   getContextBreakdownById(sessionId: string): Promise<ContextBreakdown>;
+  getRewindInfoById(sessionId: string, messageId: string): Promise<GetRewindInfoResult>;
   /** Removes a queued message from the daemon's queue so it is never executed. */
   deleteQueuedById(sessionId: string, requestId: string): Promise<void>;
 }
@@ -288,16 +292,21 @@ export class SessionHandle {
     });
   }
 
-  fork(options?: ForkSessionOptions): Promise<FacadeForkResult> {
+  fork(options?: ForkSessionOptions): Promise<ForkResult> {
     return this.withSession((s) => s.fork(options));
   }
 
-  compact(customInstructions?: string): Promise<FacadeCompactResult> {
+  compact(customInstructions?: string): Promise<CompactResult> {
     return this.withSession((s) => s.compact(customInstructions));
   }
 
-  rewind(params: RewindSessionParams): Promise<FacadeRewindResult> {
+  rewind(params: RewindSessionParams): Promise<RewindResult> {
     return this.withSession((s) => s.rewind(params));
+  }
+
+  /** Files a rewind to `messageId` would restore, delete, or can no longer restore. */
+  getRewindInfo(messageId: string): Promise<GetRewindInfoResult> {
+    return this.withSession(() => this.host.getRewindInfoById(this.id, messageId));
   }
 
   /** Token usage of the context window by category, straight from the daemon. */
