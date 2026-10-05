@@ -3,6 +3,8 @@ import type { SessionMessage } from '@factory/droid-sdk';
 import type { NormalizedEvent } from './normalize';
 import {
   addPendingUser,
+  appendError,
+  appendTurnFailure,
   applyStreamEvent,
   failPendingUser,
   itemsFromMessages,
@@ -346,5 +348,46 @@ describe('thinking text', () => {
   it('omits the thinking key when there is none', () => {
     const items = itemsFromMessages([msg('a1', 'assistant', 1, text('hi'))]);
     expect(items[0]).not.toHaveProperty('thinking');
+  });
+});
+
+describe('appendTurnFailure', () => {
+  const result = (over: Record<string, unknown> = {}) =>
+    ({
+      type: 'result',
+      sessionId: 's1',
+      subtype: 'error_during_execution',
+      success: false,
+      interrupted: false,
+      durationMs: 1,
+      text: '',
+      turnCount: 0,
+      tokenUsage: null,
+      ...over,
+    }) as NormalizedEvent & { type: 'result' };
+  const pending = addPendingUser([], 'local-1', 'hi');
+
+  it('adds an error with the subtype when the turn produced nothing', () => {
+    const items = appendTurnFailure(pending, 'local-1', result());
+    expect(items.at(-1)).toMatchObject({
+      kind: 'error',
+      text: expect.stringContaining('error_during_execution'),
+    });
+  });
+
+  it('prefers the redacted result text', () => {
+    const items = appendTurnFailure(pending, 'local-1', result({ text: 'bad token=abc123 here' }));
+    const last = items.at(-1);
+    expect(last?.kind === 'error' && last.text).toContain('[REDACTED]');
+    expect(last?.kind === 'error' && last.text).not.toContain('abc123');
+  });
+
+  it('leaves successful, interrupted and answered turns unchanged', () => {
+    expect(appendTurnFailure(pending, 'local-1', result({ success: true }))).toEqual(pending);
+    expect(appendTurnFailure(pending, 'local-1', result({ interrupted: true }))).toEqual(pending);
+    const answered = [...pending, { kind: 'assistant', id: 'a', text: 'ok' } as TranscriptItem];
+    expect(appendTurnFailure(answered, 'local-1', result())).toEqual(answered);
+    const errored = appendError(pending, 'boom');
+    expect(appendTurnFailure(errored, 'local-1', result())).toEqual(errored);
   });
 });

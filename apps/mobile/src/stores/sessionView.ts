@@ -13,6 +13,7 @@ import {
   removeItem,
   settleTurn,
   appendError,
+  appendTurnFailure,
 } from '@droidmobile/daemon-client';
 import type {
   DaemonConnection,
@@ -155,6 +156,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       });
     });
     let stoppedByDaemon = false;
+    let failedResult: Parameters<typeof appendTurnFailure>[2] | undefined;
     try {
       const outcome = await runTurn(
         handle,
@@ -166,6 +168,7 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
             update(id, () => ({ usage: event.usage }));
           } else {
             if (event.type === 'result' && event.interrupted) stoppedByDaemon = true;
+            if (event.type === 'result' && !event.success) failedResult = event;
             update(id, (view) => ({ items: [...applyStreamEvent(view.items, event)] }));
           }
         },
@@ -173,7 +176,9 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
         toStreamOptions(attachments),
       );
       update(id, (view) => {
-        const settled = failPendingUser(settleTurn(view.items), localId);
+        const ended = settleTurn(view.items);
+        const explained = failedResult ? appendTurnFailure(ended, localId, failedResult) : ended;
+        const settled = failPendingUser(explained, localId);
         return {
           items: stoppedByDaemon || view.stopRequested ? markStopped(settled) : settled,
           interrupted: outcome === 'lost',

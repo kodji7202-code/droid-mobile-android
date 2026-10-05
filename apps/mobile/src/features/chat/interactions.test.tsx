@@ -350,3 +350,33 @@ describe('request ownership by facade generation', () => {
     expect(useInteractionStore.getState().expired).toEqual({ s1: true });
   });
 });
+
+describe('failed turn', () => {
+  it('explains a success:false result with a redacted reason and retries once', async () => {
+    const setupScript = vi.fn();
+    let calls = 0;
+    setup(async function* () {
+      calls += 1;
+      setupScript();
+      yield {
+        type: 'result',
+        sessionId: 's1',
+        subtype: 'error_during_execution',
+        success: false,
+        interrupted: false,
+        durationMs: 1,
+        text: 'boom token=abc123',
+        turnCount: 0,
+        tokenUsage: null,
+      };
+    });
+    const user = await send('hello');
+    const error = await screen.findByTestId('chat-error-0');
+    expect(error).toHaveTextContent('boom');
+    expect(error).not.toHaveTextContent('abc123');
+    expect(screen.getByTestId('msg-failed-0')).toBeInTheDocument();
+    expect(calls).toBe(1);
+    await user.click(screen.getByTestId('msg-retry-0'));
+    await waitFor(() => expect(calls).toBe(2));
+  });
+});

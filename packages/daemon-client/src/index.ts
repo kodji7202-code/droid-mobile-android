@@ -39,6 +39,7 @@ export type { ErrorClassification, JsonRpcErrorShape } from './classify';
 export {
   addPendingUser,
   appendError,
+  appendTurnFailure,
   applyStreamEvent,
   failPendingUser,
   isHiddenUserMessage,

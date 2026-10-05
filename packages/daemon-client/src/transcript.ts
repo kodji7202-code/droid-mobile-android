@@ -6,6 +6,7 @@
  */
 import type { SessionMessage } from '@factory/droid-sdk';
 import type { NormalizedEvent } from './normalize';
+import { redactSecrets } from './redact';
 
 export type UserDelivery = 'sending' | 'sent' | 'failed';
 export type ToolStatus = 'running' | 'completed' | 'error' | 'denied';
@@ -396,6 +397,22 @@ export function markToolsDenied(
 
 export function appendError(items: readonly TranscriptItem[], text: string): TranscriptItem[] {
   return [...items, { kind: 'error', id: `error-${items.length}`, text }];
+}
+
+/**
+ * Explains a turn that ended with success: false and left nothing visible
+ * after the user's message, so it does not settle as a silent "Not sent".
+ */
+export function appendTurnFailure(
+  items: readonly TranscriptItem[],
+  localId: string,
+  result: Extract<NormalizedEvent, { type: 'result' }>,
+): TranscriptItem[] {
+  const start = items.findIndex((item) => item.id === localId);
+  const visible = start >= 0 && items.slice(start + 1).some((item) => item.kind !== 'user');
+  if (result.success || result.interrupted || start < 0 || visible) return [...items];
+  const reason = redactSecrets(result.text.trim() || result.subtype);
+  return appendError(items, reason);
 }
 
 /** Merges one stream event into the transcript. Unrelated events return the same array. */
