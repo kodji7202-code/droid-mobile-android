@@ -1686,3 +1686,108 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   font-size: inherit;
   line-height: inherit;
 }
+
+/* Terminal tab */
+.terminal-view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+.terminal-tabs {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+}
+.terminal-tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-variant);
+}
+.terminal-tab--active {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+.terminal-tab__select,
+.terminal-tab__close {
+  min-height: 48px;
+  border: 0;
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.terminal-tab__select {
+  padding: 0 10px;
+  white-space: nowrap;
+}
+.terminal-tab__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  color: var(--color-fg-muted);
+}
+.terminal-new {
+  flex: none;
+  min-width: 48px;
+  min-height: 48px;
+  font-size: 1.25rem;
+}
+.terminal-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-surface-variant);
+  font-size: 0.85rem;
+}
+.terminal-banner--warn {
+  color: var(--color-warning);
+}
+.terminal-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--color-bg);
+}
+.terminal-host {
+  position: absolute;
+  inset: 0;
+  padding: 4px;
+  overflow: hidden;
+}
+.terminal-emulator {
+  width: 100%;
+  height: 100%;
+}
+.terminal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  background: var(--color-bg);
+  text-align: center;
+}
+.terminal-overlay__title {
+  font-weight: 600;
+}

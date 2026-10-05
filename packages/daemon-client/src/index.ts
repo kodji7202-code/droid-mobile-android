@@ -111,3 +111,14 @@ export { backoffDelay, DEFAULT_BACKOFF } from './backoff';
 export type { BackoffOptions } from './backoff';
 export { redactSecrets, REDACTED } from './redact';
 export * from './git';
+export { createTerminalClient, parseTerminalFrame } from './terminal-client';
+export type {
+  CreateTerminalParams,
+  LowLevelTerminalClient,
+  TerminalClient,
+  TerminalClientOptions,
+  TerminalEvent,
+  TerminalInfo,
+  TerminalLinkStatus,
+  TerminalState,
+} from './terminal-client';

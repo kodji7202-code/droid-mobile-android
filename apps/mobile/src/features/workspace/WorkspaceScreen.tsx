@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { EyeIcon, EyeOffIcon, FolderIcon } from '../../components/icons';
@@ -12,6 +12,7 @@ import { FilesTree } from './FilesTree';
 import { GitActions } from './GitActions';
 import { GitChangesList } from './GitChangesList';
 import { GitDiffViewer } from './GitDiffViewer';
+import { TerminalView } from '../terminal/TerminalView';
 import { splitUnifiedDiffByFile } from './diffParser';
 import { buildTree, flattenTree } from './treeBuilder';
 import type {
@@ -70,7 +71,9 @@ export function WorkspaceScreen() {
   const fetchSeq = useRef(0);
   const gitFetchSeq = useRef(0);
 
-  const activeTab = searchParams.get('tab') === 'changes' ? 'changes' : 'files';
+  const tabParam = searchParams.get('tab');
+  const activeTab: 'files' | 'changes' | 'terminal' =
+    tabParam === 'changes' || tabParam === 'terminal' ? tabParam : 'files';
   const viewingFile = searchParams.get('file');
   const viewingDiffFile = searchParams.get('diff');
 
@@ -230,7 +233,7 @@ export function WorkspaceScreen() {
   }, [setSearchParams]);
 
   const handleSelectTab = useCallback(
-    (tab: 'files' | 'changes') => {
+    (tab: 'files' | 'changes' | 'terminal') => {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -470,6 +473,17 @@ export function WorkspaceScreen() {
           >
             {t('workspace.tabs.changes')}
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'terminal'}
+            className={`btn btn--sm ${activeTab === 'terminal' ? 'btn--primary' : 'btn--ghost'}`}
+            data-testid="workspace-tab-terminal"
+            onClick={() => handleSelectTab('terminal')}
+            style={{ flex: 1, borderRadius: '4px', fontSize: '0.85rem', padding: '6px 12px' }}
+          >
+            {t('workspace.tabs.terminal')}
+          </button>
         </div>
 
         {/* Search bar (Files tab only) */}
@@ -496,6 +510,7 @@ export function WorkspaceScreen() {
           flexDirection: 'column',
         }}
       >
+        {activeTab === 'terminal' ? <TerminalView sessionId={activeSessionId} cwd={cwd} /> : null}
         {activeTab === 'changes' && gitDiffData?.success ? (
           <GitActions
             sessionId={activeSessionId}
@@ -508,7 +523,7 @@ export function WorkspaceScreen() {
             onRefresh={handleGitMutated}
           />
         ) : null}
-        {activeTab === 'changes' ? (
+        {activeTab === 'terminal' ? null : activeTab === 'changes' ? (
           <GitChangesList
             files={gitDiffData?.success ? gitDiffData.data.files : []}
             branch={gitDiffData?.success ? gitDiffData.data.branch : ''}

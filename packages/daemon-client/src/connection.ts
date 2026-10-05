@@ -1,4 +1,4 @@
-/**
+﻿/**
  * createDaemonConnection: the adapter's connection core (architecture.md 3.1).
  *
  * - One WebSocket, one `daemon.authenticate`, over the SDK facade
@@ -51,6 +51,8 @@ import type {
   DaemonResolvePullRequestStatusesResult,
 } from './git';
 import { probeDaemonIdentity } from './probe';
+import { createTerminalClient } from './terminal-client';
+import type { TerminalClient } from './terminal-client';
 import type { DaemonIdentity } from './probe';
 import { INITIAL_CONNECTION_STATE, reduceConnectionState } from './status';
 import type { ConnectionMachineEvent, ConnectionMachineState, ConnectionStatus } from './status';
@@ -132,6 +134,11 @@ export interface DaemonConnection {
   getDaemonIdentity(): Promise<DaemonIdentity>;
   /** Session ids opened through this connection and still tracked. */
   openedSessionIds(): readonly string[];
+  /**
+   * Creates a terminal sidecar on its own socket (same url and key). The caller
+   * owns it: connect(), then dispose() when done. Shells outlive the sidecar.
+   */
+  openTerminalClient(): TerminalClient;
 
   /** Asks the daemon whether a working directory exists and is a directory. */
   validateDirectory(path: string): Promise<DirectoryValidation>;
@@ -708,6 +715,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     },
     getDaemonIdentity: () => mapSdkError(() => probeDaemonIdentity(url, apiKey)),
     openedSessionIds: () => [...handles.keys()],
+    openTerminalClient: () => createTerminalClient({ url, apiKey }),
 
     validateDirectory: (path) =>
       mapSdkError(() => requireDroid().workspace.validateDirectory(path)),

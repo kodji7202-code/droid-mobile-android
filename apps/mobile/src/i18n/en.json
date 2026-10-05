@@ -474,8 +474,25 @@
     "fileViewerTruncated": "Showing first 1 MiB of {{total}}",
     "tabs": {
       "files": "Files",
-      "changes": "Changes"
+      "changes": "Changes",
+      "terminal": "Terminal"
     }
+  },
+  "terminal": {
+    "tabsLabel": "Terminals",
+    "tab": "Terminal {{n}}",
+    "exitedSuffix": "exited ({{code}})",
+    "new": "New terminal",
+    "close": "Close terminal {{n}}",
+    "loading": "Opening terminal…",
+    "emptyTitle": "No terminals",
+    "emptyMessage": "Start a shell in this session's folder.",
+    "errorTitle": "Terminal unavailable",
+    "retry": "Retry",
+    "linkLost": "Terminal connection lost. Reconnecting…",
+    "exitedBanner": "This terminal exited with code {{code}}. Input is disabled.",
+    "restart": "Restart terminal",
+    "area": "Terminal {{n}} output"
   },
   "git": {
     "changes": "Changes",

@@ -474,8 +474,25 @@
     "fileViewerTruncated": "Se afișează primul 1 MiB din {{total}}",
     "tabs": {
       "files": "Fișiere",
-      "changes": "Modificări"
+      "changes": "Modificări",
+      "terminal": "Terminal"
     }
+  },
+  "terminal": {
+    "tabsLabel": "Terminale",
+    "tab": "Terminal {{n}}",
+    "exitedSuffix": "încheiat ({{code}})",
+    "new": "Terminal nou",
+    "close": "Închide terminalul {{n}}",
+    "loading": "Se deschide terminalul…",
+    "emptyTitle": "Niciun terminal",
+    "emptyMessage": "Pornește un shell în folderul acestei sesiuni.",
+    "errorTitle": "Terminal indisponibil",
+    "retry": "Reîncearcă",
+    "linkLost": "Conexiunea terminalului s-a pierdut. Se reconectează…",
+    "exitedBanner": "Acest terminal s-a încheiat cu codul {{code}}. Introducerea este dezactivată.",
+    "restart": "Repornește terminalul",
+    "area": "Ieșirea terminalului {{n}}"
   },
   "git": {
     "changes": "Modificări",
