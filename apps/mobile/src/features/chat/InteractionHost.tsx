@@ -8,7 +8,7 @@ import { useInteractionStore } from '../../stores/interactions';
 import { useSessionViewStore } from '../../stores/sessionView';
 import { ExitSpecDialog } from './ExitSpecDialog';
 import { AskUserDialog, PermissionDialog } from './InteractionDialogs';
-import { knownSessionIds, waitForNewSession } from './newSessionWatch';
+import { expectedAutonomy, knownSessionIds, waitForNewSession } from './newSessionWatch';
 import { describePermission } from './permissionDetail';
 
 type NewSessionState = 'idle' | 'searching' | 'missing';
@@ -72,7 +72,13 @@ export function InteractionHost({ sessionId }: { sessionId: string }) {
     const controller = new AbortController();
     abortRef.current = controller;
     setNewSession('searching');
-    const created = await waitForNewSession({ connection, known, cwd, signal: controller.signal });
+    const created = await waitForNewSession({
+      connection,
+      known,
+      cwd,
+      autonomy: expectedAutonomy(value),
+      signal: controller.signal,
+    });
     if (controller.signal.aborted) return;
     if (created) {
       setNewSession('idle');

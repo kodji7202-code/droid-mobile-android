@@ -1,7 +1,11 @@
 import type { DaemonConnection } from '@droidmobile/daemon-client';
+import { MAX_PAGE_SIZE, mergeRows, nextCursor, toRow } from '../sessions/sessionsPaging';
+import type { PageCursor, SessionRowData } from '../sessions/sessionsPaging';
 
-/** Newest sessions are enough: the session the daemon creates is the most recent one. */
-const LIST_LIMIT = 50;
+/** Newest sessions are enough while polling: the new session is always the most recent one. */
+const POLL_LIMIT = 50;
+/** Bounds the pre-state read (10 000 sessions) so a broken cursor cannot loop forever. */
+const MAX_PRE_STATE_PAGES = 100;
 /** The contract allows 15 s from the choice; the last poll must still fit. */
 export const NEW_SESSION_TIMEOUT_MS = 14_000;
 export const NEW_SESSION_POLL_MS = 1000;
@@ -11,33 +15,64 @@ const sameDirectory = (a: string | undefined, b: string | undefined) =>
   b !== undefined &&
   a.replace(/[\\/]+$/, '').toLowerCase() === b.replace(/[\\/]+$/, '').toLowerCase();
 
+/** The autonomy level a proceed_new_session_* answer asks for; the plain option sets none. */
+export function expectedAutonomy(value: string): string | undefined {
+  const match = /^proceed_new_session_(low|medium|high)$/.exec(value);
+  return match?.[1];
+}
+
+/**
+ * Every existing session id. A partial snapshot would let an older session
+ * pass as new, so the whole list is paged through before the answer is sent.
+ */
 export async function knownSessionIds(connection: DaemonConnection): Promise<Set<string>> {
-  const page = await connection.listSessions({ limit: LIST_LIMIT });
-  return new Set(page.map((summary) => summary.id));
+  let rows: SessionRowData[] = [];
+  let cursor: PageCursor | undefined;
+  for (let index = 0; index < MAX_PRE_STATE_PAGES; index += 1) {
+    const limit = cursor?.limit ?? MAX_PAGE_SIZE;
+    const page = await connection.listSessions({
+      limit,
+      ...(cursor !== undefined ? { endBefore: cursor.endBefore } : {}),
+    });
+    const pageRows = page.map(toRow);
+    rows = mergeRows(rows, pageRows);
+    if (page.length < limit) break;
+    cursor = nextCursor(pageRows, cursor);
+    if (cursor === undefined) break;
+  }
+  return new Set(rows.map((row) => row.id));
 }
 
 /**
  * The proceed_new_session_* answers make the daemon create a session but the
- * response carries no id, so the list is polled for an id that was not there
- * before and that shares the working directory.
+ * response carries no id, so the list is polled for an id that was not in the
+ * complete pre-state, that shares the working directory and whose settings
+ * carry the requested autonomy.
  */
 export async function waitForNewSession(options: {
   connection: DaemonConnection;
   known: ReadonlySet<string>;
   cwd: string | undefined;
+  autonomy?: string;
   signal: AbortSignal;
   timeoutMs?: number;
   intervalMs?: number;
 }): Promise<string | undefined> {
-  const { connection, known, cwd, signal } = options;
+  const { connection, known, cwd, autonomy, signal } = options;
   const deadline = Date.now() + (options.timeoutMs ?? NEW_SESSION_TIMEOUT_MS);
+  const rejected = new Set<string>();
   while (!signal.aborted) {
     try {
-      const page = await connection.listSessions({ limit: LIST_LIMIT });
-      const created = page.find(
-        (summary) => !known.has(summary.id) && sameDirectory(summary.cwd, cwd),
-      );
-      if (created) return created.id;
+      const page = await connection.listSessions({ limit: POLL_LIMIT });
+      for (const summary of page) {
+        if (known.has(summary.id) || rejected.has(summary.id)) continue;
+        if (!sameDirectory(summary.cwd, cwd)) continue;
+        if (autonomy === undefined) return summary.id;
+        const level = (await connection.resumeSession(summary.id)).settingsSnapshot?.autonomyLevel;
+        if (level === autonomy) return summary.id;
+        // A session whose settings are not readable yet is looked at again.
+        if (level !== undefined) rejected.add(summary.id);
+      }
     } catch {
       // A failed read is retried until the deadline.
     }

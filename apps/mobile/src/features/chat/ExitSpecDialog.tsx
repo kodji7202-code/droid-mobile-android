@@ -44,7 +44,7 @@ export function ExitSpecDialog({
   return (
     <div className="dialog-backdrop" data-testid="permission-backdrop">
       <div
-        className="dialog interaction-dialog"
+        className="dialog interaction-dialog interaction-dialog--spec"
         data-testid="permission-dialog"
         data-permission-type="exit_spec_mode"
         role="dialog"

@@ -47,6 +47,7 @@ function setup(listSessions: ReturnType<typeof vi.fn>) {
   const handle = {
     id: 's1',
     settings: { modelId: 'model-x' },
+    settingsSnapshot: { modelId: 'model-x', autonomyLevel: 'high' },
     cwd: 'C:\\work\\proj',
     getMessages: async () => ({ messages: [], hasMore: false }),
     stream: async function* (): AsyncGenerator<NormalizedEvent, void, undefined> {
@@ -104,6 +105,12 @@ describe('exit spec mode prompt', () => {
     expect(screen.getByTestId('exit-spec-option-proceed_new_session_high')).toHaveTextContent(
       'New session, high autonomy',
     );
+  });
+
+  it('bounds the dialog to the viewport so every option stays reachable by scrolling', async () => {
+    setup(vi.fn(async () => []));
+    await openPrompt();
+    expect(screen.getByTestId('permission-dialog')).toHaveClass('interaction-dialog--spec');
   });
 
   it('proceed once answers proceed_once and stays on the same session', async () => {

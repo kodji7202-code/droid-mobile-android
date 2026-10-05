@@ -1048,6 +1048,17 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   margin: 0.5rem 0 1rem;
 }
 
+/* Plan and options scroll together so a short landscape viewport still reaches every option. */
+.interaction-dialog--spec {
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+}
+
+.interaction-dialog--spec .interaction-dialog__scroll {
+  flex: none;
+  max-height: 40dvh;
+}
+
 .interaction-dialog__detail + .interaction-dialog__detail {
   margin-top: 1rem;
 }
