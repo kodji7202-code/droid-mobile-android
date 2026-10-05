@@ -26,6 +26,9 @@ function fakeConnection(pages: SessionMessage[][]) {
     settingsSnapshot: { modelId: 'model-x' },
     cwd: 'C:\\work\\proj',
     getMessages,
+    getContextBreakdown: vi.fn(async () => {
+      throw new Error('unavailable');
+    }),
   };
   const resumeSession = vi.fn(async () => handle);
   return {
@@ -121,41 +124,67 @@ describe('SessionScreen', () => {
     expect(ids).toEqual(['first', 'second', 'third']);
   });
 
-  it('keeps the reading anchor when older history loads while scrolled to the very top', async () => {
+  /** Models a document whose first visible message sits at a layout offset and is pushed down by 2000 px once the older page is in the DOM. */
+  function modelLayout(anchorTestId: string) {
+    let scrollY = 0;
+    let anchor: Element | null = null;
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: Element,
+    ) {
+      const isItem = this.matches('.session-messages > li');
+      const prepended = document.body.textContent?.includes('first') ? 2000 : 0;
+      const doc = this === anchor ? 600 + prepended : 5000;
+      const top = isItem ? doc - scrollY : 0;
+      return { top, bottom: top + 100, left: 0, right: 0, width: 0, height: 100 } as DOMRect;
+    });
+    vi.spyOn(window, 'scrollTo').mockImplementation(((_x: number, y: number) => {
+      scrollY = y;
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: y });
+    }) as typeof window.scrollTo);
+    return {
+      capture() {
+        anchor = screen.getByTestId(anchorTestId);
+      },
+      setScroll(y: number) {
+        scrollY = y;
+        Object.defineProperty(window, 'scrollY', { configurable: true, value: y });
+      },
+      anchorTop: () => (anchor ? anchor.getBoundingClientRect().top : NaN),
+    };
+  }
+
+  it('keeps the first visible message in place when older history loads at scroll offset 0', async () => {
     const { connection, getMessages } = fakeConnection([
       [message('c', 'user', 3, 'third'), message('b', 'assistant', 2, 'second')],
       [message('a', 'user', 1, 'first')],
     ]);
     const original = getMessages.getMockImplementation()!;
+    const layout = modelLayout('msg-assistant-0');
     getMessages.mockImplementation(async (...args) => {
       const page = await original(...args);
-      // The prepended page makes the document taller by 2000 px.
-      if (getMessages.mock.calls.length === 2) {
-        Object.defineProperty(document.documentElement, 'scrollHeight', {
-          configurable: true,
-          value: 7000,
-        });
-      }
       return page;
     });
-    const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
     renderRoute(connection);
     await screen.findByTestId('msg-user-1');
+    layout.capture();
 
     scrollTo(1200, 5000);
+    layout.setScroll(0);
+    const before = layout.anchorTop();
     scrollTo(0, 5000);
 
     await waitFor(() => expect(screen.getByTestId('msg-user-0')).toHaveTextContent('first'));
-    expect(scrollSpy).toHaveBeenLastCalledWith(0, 2000);
-    scrollSpy.mockRestore();
+    expect(Math.abs(layout.anchorTop() - before)).toBeLessThan(1);
+    vi.restoreAllMocks();
   });
 
-  it('keeps the reading anchor when the reader reaches the top while the older page is pending', async () => {
+  it('keeps the first visible message in place when the reader reaches the top while the older page is pending', async () => {
     const { connection, getMessages } = fakeConnection([
       [message('c', 'user', 3, 'third'), message('b', 'assistant', 2, 'second')],
       [message('a', 'user', 1, 'first')],
     ]);
     const original = getMessages.getMockImplementation()!;
+    const layout = modelLayout('msg-assistant-0');
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
@@ -164,28 +193,26 @@ describe('SessionScreen', () => {
       const page = await original(...args);
       if (getMessages.mock.calls.length === 2) {
         await gate;
-        Object.defineProperty(document.documentElement, 'scrollHeight', {
-          configurable: true,
-          value: 7000,
-        });
       }
       return page;
     });
-    const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
     renderRoute(connection);
     await screen.findByTestId('msg-user-1');
+    layout.capture();
 
     scrollTo(1200, 5000);
+    layout.setScroll(300);
     scrollTo(300, 5000);
     await waitFor(() => expect(getMessages).toHaveBeenCalledTimes(2));
+    layout.setScroll(0);
     scrollTo(0, 5000);
+    const before = layout.anchorTop();
     release();
 
     await waitFor(() => expect(screen.getByTestId('msg-user-0')).toHaveTextContent('first'));
-    expect(scrollSpy).toHaveBeenLastCalledWith(0, 2000);
-    scrollSpy.mockRestore();
+    expect(Math.abs(layout.anchorTop() - before)).toBeLessThan(1);
+    vi.restoreAllMocks();
   });
-
   it('offers jump to latest after scrolling up and hides it once back at the bottom', async () => {
     const { connection } = fakeConnection([[message('a', 'user', 1, 'first')]]);
     renderRoute(connection);
@@ -232,6 +259,18 @@ describe('SessionScreen', () => {
     expect(screen.queryByTestId('session-actions-menu')).not.toBeInTheDocument();
   });
 
+  it('opens the context usage sheet from the actions menu', async () => {
+    const { connection } = fakeConnection([[message('u1', 'user', 1, 'hi')]]);
+    renderRoute(connection);
+    const user = userEvent.setup();
+    await screen.findByTestId('msg-user-0');
+
+    await user.click(screen.getByTestId('session-actions-open'));
+    await user.click(screen.getByTestId('session-action-context'));
+    expect(await screen.findByTestId('context-usage')).toBeInTheDocument();
+    expect(screen.queryByTestId('session-actions-menu')).not.toBeInTheDocument();
+    expect(screen.getByTestId('session-context-open')).toBeInTheDocument();
+  });
   it('goes back to the list', async () => {
     const { connection } = fakeConnection([[]]);
     renderRoute(connection);

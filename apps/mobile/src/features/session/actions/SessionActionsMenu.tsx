@@ -1,7 +1,7 @@
-import { useTranslation } from 'react-i18next';
+﻿import { useTranslation } from 'react-i18next';
 import { MoreIcon } from '../../../components/icons';
 
-export type SessionAction = 'fork' | 'compact' | 'rewind';
+export type SessionAction = 'fork' | 'compact' | 'rewind' | 'context';
 
 interface SessionActionsMenuProps {
   open: boolean;
@@ -10,7 +10,7 @@ interface SessionActionsMenuProps {
   onSelect(action: SessionAction): void;
 }
 
-const ACTIONS: SessionAction[] = ['fork', 'compact', 'rewind'];
+const ACTIONS: SessionAction[] = ['fork', 'compact', 'rewind', 'context'];
 
 export function SessionActionsMenu({
   open,

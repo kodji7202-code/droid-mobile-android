@@ -329,6 +329,9 @@
     "roleAssistant": "Droid",
     "actions": {
       "open": "Acțiuni sesiune",
+      "context": {
+        "menu": "Utilizare context"
+      },
       "fork": {
         "menu": "Bifurcă sesiunea",
         "title": "Bifurcă sesiunea",

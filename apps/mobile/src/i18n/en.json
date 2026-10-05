@@ -329,6 +329,9 @@
     "roleAssistant": "Droid",
     "actions": {
       "open": "Session actions",
+      "context": {
+        "menu": "Context usage"
+      },
       "fork": {
         "menu": "Fork session",
         "title": "Fork session",

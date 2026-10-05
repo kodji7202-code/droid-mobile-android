@@ -11,6 +11,26 @@ function scrollToBottom() {
   window.scrollTo?.(0, document.documentElement.scrollHeight);
 }
 
+interface ReadingAnchor {
+  element: Element;
+  top: number;
+}
+
+/** The first transcript row that reaches into the viewport, with its viewport offset. */
+function measureAnchor(): ReadingAnchor | null {
+  for (const element of document.querySelectorAll('.session-messages > li')) {
+    const { top, bottom } = element.getBoundingClientRect();
+    if (bottom > 0) return { element, top };
+  }
+  return null;
+}
+
+function restoreAnchor({ element, top }: ReadingAnchor) {
+  if (!element.isConnected) return;
+  const delta = element.getBoundingClientRect().top - top;
+  if (Math.abs(delta) >= 1) window.scrollTo?.(0, window.scrollY + delta);
+}
+
 interface ChatScrollOptions {
   /** Changes whenever the transcript grows or its last item changes. */
   contentSignal: unknown;
@@ -24,10 +44,7 @@ interface ChatScrollOptions {
 /**
  * The window scrolls. While following, new content keeps the bottom in view;
  * scrolling up releases it until the user jumps back. Reaching the top loads the
- * next older page; the browser's scroll anchoring keeps the item being read in place
- * (content-visibility rows change height as they approach the viewport, so a manual
- * offset correction would drift). Only at offset 0, where anchoring is suppressed, is
- * the height added by the older page restored by hand.
+ * next older page; the first visible message is kept at its viewport offset across the prepend.
  */
 export function useChatScroll(options: ChatScrollOptions) {
   const { contentSignal, hasMore, loadingOlder, active, loadOlder } = options;
@@ -68,21 +85,24 @@ export function useChatScroll(options: ChatScrollOptions) {
     return () => window.removeEventListener('scroll', onScroll);
   }, [setFollowing]);
 
-  // At offset 0 the browser's scroll anchoring does nothing, so the prepended page
-  // would push the reading position down by its own height.
-  // The reader may reach offset 0 while the request is pending, so the position is
-  // checked when the page arrives, not when it was requested.
-  const beforeOlder = useRef<{ height: number } | null>(null);
+  // The first visible message is measured while the DOM still shows the old rows (render
+  // runs before the commit), then put back at the same viewport offset once the older rows
+  // are in. Native anchoring is switched off: it does nothing at offset 0 and would race
+  // with the manual restore elsewhere. The reader may reach the top while the request is
+  // pending, so the anchor is taken when the page arrives, not when it was requested.
+  const wasLoading = useRef(false);
+  const anchor = useRef<ReadingAnchor | null>(null);
+  if (wasLoading.current && !loadingOlder) anchor.current = measureAnchor();
+  wasLoading.current = loadingOlder;
+
   useLayoutEffect(() => {
-    if (loadingOlder) {
-      beforeOlder.current = { height: document.documentElement.scrollHeight };
-      return;
-    }
-    const before = beforeOlder.current;
-    beforeOlder.current = null;
-    if (!before || window.scrollY > 0) return;
-    const grown = document.documentElement.scrollHeight - before.height;
-    if (grown > 0) window.scrollTo?.(0, grown);
+    const held = anchor.current;
+    anchor.current = null;
+    if (loadingOlder || !held) return undefined;
+    restoreAnchor(held);
+    // Markdown, images and content-visibility rows settle a frame after the commit.
+    const frame = requestAnimationFrame(() => restoreAnchor(held));
+    return () => cancelAnimationFrame(frame);
   }, [loadingOlder]);
 
   useLayoutEffect(() => {

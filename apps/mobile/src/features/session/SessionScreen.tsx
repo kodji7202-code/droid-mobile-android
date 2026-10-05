@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { BackIcon, ContextIcon, SettingsIcon } from '../../components/icons';
@@ -132,7 +132,8 @@ export function SessionScreen() {
             onToggle={() => setMenuOpen((value) => !value)}
             onSelect={(kind) => {
               setMenuOpen(false);
-              setAction({ kind, handle: view?.handle });
+              if (kind === 'context') setContextOpen(true);
+              else setAction({ kind, handle: view?.handle });
             }}
           />
           <button
