@@ -298,6 +298,47 @@
     "emptyTitle": "Niciun mesaj încă",
     "emptyMessage": "Sesiunea apare în listă după primul mesaj.",
     "roleUser": "Tu",
-    "roleAssistant": "Droid"
+    "roleAssistant": "Droid",
+    "settings": {
+      "open": "Setările sesiunii",
+      "title": "Setările sesiunii",
+      "model": "Model",
+      "reasoning": "Nivel de raționament",
+      "autonomy": "Autonomie",
+      "mode": "Mod",
+      "specModel": "Model pentru Spec",
+      "specReasoning": "Raționament pentru Spec",
+      "searchModels": "Caută modele",
+      "modelsLoading": "Se încarcă modelele…",
+      "modelsFailed": "Nu am putut încărca lista de modele.",
+      "noModels": "Niciun model nu se potrivește cu „{{query}}”.",
+      "current": "Curent",
+      "default": "implicit",
+      "notSet": "Nesetat",
+      "saving": "Se salvează…",
+      "failed": "Modificarea nu a fost salvată. Daemonul nu e accesibil sau a respins-o.",
+      "effort": {
+        "none": "Niciunul",
+        "dynamic": "Dinamic",
+        "off": "Oprit",
+        "minimal": "Minim",
+        "low": "Scăzut",
+        "medium": "Mediu",
+        "high": "Ridicat",
+        "xhigh": "Foarte ridicat",
+        "max": "Maxim"
+      },
+      "autonomyLevel": {
+        "off": "Oprită",
+        "low": "Scăzută",
+        "medium": "Medie",
+        "high": "Ridicată"
+      },
+      "modeOption": {
+        "auto": "Normal",
+        "spec": "Spec",
+        "mission": "Misiune"
+      }
+    }
   }
 }

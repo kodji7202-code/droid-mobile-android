@@ -740,8 +740,61 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
 
 .session-screen__model {
   width: auto;
-  max-width: 45%;
-  min-height: 48px;
+  max-width: 50%;
+  margin-left: auto;
+}
+
+.session-screen__model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.session-settings__value {
+  justify-content: space-between;
+  text-align: start;
+}
+
+.session-settings__error {
+  color: var(--color-danger);
+}
+
+.model-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.model-list__row {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  text-align: start;
+}
+
+.model-list__row--selected {
+  background: var(--color-surface-variant);
+  color: var(--color-fg);
+}
+
+.model-list__name {
+  font-weight: 600;
+}
+
+.model-list__provider,
+.model-list__current {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+.model-list__current {
+  margin-left: auto;
 }
 
 .session-screen__cwd {

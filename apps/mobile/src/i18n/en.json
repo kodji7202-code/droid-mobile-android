@@ -298,6 +298,47 @@
     "emptyTitle": "No messages yet",
     "emptyMessage": "This session appears in the list after its first message.",
     "roleUser": "You",
-    "roleAssistant": "Droid"
+    "roleAssistant": "Droid",
+    "settings": {
+      "open": "Session settings",
+      "title": "Session settings",
+      "model": "Model",
+      "reasoning": "Reasoning effort",
+      "autonomy": "Autonomy",
+      "mode": "Mode",
+      "specModel": "Spec model",
+      "specReasoning": "Spec reasoning effort",
+      "searchModels": "Search models",
+      "modelsLoading": "Loading models…",
+      "modelsFailed": "Could not load the model list.",
+      "noModels": "No models match \"{{query}}\".",
+      "current": "Current",
+      "default": "default",
+      "notSet": "Not set",
+      "saving": "Saving…",
+      "failed": "The change was not saved. The daemon is not reachable or rejected it.",
+      "effort": {
+        "none": "None",
+        "dynamic": "Dynamic",
+        "off": "Off",
+        "minimal": "Minimal",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "xhigh": "Extra high",
+        "max": "Max"
+      },
+      "autonomyLevel": {
+        "off": "Off",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "modeOption": {
+        "auto": "Normal",
+        "spec": "Spec",
+        "mission": "Mission"
+      }
+    }
   }
 }

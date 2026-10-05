@@ -1,7 +1,7 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { BackIcon } from '../../components/icons';
+import { BackIcon, SettingsIcon } from '../../components/icons';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { Skeleton } from '../../components/Skeleton';
@@ -13,6 +13,10 @@ import { InteractionHost } from '../chat/InteractionHost';
 import { useChatScroll } from '../chat/useChatScroll';
 import { Transcript } from '../chat/Transcript';
 import { UsageChip } from '../chat/UsageChip';
+import { SessionSettingsSheet } from './SessionSettingsSheet';
+import { useSettingsSnapshot } from './useSessionSettings';
+
+const HEADER_FOLLOW_INTERVAL_MS = 2000;
 
 /** Last path segment of a working directory, for a compact header title. */
 function folderName(cwd: string | undefined): string | undefined {
@@ -38,6 +42,8 @@ export function SessionScreen() {
   const awaitingApproval = useInteractionStore((state) =>
     state.pending.some((item) => item.sessionId === id),
   );
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { snapshot } = useSettingsSnapshot(view?.handle, HEADER_FOLLOW_INTERVAL_MS);
 
   useEffect(() => {
     if (ready && connection && id !== '') {
@@ -89,19 +95,19 @@ export function SessionScreen() {
           <h2 className="sub-header__title" id="session-title" data-testid="session-title">
             {title}
           </h2>
-          <select
-            className="field__control session-screen__model"
-            data-testid="session-model-select"
-            aria-label={t('session.model')}
-            value={view?.modelId ?? ''}
-            disabled
+          <button
+            type="button"
+            className="btn btn--secondary session-screen__model"
+            data-testid="session-settings-open"
+            aria-label={t('session.settings.open')}
+            disabled={view?.status !== 'ready'}
+            onClick={() => setSettingsOpen(true)}
           >
-            {view?.modelId ? (
-              <option value={view.modelId}>{view.modelId}</option>
-            ) : (
-              <option value="">{t('session.modelUnknown')}</option>
-            )}
-          </select>
+            <SettingsIcon />
+            <span className="session-screen__model-name">
+              {snapshot?.modelId ?? t('session.modelUnknown')}
+            </span>
+          </button>
         </div>
         {view?.cwd ? (
           <p className="session-screen__cwd" data-testid="session-cwd">
@@ -204,6 +210,11 @@ export function SessionScreen() {
         />
       </div>
 
+      <SessionSettingsSheet
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        handle={view?.handle}
+      />
       <InteractionHost sessionId={id} />
     </section>
   );

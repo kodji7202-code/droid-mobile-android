@@ -36,6 +36,8 @@ import { AuthError, ConnectionError } from './errors';
 import type { DaemonClientError, VersionMismatchWarning } from './errors';
 import { toPage } from './paging';
 import type { SessionMessagesPage } from './paging';
+import { toModelSummary } from './settings';
+import type { ModelSummary } from './settings';
 import { probeDaemonIdentity } from './probe';
 import type { DaemonIdentity } from './probe';
 import { INITIAL_CONNECTION_STATE, reduceConnectionState } from './status';
@@ -121,6 +123,8 @@ export interface DaemonConnection {
   trustFolder(path: string): Promise<void>;
   /** Daemon-wide default session settings (model, autonomy, ...). */
   getDefaultSettings(): Promise<DefaultSettings>;
+  /** Every model the daemon offers (`models.list`). */
+  listModels(): Promise<ModelSummary[]>;
   createSession(options: CreateDaemonSessionOptions): Promise<SessionHandle>;
   resumeSession(sessionId: string): Promise<SessionHandle>;
   getSession(sessionId: string): SessionHandle | undefined;
@@ -616,6 +620,10 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       await mapSdkError(() => requireDroid().workspace.trust(path));
     },
     getDefaultSettings: () => mapSdkError(() => requireDroid().settings.getDefaults()),
+    listModels: async () => {
+      const models = await mapSdkError(() => requireDroid().models.list());
+      return models.map(toModelSummary);
+    },
 
     async createSession(createOptions) {
       const droid = requireDroid();

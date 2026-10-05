@@ -16,6 +16,8 @@ import { normalizeStreamEvent } from './normalize';
 import { isNonTransportFailure } from './classify';
 import type { DaemonClientError } from './errors';
 import type { SessionMessagesPage } from './paging';
+import { snapshotOf, toUpdateOptions } from './settings';
+import type { SessionSettingsSnapshot, SettingsPatch } from './settings';
 
 /** Stream option shape of the facade's session.stream (SDK type not re-exported). */
 type FacadeStreamOptions = NonNullable<Parameters<ConnectedDroidSession['stream']>[1]>;
@@ -97,6 +99,7 @@ export class SessionHandle {
   private lastSettings: Readonly<SessionSettings> | undefined;
   private lastCwd: string | undefined;
   private pendingDetach: Promise<void> | undefined;
+  private accepted: { base: Readonly<SessionSettings>; patch: SettingsPatch } | undefined;
 
   /** @internal Swaps the underlying session after a (re)attach. */
   attach(session: ConnectedDroidSession, droidToken: number): void {
@@ -106,9 +109,23 @@ export class SessionHandle {
     this.lastCwd = session.cwd;
   }
 
-  /** Settings the daemon reported when the session was created or last resumed. */
+  /**
+   * Current settings: the SDK session merges the daemon's settings_updated
+   * notifications into its own copy, also between turns.
+   */
   get settings(): Readonly<SessionSettings> | undefined {
-    return this.lastSettings;
+    return this.underlying?.settings ?? this.lastSettings;
+  }
+
+  /**
+   * Settings as the UI shows them: the daemon's view, with our own accepted
+   * update on top until a newer daemon notification replaces the SDK copy.
+   */
+  get settingsSnapshot(): SessionSettingsSnapshot | undefined {
+    const live = this.settings;
+    if (!live) return undefined;
+    const snapshot = snapshotOf(live);
+    return this.accepted?.base === live ? { ...snapshot, ...this.accepted.patch } : snapshot;
   }
 
   /** Working directory the daemon reported for the session. */
@@ -244,6 +261,20 @@ export class SessionHandle {
 
   updateSettings(params: UpdateSessionSettingsOptions): Promise<void> {
     return this.host.updateSettingsById(this.id, params);
+  }
+
+  /** Persists a settings change; resolves only once the daemon accepted it. */
+  async applySettings(patch: SettingsPatch): Promise<void> {
+    const base = this.settings;
+    await this.updateSettings(toUpdateOptions(patch));
+    const live = this.settings;
+    // A notification that already merged the change replaced the SDK copy.
+    if (live && live === base) {
+      this.accepted = {
+        base: live,
+        patch: { ...(this.accepted?.base === live ? this.accepted.patch : {}), ...patch },
+      };
+    }
   }
 
   rename(title: string): Promise<void> {

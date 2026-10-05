@@ -20,7 +20,13 @@ function fakeConnection(pages: SessionMessage[][]) {
     const last = messages[messages.length - 1] as { id?: string } | undefined;
     return { messages, hasMore: call < pages.length, nextCursor: last?.id };
   });
-  const handle = { id: 's1', settings: { modelId: 'model-x' }, cwd: 'C:\\work\\proj', getMessages };
+  const handle = {
+    id: 's1',
+    settings: { modelId: 'model-x' },
+    settingsSnapshot: { modelId: 'model-x' },
+    cwd: 'C:\\work\\proj',
+    getMessages,
+  };
   const resumeSession = vi.fn(async () => handle);
   return {
     connection: { resumeSession } as unknown as DaemonConnection,
@@ -76,7 +82,7 @@ describe('SessionScreen', () => {
     expect(resumeSession).toHaveBeenCalledWith('s1');
     expect(screen.getByTestId('msg-user-0')).toHaveTextContent('Reply with the single word OK');
     expect(screen.getByTestId('msg-assistant-1')).toHaveTextContent('OK');
-    expect(screen.getByTestId('session-model-select')).toHaveValue('model-x');
+    expect(screen.getByTestId('session-settings-open')).toHaveTextContent('model-x');
     expect(screen.getByTestId('session-title')).toHaveTextContent('proj');
   });
 
