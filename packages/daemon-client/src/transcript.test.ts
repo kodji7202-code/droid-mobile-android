@@ -27,6 +27,22 @@ function replay(events: NormalizedEvent[], start: readonly TranscriptItem[] = []
 }
 
 describe('itemsFromMessages', () => {
+  it('turns interrupt marker messages into the stopped flag, never a user bubble', () => {
+    const items = itemsFromMessages([
+      msg('u1', 'user', 1, text('Count to 100')),
+      msg('a1', 'assistant', 2, text('1, 2, 3')),
+      msg('m1', 'user', 3, text('Request cancelled by user')),
+      msg('m2', 'user', 4, text('Request interrupted by user')),
+      msg('u2', 'user', 5, text('Next')),
+      msg('m3', 'user', 6, text('Request interrupted by user')),
+    ]);
+    expect(items).toEqual([
+      { kind: 'user', id: 'u1', text: 'Count to 100', delivery: 'sent' },
+      { kind: 'assistant', id: 'a1', text: '1, 2, 3', streaming: false, stopped: true },
+      { kind: 'user', id: 'u2', text: 'Next', delivery: 'sent' },
+    ]);
+  });
+
   it('orders by time, hides hook and context messages and pairs tool results with their call', () => {
     const items = itemsFromMessages([
       msg('a2', 'assistant', 50, text('Done')),

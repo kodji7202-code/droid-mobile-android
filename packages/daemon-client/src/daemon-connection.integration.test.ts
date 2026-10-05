@@ -162,16 +162,17 @@ describe('daemon connection (real daemon 3101)', () => {
     async () => {
       const conn = createDaemonConnection({ url: DAEMON_URL, apiKey: API_KEY });
       await conn.connect();
-      const sessions = await conn.listSessions({ limit: 20 });
-      // A small session keeps the 2-per-page walk short.
-      const withMessages = sessions.find((s) => s.messageCount >= 2 && s.messageCount <= 10);
-      expect(withMessages, 'the shared daemon should have small sessions').toBeTruthy();
+      const handle = await conn.createSession({ cwd: await freshScratch() });
+      createdSessionIds.push(handle.id);
+      for await (const event of handle.stream('Reply with the single word OK')) {
+        if (event.type === 'result') break;
+      }
 
       const seen: string[] = [];
       let cursor: string | undefined;
       let pages = 0;
       do {
-        const page = await conn.getMessagesPage(withMessages!.id, { limit: 2, cursor });
+        const page = await conn.getMessagesPage(handle.id, { limit: 2, cursor });
         seen.push(...page.messages.map((m) => m.id));
         cursor = page.nextCursor;
         pages += 1;
@@ -179,6 +180,7 @@ describe('daemon connection (real daemon 3101)', () => {
       } while (cursor && pages < 20);
       expect(seen.length).toBeGreaterThan(2);
       expect(new Set(seen).size).toBe(seen.length);
+      await handle.detach();
       conn.disconnect();
     },
   );

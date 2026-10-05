@@ -126,6 +126,9 @@ export function isHiddenUserMessage(id: string, text: string): boolean {
   return text === '' || id.startsWith('context-') || text.startsWith('<system-reminder>');
 }
 
+/** After an interrupt the daemon stores these as user messages; they are not something the user typed. */
+const INTERRUPT_MARKERS = new Set(['Request cancelled by user', 'Request interrupted by user']);
+
 function resultText(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
@@ -183,6 +186,11 @@ function applyMessage(items: TranscriptItem[], message: SessionMessage): Transcr
     const text = textOfBlocks(blocks.filter((block) => !isReminderBlock(block)));
     const images = attachmentsOfBlocks(blocks);
     if (isHiddenUserMessage(id, text) && !(text === '' && images.length > 0)) return next;
+    if (INTERRUPT_MARKERS.has(text)) {
+      // Only the turn being cut short is flagged, not an earlier answered one.
+      const lastTalk = [...next].reverse().find((item) => item.kind !== 'tool');
+      return lastTalk?.kind === 'assistant' ? markStopped(next) : next;
+    }
     const pending = next.findIndex(
       (item) => item.kind === 'user' && item.delivery === 'sending' && item.text === text,
     );
