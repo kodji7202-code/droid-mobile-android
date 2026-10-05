@@ -15,7 +15,9 @@ interface ChatComposerProps {
   /** Stop lives in the open request dialog, which covers the composer. */
   stopInDialog?: boolean;
   /** Queued text the daemon dropped; appended to the draft once per `nonce`. */
-  restored?: { text: string; nonce: number };
+  restored?: { text: string; attachments?: readonly UserAttachment[]; nonce: number };
+  /** Called once the restored draft is in the composer, so it is never applied twice. */
+  onRestoredConsumed?(nonce: number): void;
   queued?: readonly QueuedMessage[];
   onCancelQueued?(requestId: string): void;
   onSend(text: string, attachments: UserAttachment[]): void;
@@ -31,6 +33,7 @@ export function ChatComposer({
   disabled,
   stopInDialog = false,
   restored,
+  onRestoredConsumed,
   queued = [],
   onCancelQueued,
   onSend,
@@ -50,6 +53,12 @@ export function ChatComposer({
   useEffect(() => {
     if (!restored) return;
     setText((current) => (current === '' ? restored.text : `${current}\n${restored.text}`));
+    const returned = restored.attachments ?? [];
+    if (returned.length > 0) {
+      attachedCount.current += returned.length;
+      setAttachments((current) => [...current, ...returned]);
+    }
+    onRestoredConsumed?.(restored.nonce);
     // Only a new restore event may touch the draft, not later renders with the same event.
   }, [restored?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
   const indicator = KNOWN_STATES.includes(workingState) ? workingState : 'thinking';

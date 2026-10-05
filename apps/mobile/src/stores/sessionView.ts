@@ -42,11 +42,13 @@ export type SessionViewStatus = 'loading' | 'ready' | 'error';
 export interface QueuedMessage {
   requestId: string;
   text: string;
+  attachments?: readonly UserAttachment[];
 }
 
 /** Text handed back to the composer; `nonce` makes a repeat of the same text a new event. */
 export interface RestoredText {
   text: string;
+  attachments?: readonly UserAttachment[];
   nonce: number;
 }
 
@@ -97,6 +99,8 @@ interface SessionViewStore {
   retry(id: string, itemId: string): Promise<void>;
   /** Removes a queued message from the daemon's queue so it is never executed. */
   cancelQueued(id: string, requestId: string): Promise<void>;
+  /** Drops a restored draft once the composer has taken it, so a remount cannot restore it again. */
+  consumeRestored(id: string, nonce: number): void;
   interrupt(id: string): Promise<void>;
   /** Shows the tool calls of a refused permission request as denied. */
   markDenied(id: string, tools: Parameters<typeof markToolsDenied>[1]): void;
@@ -244,13 +248,13 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       // The echo may already have arrived: the message ran and must not be shown as queued.
       const ran = view?.items.some((item) => item.id === requestId);
       if (view && !ran) {
-        patch(id, { queued: [...view.queued, { requestId, text: prompt }] });
+        patch(id, { queued: [...view.queued, { requestId, text: prompt, attachments }] });
         if (!view.turnActive) await settleQueue(id, handle, 'wait');
       }
     } catch (err) {
       const message = redactSecrets(err instanceof Error ? err.message : String(err));
       update(id, (view) => ({ items: appendError(view.items, message) }));
-      restoreText(id, [{ requestId: '', text: prompt }]);
+      restoreText(id, [{ requestId: '', text: prompt, attachments }]);
     }
   };
 
@@ -265,7 +269,8 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
     if (entries.length === 0) return;
     const text = entries.map((entry) => entry.text).join('\n');
     restoreSeq += 1;
-    update(id, () => ({ restored: { text, nonce: restoreSeq } }));
+    const attachments = entries.flatMap((entry) => entry.attachments ?? []);
+    update(id, () => ({ restored: { text, attachments, nonce: restoreSeq } }));
   };
 
   /**
@@ -493,6 +498,10 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       dequeue(id, requestId);
     },
 
+    consumeRestored(id, nonce) {
+      update(id, (view) => (view.restored?.nonce === nonce ? { restored: undefined } : {}));
+    },
+
     markDenied(id, tools) {
       update(id, (view) => ({ items: markToolsDenied(view.items, tools) }));
     },
@@ -501,13 +510,18 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
       const started = get().views[id];
       if (!started?.handle || started.turnActive) return;
       const handle = started.handle;
+      let connectionLost = false;
       patch(id, { turnActive: true, workingState: 'thinking', stopRequested: false });
       try {
         for (let attempt = 0; attempt < FOLLOW_ATTEMPTS; attempt += 1) {
           await new Promise((resolve) => setTimeout(resolve, FOLLOW_INTERVAL_MS));
           const view = get().views[id];
-          if (!view || view.stopRequested || useConnectionStore.getState().status !== 'ready')
+          if (!view) break;
+          if (useConnectionStore.getState().status !== 'ready') {
+            connectionLost = true;
             break;
+          }
+          if (view.stopRequested) break;
           if (useInteractionStore.getState().pending.some((item) => item.sessionId === id))
             continue;
           const page = await handle.getMessages({ limit: HISTORY_PAGE_SIZE });
@@ -529,6 +543,8 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
           items: view.stopRequested ? markStopped(view.items) : view.items,
         }));
       }
+      const stopped = Boolean(get().views[id]?.stopRequested);
+      await settleQueue(id, handle, connectionLost ? 'forget' : stopped ? 'restore' : 'wait');
     },
 
     async interrupt(id) {

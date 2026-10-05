@@ -91,7 +91,9 @@ describe('queued messages', () => {
     await useSessionViewStore.getState().send('s1', '  Reply with the single word OK ');
 
     expect(handle.queueMessage).toHaveBeenCalledWith('Reply with the single word OK', {});
-    expect(view().queued).toEqual([{ requestId: 'q1', text: 'Reply with the single word OK' }]);
+    expect(view().queued).toEqual([
+      { requestId: 'q1', text: 'Reply with the single word OK', attachments: [] },
+    ]);
     expect(userTexts()).toEqual(['Count from 1 to 200']);
 
     turn.push(echo('q1', 'Reply with the single word OK'));
@@ -213,5 +215,56 @@ describe('queued messages', () => {
     expect(handle.getMessages.mock.calls.length).toBeGreaterThan(2);
     expect(view().queued).toEqual([]);
     expect(view().restored?.text).toBe('Reply with the single word OK');
+  });
+
+  it('restores the full draft including attachments when an interrupt discards the queued message', async () => {
+    const { handle, turn, connection } = setup(() => [userMessage('u0', 'Count from 1 to 200')]);
+    const { running } = await startTurn(connection);
+    const image = { kind: 'image', mediaType: 'image/png', data: 'AAAA' } as const;
+    await useSessionViewStore.getState().send('s1', 'Describe this', [image]);
+    expect(handle.queueMessage).toHaveBeenCalled();
+
+    await useSessionViewStore.getState().interrupt('s1');
+    turn.push(result(true));
+    turn.end();
+    await running;
+
+    expect(view().restored?.text).toBe('Describe this');
+    expect(view().restored?.attachments).toEqual([image]);
+  });
+
+  it('settles the queue after a followed turn that this client did not start', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    const { handle, connection } = setup();
+    await useSessionViewStore.getState().open(connection, 's1', 1);
+    const following = useSessionViewStore.getState().follow('s1');
+    expect(view().turnActive).toBe(true);
+    await useSessionViewStore.getState().send('s1', 'Reply with the single word OK');
+    expect(view().queued).toHaveLength(1);
+    handle.getMessages.mockResolvedValue({
+      messages: [{ ...userMessage('a0', 'Done'), role: 'assistant' } as SessionMessage],
+      hasMore: false,
+    });
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    await following;
+
+    expect(view().queued).toEqual([]);
+    expect(view().restored?.text).toBe('Reply with the single word OK');
+  });
+
+  it('consumes a restored draft once', async () => {
+    const { turn, connection } = setup();
+    const { running } = await startTurn(connection);
+    await useSessionViewStore.getState().send('s1', 'Reply with the single word OK');
+    await useSessionViewStore.getState().interrupt('s1');
+    turn.push(result(true));
+    turn.end();
+    await running;
+    const nonce = view().restored!.nonce;
+
+    useSessionViewStore.getState().consumeRestored('s1', nonce);
+
+    expect(view().restored).toBeUndefined();
   });
 });
