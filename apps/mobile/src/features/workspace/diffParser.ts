@@ -23,8 +23,77 @@ export interface DiffParsedFile {
   deletions: number;
 }
 
+const C_ESCAPES: Record<string, number> = {
+  a: 7,
+  b: 8,
+  f: 12,
+  n: 10,
+  r: 13,
+  t: 9,
+  v: 11,
+  '"': 34,
+  '\\': 92,
+};
+
+/**
+ * Decodes a path Git wrapped in double quotes (core.quotePath): octal escapes
+ * are raw UTF-8 bytes. Unquoted paths are returned unchanged.
+ */
+export function unquoteGitPath(raw: string): string {
+  if (raw.length < 2 || !raw.startsWith('"') || !raw.endsWith('"')) return raw;
+  const body = raw.slice(1, -1);
+  const encoder = new TextEncoder();
+  const bytes: number[] = [];
+  for (let i = 0; i < body.length;) {
+    if (body[i] !== '\\') {
+      const codePoint = String.fromCodePoint(body.codePointAt(i) ?? 0);
+      bytes.push(...encoder.encode(codePoint));
+      i += codePoint.length;
+      continue;
+    }
+    const octal = /^[0-7]{1,3}/.exec(body.slice(i + 1, i + 4));
+    if (octal) {
+      bytes.push(parseInt(octal[0], 8) & 0xff);
+      i += 1 + octal[0].length;
+    } else {
+      const escaped = C_ESCAPES[body[i + 1]];
+      bytes.push(escaped ?? (body.charCodeAt(i + 1) || 92));
+      i += 2;
+    }
+  }
+  return new TextDecoder().decode(Uint8Array.from(bytes));
+}
+
+const QUOTED = '"(?:[^"\\\\]|\\\\.)*"';
+const GIT_HEADER = new RegExp(
+  `^diff --git (${QUOTED}|a/.*?)\\s+(${QUOTED}|b/.*?)(?:\\r?\\n|$)`,
+  'm',
+);
+
+function stripPrefix(path: string, prefix: 'a/' | 'b/'): string {
+  return path.startsWith(prefix) ? path.slice(2) : path;
+}
+
+function pathFromHeader(text: string): string {
+  const match = GIT_HEADER.exec(text);
+  if (!match) return '';
+  const oldPath = stripPrefix(unquoteGitPath(match[1]), 'a/');
+  const newPath = stripPrefix(unquoteGitPath(match[2]), 'b/');
+  return newPath !== '/dev/null' ? newPath : oldPath;
+}
+
+function pathFromFileMarker(chunk: string, marker: '+++' | '---', prefix: 'a/' | 'b/'): string {
+  const match = new RegExp(
+    `^${marker === '+++' ? '\\+\\+\\+' : '---'}\\s+(${QUOTED}|.*?)(?:\\r?\\n|$)`,
+    'm',
+  ).exec(chunk);
+  const path = match ? stripPrefix(unquoteGitPath(match[1]), prefix) : '';
+  return path === '/dev/null' ? '' : path;
+}
+
 /**
  * Splits a full multi-file unified diff into a map of filePath -> fileDiffText.
+ * Keys are decoded paths (see unquoteGitPath).
  */
 export function splitUnifiedDiffByFile(unifiedDiff: string): Map<string, string> {
   const result = new Map<string, string>();
@@ -39,21 +108,11 @@ export function splitUnifiedDiffByFile(unifiedDiff: string): Map<string, string>
     if (!chunk.trim() || !chunk.startsWith('diff --git ')) continue;
 
     // Try extracting path from "diff --git a/PATH b/PATH"
-    let filePath = '';
-    const headerMatch = chunk.match(/^diff --git a\/(.*?)\s+b\/(.*?)(?:\r?\n|$)/m);
-    if (headerMatch) {
-      // In case of rename or b/path, usually b/ path is the new path unless deleted
-      filePath = headerMatch[2] !== '/dev/null' ? headerMatch[2] : headerMatch[1];
-    } else {
-      // Fallback: check +++ b/PATH or --- a/PATH
-      const plusMatch = chunk.match(/^\+\+\+\s+(?:b\/)?(.*?)(?:\r?\n|$)/m);
-      const minusMatch = chunk.match(/^---\s+(?:a\/)?(.*?)(?:\r?\n|$)/m);
-      if (plusMatch && plusMatch[1] !== '/dev/null') {
-        filePath = plusMatch[1];
-      } else if (minusMatch && minusMatch[1] !== '/dev/null') {
-        filePath = minusMatch[1];
-      }
-    }
+    // Rename or b/path: the new path wins unless the file was deleted.
+    const filePath =
+      pathFromHeader(chunk) ||
+      pathFromFileMarker(chunk, '+++', 'b/') ||
+      pathFromFileMarker(chunk, '---', 'a/');
 
     if (filePath) {
       result.set(filePath, chunk);
@@ -61,6 +120,11 @@ export function splitUnifiedDiffByFile(unifiedDiff: string): Map<string, string>
   }
 
   return result;
+}
+
+/** Looks up a file's diff chunk by a raw (possibly C-quoted) or decoded path. */
+export function findFileDiff(diffByFile: Map<string, string>, path: string): string {
+  return diffByFile.get(unquoteGitPath(path)) ?? '';
 }
 
 /**
@@ -71,11 +135,7 @@ export function parseFileDiff(fileDiffText: string = '', fallbackPath = ''): Dif
   const hunks: DiffParsedHunk[] = [];
   const rows: DiffParsedLine[] = [];
 
-  let extractedPath = fallbackPath;
-  const headerMatch = fileDiffText.match(/^diff --git a\/(.*?)\s+b\/(.*?)(?:\r?\n|$)/m);
-  if (headerMatch) {
-    extractedPath = headerMatch[2] !== '/dev/null' ? headerMatch[2] : headerMatch[1];
-  }
+  const extractedPath = pathFromHeader(fileDiffText) || fallbackPath;
 
   let currentHunk: DiffParsedHunk | null = null;
   let oldLine = 0;

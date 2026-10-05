@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseFileDiff, splitUnifiedDiffByFile } from './diffParser';
+import { findFileDiff, parseFileDiff, splitUnifiedDiffByFile, unquoteGitPath } from './diffParser';
 
 const SAMPLE_MULTI_DIFF = `
 diff --git a/del.txt b/del.txt
@@ -175,5 +175,84 @@ describe('diffParser', () => {
     expect(parsed.rows).toHaveLength(5001); // 1 header + 5000 add lines
     expect(parsed.rows[5000].content).toBe('generated line 5000');
     expect(parsed.rows[5000].newLineNumber).toBe(5000);
+  });
+});
+
+describe('Git C-quoted paths', () => {
+  const QUOTED_DIFF = [
+    'diff --git "a/caf\\303\\251.txt" "b/caf\\303\\251.txt"',
+    'index 1111111..2222222 100644',
+    '--- "a/caf\\303\\251.txt"',
+    '+++ "b/caf\\303\\251.txt"',
+    '@@ -1 +1 @@',
+    '-vechi',
+    '+nou',
+    'diff --git "a/dir/\\350\\267\\257\\345\\276\\204 \\"q\\".txt" "b/dir/\\350\\267\\257\\345\\276\\204 \\"q\\".txt"',
+    'new file mode 100644',
+    '--- /dev/null',
+    '+++ "b/dir/\\350\\267\\257\\345\\276\\204 \\"q\\".txt"',
+    '@@ -0,0 +1 @@',
+    '+x',
+    'diff --git a/plain.txt b/plain.txt',
+    '--- a/plain.txt',
+    '+++ b/plain.txt',
+    '@@ -1 +1 @@',
+    '-a',
+    '+b',
+  ].join('\n');
+
+  describe('unquoteGitPath', () => {
+    it('decodes octal UTF-8 byte escapes', () => {
+      expect(unquoteGitPath('"caf\\303\\251.txt"')).toBe('café.txt');
+      expect(unquoteGitPath('"\\360\\237\\230\\200.md"')).toBe('😀.md');
+    });
+
+    it('decodes quote, backslash and control escapes', () => {
+      expect(unquoteGitPath('"a\\"b\\\\c\\td\\ne"')).toBe('a"b\\c\td\ne');
+    });
+
+    it('keeps literal non-ASCII characters inside quotes', () => {
+      expect(unquoteGitPath('"ăâ \\"x\\""')).toBe('ăâ "x"');
+    });
+
+    it('returns unquoted paths unchanged', () => {
+      expect(unquoteGitPath('src/index.ts')).toBe('src/index.ts');
+      expect(unquoteGitPath('café.txt')).toBe('café.txt');
+    });
+  });
+
+  it('indexes diff chunks by the decoded filename', () => {
+    const map = splitUnifiedDiffByFile(QUOTED_DIFF);
+    expect([...map.keys()]).toEqual(['café.txt', 'dir/路径 "q".txt', 'plain.txt']);
+    expect(map.get('café.txt')).toContain('+nou');
+  });
+
+  it('decodes the +++ fallback when the diff --git header cannot be parsed', () => {
+    const map = splitUnifiedDiffByFile(
+      [
+        'diff --git weird header',
+        '--- "a/caf\\303\\251.txt"',
+        '+++ "b/caf\\303\\251.txt"',
+        '@@ -1 +1 @@',
+        '-a',
+        '+b',
+      ].join('\n'),
+    );
+    expect([...map.keys()]).toEqual(['café.txt']);
+  });
+
+  it('parseFileDiff reports the decoded path and counts lines', () => {
+    const chunk = splitUnifiedDiffByFile(QUOTED_DIFF).get('café.txt')!;
+    const parsed = parseFileDiff(chunk, 'fallback');
+    expect(parsed.filePath).toBe('café.txt');
+    expect(parsed.additions).toBe(1);
+    expect(parsed.deletions).toBe(1);
+  });
+
+  it('findFileDiff resolves raw quoted and decoded selected paths to the same chunk', () => {
+    const map = splitUnifiedDiffByFile(QUOTED_DIFF);
+    expect(findFileDiff(map, 'café.txt')).toContain('+nou');
+    expect(findFileDiff(map, '"caf\\303\\251.txt"')).toContain('+nou');
+    expect(findFileDiff(map, 'missing.txt')).toBe('');
   });
 });

@@ -236,7 +236,7 @@ export function GitChangesList({
                       : 'var(--color-fg, #1b1d21)',
               }}
             >
-              {file.status}
+              {t(`git.status.${file.status}`, { defaultValue: file.status })}
             </span>
 
             {/* File Path */}

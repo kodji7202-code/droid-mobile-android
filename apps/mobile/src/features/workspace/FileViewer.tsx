@@ -4,6 +4,7 @@ import hljs from 'highlight.js/lib/common';
 import { BackIcon, CloseIcon } from '../../components/icons';
 import { useConnectionStore } from '../../stores/connection';
 import type { WorkspaceFileContent } from '@droidmobile/daemon-client';
+import { truncateToUtf8Bytes } from './utf8Truncate';
 
 const ONE_MIB = 1048576;
 
@@ -156,11 +157,9 @@ export function FileViewer({ sessionId, filePath, onBack }: FileViewerProps) {
   }, [fetchContent]);
 
   const byteLength = data?.byteLength ?? 0;
-  const isTruncated = byteLength > ONE_MIB || (data?.content?.length ?? 0) > ONE_MIB;
-  const displayContent = useMemo(() => {
-    if (!data?.content) return '';
-    return isTruncated ? data.content.slice(0, ONE_MIB) : data.content;
-  }, [data?.content, isTruncated]);
+  const capped = useMemo(() => truncateToUtf8Bytes(data?.content ?? '', ONE_MIB), [data?.content]);
+  const isTruncated = byteLength > ONE_MIB || capped.truncated;
+  const displayContent = capped.text;
 
   const language = useMemo(() => getFileLanguage(filePath), [filePath]);
 
@@ -257,10 +256,7 @@ export function FileViewer({ sessionId, filePath, onBack }: FileViewerProps) {
         ) : (
           <div className="file-viewer__text-wrapper">
             {isTruncated ? (
-              <div
-                className="file-viewer__truncation-notice"
-                data-testid="file-viewer-truncation"
-              >
+              <div className="file-viewer__truncation-notice" data-testid="file-viewer-truncation">
                 {t('workspace.fileViewerTruncated', { total: formatBytes(byteLength) })}
               </div>
             ) : null}

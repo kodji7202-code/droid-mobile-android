@@ -13,7 +13,7 @@ import { GitActions } from './GitActions';
 import { GitChangesList } from './GitChangesList';
 import { GitDiffViewer } from './GitDiffViewer';
 import { TerminalView } from '../terminal/TerminalView';
-import { splitUnifiedDiffByFile } from './diffParser';
+import { findFileDiff, splitUnifiedDiffByFile, unquoteGitPath } from './diffParser';
 import { buildTree, flattenTree } from './treeBuilder';
 import type {
   GitDiffFile,
@@ -342,9 +342,10 @@ export function WorkspaceScreen() {
   if (viewingDiffFile) {
     const diffText = gitDiffData?.success ? gitDiffData.data.diff : '';
     const fileDiffMap = splitUnifiedDiffByFile(diffText);
-    const rawDiff = fileDiffMap.get(viewingDiffFile) ?? '';
+    const diffPath = unquoteGitPath(viewingDiffFile);
+    const rawDiff = findFileDiff(fileDiffMap, viewingDiffFile);
     const fileEntry = gitDiffData?.success
-      ? gitDiffData.data.files.find((f) => f.path === viewingDiffFile)
+      ? gitDiffData.data.files.find((f) => unquoteGitPath(f.path) === diffPath)
       : undefined;
     return (
       <section
@@ -353,7 +354,7 @@ export function WorkspaceScreen() {
         style={{ height: '100%', padding: 0 }}
       >
         <GitDiffViewer
-          filePath={viewingDiffFile}
+          filePath={diffPath}
           rawDiff={rawDiff}
           additions={fileEntry?.additions}
           deletions={fileEntry?.deletions}

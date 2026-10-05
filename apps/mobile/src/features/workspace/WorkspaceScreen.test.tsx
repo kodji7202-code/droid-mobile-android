@@ -591,6 +591,83 @@ describe('WorkspaceScreen', () => {
     });
   });
 
+  it.each([
+    ['decoded changed-file path', 'café.txt'],
+    ['C-quoted changed-file path', '"caf\\303\\251.txt"'],
+  ])(
+    'shows the diff for a non-ASCII filename with a %s (VAL-WS-021)',
+    async (_name, listedPath) => {
+      setupConnection({
+        getGitDiff: vi.fn(async (): Promise<DaemonGetGitDiffResult> => ({
+          success: true,
+          data: {
+            branch: 'main',
+            baseBranch: 'main',
+            totalAdditions: 1,
+            totalDeletions: 1,
+            files: [{ path: listedPath, additions: 1, deletions: 1, status: 'modified' }],
+            diff: [
+              'diff --git "a/caf\\303\\251.txt" "b/caf\\303\\251.txt"',
+              '--- "a/caf\\303\\251.txt"',
+              '+++ "b/caf\\303\\251.txt"',
+              '@@ -1 +1 @@',
+              '-vechi',
+              '+nou',
+              '',
+            ].join('\n'),
+            remoteUrl: null,
+            commits: [],
+            committedDiff: '',
+            committedFiles: [],
+            committedTotalAdditions: 0,
+            committedTotalDeletions: 0,
+            localDiff: '',
+            localFiles: [],
+            localTotalAdditions: 0,
+            localTotalDeletions: 0,
+            unstagedDiff: '',
+            unstagedFiles: [],
+            unstagedTotalAdditions: 0,
+            unstagedTotalDeletions: 0,
+          },
+        })),
+      });
+
+      useSessionViewStore.setState({
+        activeSessionId: 's1',
+        views: {
+          s1: {
+            id: 's1',
+            status: 'ready',
+            cwd: 'D:/alpha',
+            items: [],
+            queued: [],
+            turnActive: false,
+            workingState: 'idle',
+            stopRequested: false,
+            interrupted: false,
+            hasMore: false,
+            loadingOlder: false,
+            epoch: 1,
+          },
+        },
+      });
+
+      renderWorkspace('/workspace?tab=changes');
+
+      await waitFor(() => {
+        expect(screen.getByTestId(`git-change-${listedPath}`)).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId(`git-change-${listedPath}`));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('git-diff-file-path')).toHaveTextContent('café.txt');
+        expect(screen.getByTestId('diff-hunk-header')).toHaveTextContent('@@ -1 +1 @@');
+      });
+      expect(screen.queryByText('No changes in this file')).not.toBeInTheDocument();
+    },
+  );
+
   it('handles clean repository state (VAL-WS-023)', async () => {
     setupConnection({
       getGitDiff: vi.fn(async (): Promise<DaemonGetGitDiffResult> => ({

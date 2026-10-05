@@ -554,12 +554,16 @@
       "detached": "HEAD detașat",
       "resolveTitle": "Modificări necomise",
       "changedFiles_one": "{{count}} fișier modificat",
+      "changedFiles_few": "{{count}} fișiere modificate",
       "changedFiles_other": "{{count}} de fișiere modificate",
       "additions_one": "{{count}} adăugare",
+      "additions_few": "{{count}} adăugări",
       "additions_other": "{{count}} de adăugări",
       "deletions_one": "{{count}} ștergere",
+      "deletions_few": "{{count}} ștergeri",
       "deletions_other": "{{count}} de ștergeri",
       "untrackedFiles_one": "{{count}} fișier neurmărit",
+      "untrackedFiles_few": "{{count}} fișiere neurmărite",
       "untrackedFiles_other": "{{count}} de fișiere neurmărite",
       "stash": "Stash",
       "commit": "Commit"
@@ -568,6 +572,7 @@
       "button": "Commit",
       "title": "Commit modificări",
       "filesTitle_one": "{{count}} fișier modificat va fi comis",
+      "filesTitle_few": "{{count}} fișiere modificate vor fi comise",
       "filesTitle_other": "{{count}} de fișiere modificate vor fi comise",
       "message": "Mesajul commit-ului",
       "submit": "Commit",
@@ -581,6 +586,7 @@
       "success": "Ramură trimisă",
       "failed": "Trimiterea ramurii a eșuat",
       "pending_one": "{{count}} commit de trimis",
+      "pending_few": "{{count}} commit-uri de trimis",
       "pending_other": "{{count}} de commit-uri de trimis"
     }
   }

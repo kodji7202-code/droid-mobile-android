@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import i18next from 'i18next';
 import { describe, expect, it, vi } from 'vitest';
 import { AppProviders } from '../../test/render-app';
 import { GitChangesList } from './GitChangesList';
@@ -62,6 +63,44 @@ describe('GitChangesList (VAL-WS-020 & VAL-WS-023)', () => {
     // Tap file to view diff
     fireEvent.click(screen.getByTestId('git-change-mod.txt'));
     expect(handleSelect).toHaveBeenCalledWith('mod.txt');
+  });
+
+  it('renders localized status badges when Romanian is selected', async () => {
+    await i18next.changeLanguage('ro');
+    try {
+      const files: GitDiffFile[] = [
+        { path: 'a.txt', additions: 0, deletions: 0, status: 'modified' },
+        { path: 'b.txt', additions: 0, deletions: 0, status: 'added' },
+        { path: 'c.txt', additions: 0, deletions: 0, status: 'deleted' },
+        { path: 'd.txt', additions: 0, deletions: 0, status: 'renamed' },
+        { path: 'e.txt', additions: 0, deletions: 0, status: 'untracked' },
+        { path: 'f.txt', additions: 0, deletions: 0, status: 'conflicted' },
+      ];
+      render(
+        <AppProviders>
+          <GitChangesList
+            files={files}
+            branch="main"
+            baseBranch="main"
+            totalAdditions={0}
+            totalDeletions={0}
+            onSelectFile={vi.fn()}
+          />
+        </AppProviders>,
+      );
+
+      const labels = screen.getAllByTestId('git-status-badge').map((badge) => badge.textContent);
+      expect(labels).toEqual([
+        'modificat',
+        'adăugat',
+        'șters',
+        'redenumit',
+        'neurmărit',
+        'conflicted',
+      ]);
+    } finally {
+      await i18next.changeLanguage('en');
+    }
   });
 
   it('renders clean repository "no changes" state (VAL-WS-023)', () => {

@@ -136,6 +136,61 @@ describe('FileViewer', () => {
     });
   });
 
+  it.each([
+    ['two-byte characters', 'ă'],
+    ['three-byte characters', '€'],
+    ['supplementary characters', '😀'],
+  ])('caps %s at 1 MiB of UTF-8 bytes (VAL-WS-014)', async (_name, char) => {
+    const content = char.repeat(Math.ceil((5 * 1024 * 1024) / Buffer.byteLength(char, 'utf8')));
+    const getFileContent = vi.fn(async () => ({
+      content,
+      byteLength: Buffer.byteLength(content, 'utf8'),
+      isBinary: false,
+    }));
+
+    useConnectionStore.setState({
+      connection: { getFileContent } as unknown as DaemonConnection,
+    });
+
+    render(
+      <AppProviders>
+        <FileViewer sessionId="s1" filePath="multibyte.txt" onBack={vi.fn()} />
+      </AppProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('file-viewer-truncation')).toBeInTheDocument();
+      const shown = screen.getByTestId('file-viewer-text').textContent ?? '';
+      expect(Buffer.byteLength(shown, 'utf8')).toBeLessThanOrEqual(1024 * 1024);
+      expect(Buffer.byteLength(shown, 'utf8')).toBeGreaterThan(1024 * 1024 - 4);
+    });
+  });
+
+  it('shows the truncation notice when multibyte content exceeds 1 MiB despite a small reported size (VAL-WS-014)', async () => {
+    const content = 'ă'.repeat(600 * 1024);
+    const getFileContent = vi.fn(async () => ({
+      content,
+      byteLength: 1024,
+      isBinary: false,
+    }));
+
+    useConnectionStore.setState({
+      connection: { getFileContent } as unknown as DaemonConnection,
+    });
+
+    render(
+      <AppProviders>
+        <FileViewer sessionId="s1" filePath="multibyte.txt" onBack={vi.fn()} />
+      </AppProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('file-viewer-truncation')).toBeInTheDocument();
+      const shown = screen.getByTestId('file-viewer-text').textContent ?? '';
+      expect(Buffer.byteLength(shown, 'utf8')).toBeLessThanOrEqual(1024 * 1024);
+    });
+  });
+
   it('shows no truncation notice for files under 1 MiB (VAL-WS-014)', async () => {
     const smallContent = 'Small file content under 1 MiB';
     const getFileContent = vi.fn(async () => ({
@@ -182,7 +237,9 @@ describe('FileViewer', () => {
       expect(screen.getByTestId('file-viewer-line-numbers')).toBeInTheDocument();
       // Individual div elements are skipped to keep DOM lean
       expect(screen.queryAllByTestId('file-viewer-line-number').length).toBe(0);
-      expect(screen.getByTestId('file-viewer-line-numbers').querySelector('pre')).toBeInTheDocument();
+      expect(
+        screen.getByTestId('file-viewer-line-numbers').querySelector('pre'),
+      ).toBeInTheDocument();
     });
   });
 
@@ -241,7 +298,8 @@ describe('FileViewer', () => {
 
   it('renders image files using base64 data uri (VAL-WS-016)', async () => {
     const getFileContent = vi.fn(async () => ({
-      content: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      content:
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
       byteLength: 70,
       isBinary: true,
       mimeType: 'image/png',

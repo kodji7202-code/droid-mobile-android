@@ -79,7 +79,7 @@ export function CommitSheet({
               data-testid={`git-commit-file-${f.path}`}
               style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
             >
-              {f.status} {f.path}
+              {t(`git.status.${f.status}`, { defaultValue: f.status })} {f.path}
             </li>
           ))}
         </ul>
