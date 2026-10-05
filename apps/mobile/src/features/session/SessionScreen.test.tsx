@@ -43,7 +43,19 @@ function renderRoute(connection: DaemonConnection) {
   );
 }
 
+function scrollTo(y: number, height: number) {
+  Object.defineProperty(window, 'scrollY', { configurable: true, value: y });
+  Object.defineProperty(document.documentElement, 'scrollHeight', {
+    configurable: true,
+    value: height,
+  });
+  act(() => {
+    window.dispatchEvent(new Event('scroll'));
+  });
+}
+
 afterEach(() => {
+  scrollTo(0, 0);
   act(() => {
     useSessionViewStore.getState().reset();
     useConnectionStore.setState({ connection: null, status: 'offline', readyEpoch: 0 });
@@ -84,6 +96,37 @@ describe('SessionScreen', () => {
       .map((el) => el.querySelector('.session-message__text')?.textContent);
     expect(texts).toEqual(['first', 'second', 'third']);
     expect(screen.queryByTestId('session-load-older')).not.toBeInTheDocument();
+  });
+
+  it('loads the next older page when the user scrolls near the top, without duplicates', async () => {
+    const { connection, getMessages } = fakeConnection([
+      [message('c', 'user', 3, 'third'), message('b', 'assistant', 2, 'second')],
+      [message('b', 'assistant', 2, 'second'), message('a', 'user', 1, 'first')],
+    ]);
+    renderRoute(connection);
+    await screen.findByTestId('msg-user-1');
+
+    scrollTo(1200, 5000);
+    scrollTo(100, 5000);
+
+    await waitFor(() => expect(screen.getByTestId('msg-user-0')).toHaveTextContent('first'));
+    expect(getMessages).toHaveBeenCalledTimes(2);
+    const ids = screen.getAllByTestId(/^msg-/).map((el) => el.textContent);
+    expect(ids).toEqual(['first', 'second', 'third']);
+  });
+
+  it('offers jump to latest after scrolling up and hides it once back at the bottom', async () => {
+    const { connection } = fakeConnection([[message('a', 'user', 1, 'first')]]);
+    renderRoute(connection);
+    const user = userEvent.setup();
+    await screen.findByTestId('msg-user-0');
+    expect(screen.queryByTestId('chat-jump-latest')).not.toBeInTheDocument();
+
+    scrollTo(1800, 5000);
+    scrollTo(900, 5000);
+    await user.click(await screen.findByTestId('chat-jump-latest'));
+
+    expect(screen.queryByTestId('chat-jump-latest')).not.toBeInTheDocument();
   });
 
   it('shows an empty chat for a session without messages', async () => {

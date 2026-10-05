@@ -277,6 +277,7 @@
     "loadFailed": "Daemonul nu a putut relua această sesiune. Încearcă din nou.",
     "loadOlder": "Încarcă mesajele anterioare",
     "loadingOlder": "Se încarcă…",
+    "jumpToLatest": "Salt la ultimul mesaj",
     "emptyTitle": "Niciun mesaj încă",
     "emptyMessage": "Sesiunea apare în listă după primul mesaj.",
     "roleUser": "Tu",

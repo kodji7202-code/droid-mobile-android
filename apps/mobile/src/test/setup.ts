@@ -25,3 +25,6 @@ if (typeof window.matchMedia !== 'function') {
       }) as MediaQueryList,
   });
 }
+
+// jsdom logs "not implemented" for window.scrollTo; the chat scroll hook calls it on every update.
+window.scrollTo = (() => undefined) as typeof window.scrollTo;

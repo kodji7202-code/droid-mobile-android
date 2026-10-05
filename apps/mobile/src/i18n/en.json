@@ -277,6 +277,7 @@
     "loadFailed": "The daemon could not resume this session. Try again.",
     "loadOlder": "Load earlier messages",
     "loadingOlder": "Loading…",
+    "jumpToLatest": "Jump to latest",
     "emptyTitle": "No messages yet",
     "emptyMessage": "This session appears in the list after its first message.",
     "roleUser": "You",

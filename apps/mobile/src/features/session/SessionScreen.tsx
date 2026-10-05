@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { BackIcon } from '../../components/icons';
@@ -10,6 +10,7 @@ import { useInteractionStore } from '../../stores/interactions';
 import { useSessionViewStore } from '../../stores/sessionView';
 import { ChatComposer, WAITING_STATE } from '../chat/ChatComposer';
 import { InteractionHost } from '../chat/InteractionHost';
+import { useChatScroll } from '../chat/useChatScroll';
 import { Transcript } from '../chat/Transcript';
 import { UsageChip } from '../chat/UsageChip';
 
@@ -36,8 +37,6 @@ export function SessionScreen() {
   const awaitingApproval = useInteractionStore((state) =>
     state.pending.some((item) => item.sessionId === id),
   );
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const stickToBottom = useRef(true);
 
   useEffect(() => {
     if (ready && connection && id !== '') {
@@ -49,25 +48,17 @@ export function SessionScreen() {
   const itemCount = items?.length ?? 0;
   const lastText = items?.at(-1);
 
-  useEffect(() => {
-    let lastY = window.scrollY;
-    const onScroll = () => {
-      const atBottom =
-        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 160;
-      // Content growth alone never lowers scrollY, so only a real upward scroll releases the pin.
-      if (atBottom) stickToBottom.current = true;
-      else if (window.scrollY < lastY - 4) stickToBottom.current = false;
-      lastY = window.scrollY;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  useEffect(() => {
-    if (stickToBottom.current) {
-      bottomRef.current?.scrollIntoView?.({ block: 'end' });
-    }
-  }, [itemCount, lastText, view?.interrupted]);
+  const contentSignal = useMemo(
+    () => ({ itemCount, lastText, interrupted: view?.interrupted }),
+    [itemCount, lastText, view?.interrupted],
+  );
+  const { away, jumpToLatest } = useChatScroll({
+    contentSignal,
+    hasMore: Boolean(view?.hasMore),
+    loadingOlder: Boolean(view?.loadingOlder),
+    active: view?.status === 'ready',
+    loadOlder: () => void loadOlder(id),
+  });
 
   const loading = view === undefined ? ready : view.status === 'loading';
   const failed = view?.status === 'error';
@@ -186,7 +177,18 @@ export function SessionScreen() {
           </p>
         ) : null}
 
-        <div ref={bottomRef} />
+        {away ? (
+          <div className="chat-jump">
+            <button
+              type="button"
+              className="btn btn--primary chat-jump__button"
+              data-testid="chat-jump-latest"
+              onClick={jumpToLatest}
+            >
+              {t('session.jumpToLatest')}
+            </button>
+          </div>
+        ) : null}
 
         <ChatComposer
           turnActive={Boolean(view?.turnActive) || awaitingApproval}
