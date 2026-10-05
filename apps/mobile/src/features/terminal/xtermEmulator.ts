@@ -1,5 +1,7 @@
 import type { Terminal as XtermTerminal } from '@xterm/xterm';
-import type { Emulator } from './TerminalManager';
+import type { Emulator, TerminalCell } from './TerminalManager';
+import { wordBounds } from './terminalKeys';
+import { installTextInputGuard } from './textInputGuard';
 
 declare global {
   interface HTMLElement {
@@ -90,6 +92,19 @@ export async function loadXtermEmulatorFactory(): Promise<() => Emulator> {
     term.loadAddon(fitAddon);
     element.xterm = term;
     let opened = false;
+    let removeGuard: (() => void) | null = null;
+    const scrollListeners = new Set<(atBottom: boolean) => void>();
+    const isAtBottom = () => term.buffer.active.viewportY >= term.buffer.active.baseY;
+    let lastAtBottom = true;
+    const publishScroll = () => {
+      const now = isAtBottom();
+      if (now === lastAtBottom) return;
+      lastAtBottom = now;
+      for (const l of [...scrollListeners]) l(now);
+    };
+    // New output does not fire onScroll while the view is held above the bottom.
+    term.onScroll(publishScroll);
+    term.onWriteParsed(publishScroll);
 
     const observer = new MutationObserver(() => {
       term.options.theme = currentTheme();
@@ -109,6 +124,7 @@ export async function loadXtermEmulatorFactory(): Promise<() => Emulator> {
         textarea.setAttribute('autocorrect', 'off');
         textarea.setAttribute('autocomplete', 'off');
         textarea.setAttribute('spellcheck', 'false');
+        removeGuard = installTextInputGuard(element, textarea, (data) => term.input(data, true));
       }
     };
 
@@ -137,11 +153,53 @@ export async function loadXtermEmulatorFactory(): Promise<() => Emulator> {
         return { cols: term.cols, rows: term.rows };
       },
       focus: () => term.focus(),
+      get applicationCursor() {
+        return term.modes.applicationCursorKeysMode;
+      },
+      paste: (text) => term.paste(text),
+      get atBottom() {
+        return isAtBottom();
+      },
+      scrollToBottom: () => term.scrollToBottom(),
+      onScrollState(listener) {
+        scrollListeners.add(listener);
+        return () => scrollListeners.delete(listener);
+      },
+      getSelection: () => term.getSelection(),
+      hasSelection: () => term.hasSelection(),
+      clearSelection: () => term.clearSelection(),
+      cellAt(clientX, clientY): TerminalCell | null {
+        const screen = element.querySelector('.xterm-screen');
+        if (!screen || term.cols === 0 || term.rows === 0) return null;
+        const rect = screen.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return null;
+        const col = Math.floor(((clientX - rect.left) / rect.width) * term.cols);
+        const rowInView = Math.floor(((clientY - rect.top) / rect.height) * term.rows);
+        if (col < 0 || col >= term.cols || rowInView < 0 || rowInView >= term.rows) return null;
+        return { col, row: term.buffer.active.viewportY + rowInView };
+      },
+      selectBetween(from, to) {
+        const [a, b] =
+          from.row < to.row || (from.row === to.row && from.col <= to.col)
+            ? [from, to]
+            : [to, from];
+        term.select(a.col, a.row, (b.row - a.row) * term.cols + (b.col - a.col) + 1);
+      },
+      selectWordAt(cell) {
+        const line = term.buffer.active.getLine(cell.row)?.translateToString(true) ?? '';
+        const bounds = wordBounds(line, cell.col);
+        if (!bounds) {
+          term.clearSelection();
+          return;
+        }
+        term.select(bounds.start, cell.row, bounds.end - bounds.start + 1);
+      },
       onData(listener) {
         const disposable = term.onData(listener);
         return () => disposable.dispose();
       },
       dispose() {
+        removeGuard?.();
         observer.disconnect();
         term.dispose();
         element.remove();

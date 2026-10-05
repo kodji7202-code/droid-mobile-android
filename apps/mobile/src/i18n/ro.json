@@ -492,7 +492,21 @@
     "linkLost": "Conexiunea terminalului s-a pierdut. Se reconectează…",
     "exitedBanner": "Acest terminal s-a încheiat cu codul {{code}}. Introducerea este dezactivată.",
     "restart": "Repornește terminalul",
-    "area": "Ieșirea terminalului {{n}}"
+    "area": "Ieșirea terminalului {{n}}",
+    "select": "Selectează",
+    "copy": "Copiază",
+    "paste": "Lipește",
+    "jumpToBottom": "Salt la final",
+    "keys": {
+      "label": "Taste terminal",
+      "esc": "Escape",
+      "tab": "Tab",
+      "ctrl": "Control",
+      "up": "Săgeată sus",
+      "down": "Săgeată jos",
+      "left": "Săgeată stânga",
+      "right": "Săgeată dreapta"
+    }
   },
   "git": {
     "changes": "Modificări",

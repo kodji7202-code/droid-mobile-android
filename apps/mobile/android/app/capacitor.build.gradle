@@ -13,6 +13,7 @@ dependencies {
     implementation project(':aparajita-capacitor-secure-storage')
     implementation project(':capacitor-mlkit-barcode-scanning')
     implementation project(':capacitor-app')
+    implementation project(':capacitor-clipboard')
     implementation project(':capawesome-capacitor-file-picker')
 
 }

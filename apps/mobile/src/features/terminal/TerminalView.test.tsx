@@ -1,4 +1,4 @@
-﻿import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DaemonConnection } from '@droidmobile/daemon-client';
@@ -100,5 +100,76 @@ describe('TerminalView', () => {
     client.createError = null;
     await userEvent.click(screen.getByTestId('terminal-retry'));
     await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(1));
+  });
+});
+
+describe('TerminalView mobile input', () => {
+  async function ready() {
+    mount();
+    await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(1));
+    return emulators[0]!;
+  }
+  const writes = () => client.frames.filter((f) => f.op === 'write').map((f) => f.data);
+
+  it('sends Esc and Tab frames from the extra keys', async () => {
+    await ready();
+    await userEvent.click(screen.getByTestId('terminal-key-esc'));
+    await userEvent.click(screen.getByTestId('terminal-key-tab'));
+    expect(writes()).toEqual(['\x1b', '\t']);
+  });
+
+  it('follows the cursor-key mode for arrows', async () => {
+    const emulator = await ready();
+    await userEvent.click(screen.getByTestId('terminal-key-up'));
+    emulator.applicationCursor = true;
+    await userEvent.click(screen.getByTestId('terminal-key-left'));
+    expect(writes()).toEqual(['\x1b[A', '\x1bOD']);
+  });
+
+  it('arms Ctrl for exactly one character and toggles off on a second tap', async () => {
+    const emulator = await ready();
+    const ctrl = screen.getByTestId('terminal-key-ctrl');
+    await userEvent.click(ctrl);
+    expect(ctrl).toHaveAttribute('aria-pressed', 'true');
+    act(() => emulator.type('c'));
+    expect(writes()).toEqual(['\x03']);
+    expect(ctrl).toHaveAttribute('aria-pressed', 'false');
+    act(() => emulator.type('c'));
+    expect(writes()).toEqual(['\x03', 'c']);
+    await userEvent.click(ctrl);
+    await userEvent.click(ctrl);
+    expect(writes()).toEqual(['\x03', 'c']);
+    act(() => emulator.type('c'));
+    expect(writes().at(-1)).toBe('c');
+  });
+
+  it('shows a jump-to-bottom control only while scrolled up', async () => {
+    const emulator = await ready();
+    expect(screen.queryByTestId('terminal-jump-bottom')).not.toBeInTheDocument();
+    act(() => emulator.setAtBottom(false));
+    await userEvent.click(screen.getByTestId('terminal-jump-bottom'));
+    expect(emulator.scrolledToBottom).toBe(1);
+    expect(screen.queryByTestId('terminal-jump-bottom')).not.toBeInTheDocument();
+  });
+
+  it('copies the selection to the clipboard and pastes clipboard text as input', async () => {
+    const emulator = await ready();
+    let clip = '';
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          clip = text;
+        },
+        readText: async () => clip,
+      },
+    });
+    emulator.selection = 'hi-123';
+    await userEvent.click(screen.getByTestId('terminal-copy'));
+    expect(clip).toBe('hi-123');
+    clip = 'echo pasted-ok';
+    await userEvent.click(screen.getByTestId('terminal-paste'));
+    expect(emulator.pasted).toEqual(['echo pasted-ok']);
+    expect(writes()).toEqual(['echo pasted-ok']);
   });
 });

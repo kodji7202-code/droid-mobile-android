@@ -14,5 +14,8 @@ project(':capacitor-mlkit-barcode-scanning').projectDir = new File('../../../nod
 include ':capacitor-app'
 project(':capacitor-app').projectDir = new File('../../../node_modules/@capacitor/app/android')
 
+include ':capacitor-clipboard'
+project(':capacitor-clipboard').projectDir = new File('../../../node_modules/@capacitor/clipboard/android')
+
 include ':capawesome-capacitor-file-picker'
 project(':capawesome-capacitor-file-picker').projectDir = new File('../../../node_modules/@capawesome/capacitor-file-picker/android')

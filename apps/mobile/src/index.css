@@ -1692,7 +1692,7 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   display: flex;
   flex: 1;
   flex-direction: column;
-  min-height: 0;
+  min-height: 320px;
 }
 .terminal-bar {
   display: flex;
@@ -1790,4 +1790,74 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
 }
 .terminal-overlay__title {
   font-weight: 600;
+}
+
+.terminal-action {
+  flex: none;
+  min-width: 48px;
+  min-height: 48px;
+  padding-inline: 8px;
+  font-size: 0.8rem;
+}
+.terminal-action--active {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+.terminal-host--select {
+  touch-action: none;
+  user-select: none;
+}
+.terminal-jump {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  min-height: 48px;
+}
+.terminal-keys {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-variant);
+}
+.terminal-key {
+  flex: 1;
+  min-width: 48px;
+  min-height: 48px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-fg);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.terminal-key:disabled {
+  opacity: 0.5;
+}
+.terminal-key--active {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent, #fff);
+}
+
+html[data-soft-keyboard='open'] .app-nav-bar {
+  display: none;
+}
+
+@media (orientation: landscape) {
+  html[data-soft-keyboard='open'] .terminal-view {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    min-height: 0;
+    background: var(--color-bg);
+  }
+}
+@media (max-height: 420px) {
+  html[data-soft-keyboard='open'] .terminal-bar {
+    display: none;
+  }
 }

@@ -17,6 +17,7 @@
     "@capacitor-mlkit/barcode-scanning": "8.2.1",
     "@capacitor/android": "8.5.2",
     "@capacitor/app": "8.1.2",
+    "@capacitor/clipboard": "8.0.1",
     "@capacitor/core": "8.5.2",
     "@capawesome/capacitor-file-picker": "8.1.0",
     "@droidmobile/daemon-client": "0.0.0",

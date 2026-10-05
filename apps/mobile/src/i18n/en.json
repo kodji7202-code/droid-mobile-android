@@ -492,7 +492,21 @@
     "linkLost": "Terminal connection lost. Reconnecting…",
     "exitedBanner": "This terminal exited with code {{code}}. Input is disabled.",
     "restart": "Restart terminal",
-    "area": "Terminal {{n}} output"
+    "area": "Terminal {{n}} output",
+    "select": "Select",
+    "copy": "Copy",
+    "paste": "Paste",
+    "jumpToBottom": "Jump to bottom",
+    "keys": {
+      "label": "Terminal keys",
+      "esc": "Escape",
+      "tab": "Tab",
+      "ctrl": "Control",
+      "up": "Arrow up",
+      "down": "Arrow down",
+      "left": "Arrow left",
+      "right": "Arrow right"
+    }
   },
   "git": {
     "changes": "Changes",

@@ -5,7 +5,7 @@ import type {
   TerminalInfo,
   TerminalLinkStatus,
 } from '@droidmobile/daemon-client';
-import type { Emulator } from './TerminalManager';
+import type { Emulator, TerminalCell } from './TerminalManager';
 
 /** In-memory stand-ins for the sidecar socket and xterm, used by unit tests only. */
 export class FakeEmulator implements Emulator {
@@ -44,6 +44,43 @@ export class FakeEmulator implements Emulator {
   type(data: string): void {
     for (const l of [...this.listeners]) l(data);
   }
+  applicationCursor = false;
+  atBottom = true;
+  selection = '';
+  pasted: string[] = [];
+  scrolledToBottom = 0;
+  private scrollListeners = new Set<(atBottom: boolean) => void>();
+
+  paste(text: string): void {
+    this.pasted.push(text);
+    this.type(text);
+  }
+  scrollToBottom(): void {
+    this.scrolledToBottom += 1;
+    this.setAtBottom(true);
+  }
+  setAtBottom(value: boolean): void {
+    this.atBottom = value;
+    for (const l of [...this.scrollListeners]) l(value);
+  }
+  onScrollState(listener: (atBottom: boolean) => void): () => void {
+    this.scrollListeners.add(listener);
+    return () => this.scrollListeners.delete(listener);
+  }
+  getSelection(): string {
+    return this.selection;
+  }
+  hasSelection(): boolean {
+    return this.selection !== '';
+  }
+  clearSelection(): void {
+    this.selection = '';
+  }
+  cellAt(): TerminalCell | null {
+    return null;
+  }
+  selectBetween(): void {}
+  selectWordAt(): void {}
   dispose(): void {
     this.disposed = true;
   }

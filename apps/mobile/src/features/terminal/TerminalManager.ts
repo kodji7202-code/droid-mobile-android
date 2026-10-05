@@ -1,4 +1,4 @@
-﻿/**
+/**
  * App-level owner of the terminals of one daemon connection. It lives outside
  * React so that navigating away neither closes shells nor loses their output:
  * every terminal keeps a detached emulator that captures data in the
@@ -10,6 +10,13 @@
  * and each surviving terminal is rebuilt from the daemon's serialized state.
  */
 import type { TerminalClient, TerminalEvent, TerminalInfo } from '@droidmobile/daemon-client';
+import { applyCtrl } from './terminalKeys';
+
+export interface TerminalCell {
+  col: number;
+  /** Absolute buffer row (scrollback included). */
+  row: number;
+}
 
 export interface Emulator {
   readonly element: HTMLElement;
@@ -22,6 +29,21 @@ export interface Emulator {
   fit(): { cols: number; rows: number } | null;
   focus(): void;
   onData(listener: (data: string) => void): () => void;
+  /** True while the shell wants SS3 (application) cursor sequences. */
+  readonly applicationCursor: boolean;
+  /** Feeds text through the terminal's own paste path so the shell sees it as typed input. */
+  paste(text: string): void;
+  readonly atBottom: boolean;
+  scrollToBottom(): void;
+  onScrollState(listener: (atBottom: boolean) => void): () => void;
+  getSelection(): string;
+  hasSelection(): boolean;
+  clearSelection(): void;
+  /** Maps a viewport point to a buffer cell; null when outside the screen. */
+  cellAt(clientX: number, clientY: number): TerminalCell | null;
+  /** Selects the characters between two cells (inclusive), in reading order. */
+  selectBetween(from: TerminalCell, to: TerminalCell): void;
+  selectWordAt(cell: TerminalCell): void;
   dispose(): void;
 }
 
@@ -69,6 +91,8 @@ interface Internal {
   sentRows: number;
   /** Frames are dropped while a re-list is in flight; the snapshot already contains them. */
   syncing: boolean;
+  /** One-shot Ctrl modifier armed from the extra-keys bar. */
+  ctrl: boolean;
 }
 
 export interface TerminalManagerOptions {
@@ -153,7 +177,13 @@ export class TerminalManager {
     const emulator = this.factory!();
     const id = this.newId();
     const entry = this.addEntry(state, id, sessionId, emulator, 'starting', null);
-    this.internals.set(id, { dataOff: () => undefined, sentCols: 0, sentRows: 0, syncing: false });
+    this.internals.set(id, {
+      dataOff: () => undefined,
+      sentCols: 0,
+      sentRows: 0,
+      syncing: false,
+      ctrl: false,
+    });
     this.wireInput(entry);
     host?.replaceChildren(emulator.element);
     const size = emulator.fit() ?? {
@@ -307,6 +337,7 @@ export class TerminalManager {
           sentCols: info.cols,
           sentRows: info.rows,
           syncing: false,
+          ctrl: false,
         });
         this.wireInput(fresh);
         this.restoreState(fresh, info);
@@ -331,11 +362,34 @@ export class TerminalManager {
 
   private wireInput(entry: TerminalEntry): void {
     const internal = this.internals.get(entry.id)!;
-    internal.dataOff = entry.emulator.onData((data) => {
-      const current = this.sessions.get(entry.sessionId)?.entries.find((e) => e.id === entry.id);
-      if (!current || current.status !== 'running') return;
-      void this.client.write(entry.sessionId, entry.id, data).catch(() => undefined);
-    });
+    internal.dataOff = entry.emulator.onData((data) =>
+      this.sendInput(entry.sessionId, entry.id, data),
+    );
+  }
+
+  /** Sends typed or extra-keys input; an armed Ctrl turns the next character into a control code. */
+  sendInput(sessionId: string, terminalId: string, data: string): void {
+    const current = this.sessions.get(sessionId)?.entries.find((e) => e.id === terminalId);
+    const internal = this.internals.get(terminalId);
+    if (!current || !internal || current.status !== 'running') return;
+    let out = data;
+    if (internal.ctrl) {
+      internal.ctrl = false;
+      out = applyCtrl(data);
+      this.emit();
+    }
+    void this.client.write(sessionId, terminalId, out).catch(() => undefined);
+  }
+
+  isCtrlArmed(terminalId: string): boolean {
+    return this.internals.get(terminalId)?.ctrl ?? false;
+  }
+
+  toggleCtrl(terminalId: string): void {
+    const internal = this.internals.get(terminalId);
+    if (!internal) return;
+    internal.ctrl = !internal.ctrl;
+    this.emit();
   }
 
   private handleEvent(event: TerminalEvent): void {

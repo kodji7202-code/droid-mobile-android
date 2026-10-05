@@ -1,9 +1,20 @@
-﻿import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { CloseIcon } from '../../components/icons';
 import { useConnectionStore } from '../../stores/connection';
+import { copyText, readClipboardText } from './clipboard';
+import { ExtraKeysBar } from './ExtraKeysBar';
+import { keySequence, type ExtraKey } from './terminalKeys';
 import { getTerminalManager } from './terminalRegistry';
-import type { TerminalEntry } from './TerminalManager';
+import { useSoftKeyboardMarker } from './useSoftKeyboardMarker';
+import type { TerminalCell, TerminalEntry } from './TerminalManager';
 
 const RESIZE_DEBOUNCE_MS = 120;
 
@@ -26,6 +37,23 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
   const entries = snapshot?.entries ?? [];
   const active = entries.find((e) => e.id === snapshot?.activeId);
   const link = manager?.linkStatus() ?? 'idle';
+  const [viewEl, setViewEl] = useState<HTMLDivElement | null>(null);
+  useSoftKeyboardMarker(viewEl);
+  const [selectMode, setSelectMode] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
+  const anchor = useRef<TerminalCell | null>(null);
+  const dragged = useRef(false);
+  const emulator = active?.emulator;
+
+  useEffect(() => {
+    if (!emulator) return;
+    setAtBottom(emulator.atBottom);
+    return emulator.onScrollState(setAtBottom);
+  }, [emulator]);
+
+  useEffect(() => {
+    if (!selectMode) emulator?.clearSelection();
+  }, [selectMode, emulator]);
 
   useEffect(() => {
     if (!manager || !cwd) return;
@@ -80,6 +108,54 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
     void manager.create(sessionId, cwd, hostRef.current);
   }, [manager, sessionId, cwd]);
 
+  const sendKey = (key: ExtraKey) => {
+    if (!manager || !active) return;
+    manager.sendInput(sessionId, active.id, keySequence(key, active.emulator.applicationCursor));
+  };
+
+  const copySelection = async () => {
+    if (!active) return;
+    const text = active.emulator.getSelection();
+    if (await copyText(text)) {
+      active.emulator.clearSelection();
+      setSelectMode(false);
+    }
+  };
+
+  const pasteClipboard = async () => {
+    if (!active || active.status !== 'running') return;
+    const text = await readClipboardText();
+    if (text) active.emulator.paste(text);
+    active.emulator.focus();
+  };
+
+  // Compat mouse events that follow a touch would let xterm clear the selection just made.
+  const swallowInSelectMode = (event: React.MouseEvent) => {
+    if (selectMode) event.stopPropagation();
+  };
+
+  const onSelectDown = (event: React.PointerEvent) => {
+    if (!selectMode || !active) return;
+    anchor.current = active.emulator.cellAt(event.clientX, event.clientY);
+    dragged.current = false;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const onSelectMove = (event: React.PointerEvent) => {
+    if (!selectMode || !active || !anchor.current) return;
+    const cell = active.emulator.cellAt(event.clientX, event.clientY);
+    if (!cell) return;
+    if (cell.col !== anchor.current.col || cell.row !== anchor.current.row) dragged.current = true;
+    if (dragged.current) active.emulator.selectBetween(anchor.current, cell);
+  };
+
+  const onSelectUp = () => {
+    if (selectMode && active && anchor.current && !dragged.current) {
+      active.emulator.selectWordAt(anchor.current);
+    }
+    anchor.current = null;
+  };
+
   const select = (entry: TerminalEntry) => {
     manager?.select(sessionId, entry.id);
     entry.emulator.focus();
@@ -95,7 +171,7 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
   const empty = !!snapshot && !snapshot.loading && !snapshot.error && entries.length === 0;
 
   return (
-    <div className="terminal-view" data-testid="terminal-view">
+    <div className="terminal-view" data-testid="terminal-view" ref={setViewEl}>
       <div className="terminal-bar">
         <div className="terminal-tabs" role="tablist" aria-label={t('terminal.tabsLabel')}>
           {entries.map((entry) => (
@@ -138,6 +214,34 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
         >
           +
         </button>
+        <button
+          type="button"
+          className={`btn btn--secondary btn--sm terminal-action${selectMode ? ' terminal-action--active' : ''}`}
+          data-testid="terminal-select-mode"
+          aria-pressed={selectMode}
+          disabled={!active}
+          onClick={() => setSelectMode((on) => !on)}
+        >
+          {t('terminal.select')}
+        </button>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm terminal-action"
+          data-testid="terminal-copy"
+          disabled={!active}
+          onClick={() => void copySelection()}
+        >
+          {t('terminal.copy')}
+        </button>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm terminal-action"
+          data-testid="terminal-paste"
+          disabled={!active || active.status !== 'running'}
+          onClick={() => void pasteClipboard()}
+        >
+          {t('terminal.paste')}
+        </button>
       </div>
 
       {link === 'reconnecting' || link === 'closed' ? (
@@ -167,13 +271,36 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
       <div className="terminal-stage">
         <div
           ref={hostRef}
-          className="terminal-host"
+          className={`terminal-host${selectMode ? ' terminal-host--select' : ''}`}
           data-testid="terminal-host"
           role="group"
           aria-label={active ? t('terminal.area', { n: active.label }) : t('terminal.tabsLabel')}
           data-terminal-id={active?.id}
-          onClick={() => active?.emulator.focus()}
+          onClick={() => {
+            if (!selectMode) active?.emulator.focus();
+          }}
+          onMouseDownCapture={swallowInSelectMode}
+          onMouseUpCapture={swallowInSelectMode}
+          onDoubleClickCapture={swallowInSelectMode}
+          onPointerDown={onSelectDown}
+          onPointerMove={onSelectMove}
+          onPointerUp={onSelectUp}
+          onPointerCancel={onSelectUp}
         />
+        {active && !atBottom ? (
+          <button
+            type="button"
+            className="btn btn--primary btn--sm terminal-jump"
+            data-testid="terminal-jump-bottom"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => {
+              active.emulator.scrollToBottom();
+              if (!selectMode) active.emulator.focus();
+            }}
+          >
+            {t('terminal.jumpToBottom')}
+          </button>
+        ) : null}
         {snapshot?.loading ? (
           <div className="terminal-overlay" data-testid="terminal-loading">
             <p>{t('terminal.loading')}</p>
@@ -208,6 +335,13 @@ export function TerminalView({ sessionId, cwd }: TerminalViewProps) {
           </div>
         ) : null}
       </div>
+
+      <ExtraKeysBar
+        ctrlArmed={!!active && !!manager?.isCtrlArmed(active.id)}
+        disabled={!active || active.status !== 'running'}
+        onKey={sendKey}
+        onToggleCtrl={() => active && manager?.toggleCtrl(active.id)}
+      />
     </div>
   );
 }
