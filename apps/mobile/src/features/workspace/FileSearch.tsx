@@ -54,12 +54,7 @@ export function FileSearch({
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const hits = await connection.searchFiles(
-            sessionId,
-            trimmedQuery,
-            undefined,
-            showHidden,
-          );
+          const hits = await connection.searchFiles(sessionId, trimmedQuery, undefined, showHidden);
           if (seq === searchSeq.current) {
             setResults(hits);
             setSettled(true);
@@ -105,8 +100,14 @@ export function FileSearch({
 
   return (
     <div className="workspace-search" data-testid="workspace-search">
-      <div className="workspace-search__input-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-        <span className="workspace-search__icon" style={{ position: 'absolute', left: '10px', pointerEvents: 'none', opacity: 0.7 }}>
+      <div
+        className="workspace-search__input-wrapper"
+        style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
+      >
+        <span
+          className="workspace-search__icon"
+          style={{ position: 'absolute', left: '10px', pointerEvents: 'none', opacity: 0.7 }}
+        >
           <SearchIcon width={18} height={18} />
         </span>
         <input
@@ -147,7 +148,7 @@ export function FileSearch({
       </div>
 
       {trimmedQuery && (
-        <div className="workspace-search__body" style={{ marginTop: '12px' }}>
+        <div className="workspace-search__body" data-testid="workspace-search-body">
           {loading ? (
             <p className="workspace-search__status" data-testid="workspace-search-loading">
               {t('workspace.loading')}
@@ -180,6 +181,7 @@ export function FileSearch({
                         display: 'flex',
                         alignItems: 'center',
                         textAlign: 'left',
+                        minHeight: '48px',
                         padding: '10px 8px',
                         background: 'none',
                         border: 'none',
@@ -190,7 +192,14 @@ export function FileSearch({
                       <span style={{ marginRight: '8px', opacity: 0.7 }}>
                         <FileIcon width={18} height={18} />
                       </span>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          minWidth: 0,
+                          overflowWrap: 'anywhere',
+                        }}
+                      >
                         <span className="workspace-search__result-name" style={{ fontWeight: 500 }}>
                           {highlightMatch(fileName, trimmedQuery)}
                         </span>

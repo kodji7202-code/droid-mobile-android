@@ -99,6 +99,8 @@ export function GitChangesList({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        // Keeps a few rows reachable when the Git actions bar is tall; the workspace body scrolls instead.
+        minHeight: '144px',
         overflow: 'hidden',
       }}
     >

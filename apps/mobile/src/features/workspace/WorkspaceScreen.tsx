@@ -371,120 +371,105 @@ export function WorkspaceScreen() {
       style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}
     >
       {/* Workspace Header */}
-      <header
-        className="workspace-header"
-        data-testid="workspace-header"
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid var(--color-border, #eee)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '8px',
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              className="workspace-header__cwd"
-              data-testid="workspace-cwd"
-              style={{
-                fontFamily: 'monospace',
-                fontSize: '0.85rem',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                fontWeight: 600,
-              }}
-              title={cwd}
-            >
-              {cwd || t('workspace.loading')}
+      <header className="workspace-header" data-testid="workspace-header">
+        <div className="workspace-header__bar">
+          <div className="workspace-header__top">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                className="workspace-header__cwd"
+                data-testid="workspace-cwd"
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.85rem',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  fontWeight: 600,
+                }}
+                title={cwd}
+              >
+                {cwd || t('workspace.loading')}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                data-testid="workspace-change-directory"
+                disabled={!online}
+                onClick={() => setChangeDirOpen(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                <FolderIcon width={16} height={16} />
+                <span>{t('workspace.changeDirectory')}</span>
+              </button>
+
+              {activeTab === 'files' && (
+                <button
+                  type="button"
+                  className={`btn btn--icon btn--sm ${showHidden ? 'btn--active' : ''}`}
+                  data-testid="workspace-toggle-hidden"
+                  aria-label={showHidden ? t('workspace.hideHidden') : t('workspace.showHidden')}
+                  title={showHidden ? t('workspace.hideHidden') : t('workspace.showHidden')}
+                  onClick={toggleHidden}
+                >
+                  {showHidden ? (
+                    <EyeOffIcon width={18} height={18} />
+                  ) : (
+                    <EyeIcon width={18} height={18} />
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Tab switcher: Files / Changes */}
+          <div
+            className="workspace-tabs"
+            data-testid="workspace-tabs"
+            role="tablist"
+            style={{
+              display: 'flex',
+              backgroundColor: 'var(--color-surface-variant, #f0f0f2)',
+              borderRadius: '6px',
+              padding: '2px',
+            }}
+          >
             <button
               type="button"
-              className="btn btn--secondary btn--sm"
-              data-testid="workspace-change-directory"
-              disabled={!online}
-              onClick={() => setChangeDirOpen(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              role="tab"
+              aria-selected={activeTab === 'files'}
+              className={`btn btn--sm ${activeTab === 'files' ? 'btn--primary' : 'btn--ghost'}`}
+              data-testid="workspace-tab-files"
+              onClick={() => handleSelectTab('files')}
+              style={{ flex: 1, borderRadius: '4px', fontSize: '0.85rem', padding: '6px 12px' }}
             >
-              <FolderIcon width={16} height={16} />
-              <span>{t('workspace.changeDirectory')}</span>
+              {t('workspace.tabs.files')}
             </button>
-
-            {activeTab === 'files' && (
-              <button
-                type="button"
-                className={`btn btn--icon btn--sm ${showHidden ? 'btn--active' : ''}`}
-                data-testid="workspace-toggle-hidden"
-                aria-label={showHidden ? t('workspace.hideHidden') : t('workspace.showHidden')}
-                title={showHidden ? t('workspace.hideHidden') : t('workspace.showHidden')}
-                onClick={toggleHidden}
-              >
-                {showHidden ? (
-                  <EyeOffIcon width={18} height={18} />
-                ) : (
-                  <EyeIcon width={18} height={18} />
-                )}
-              </button>
-            )}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'changes'}
+              className={`btn btn--sm ${activeTab === 'changes' ? 'btn--primary' : 'btn--ghost'}`}
+              data-testid="workspace-tab-changes"
+              onClick={() => handleSelectTab('changes')}
+              style={{ flex: 1, borderRadius: '4px', fontSize: '0.85rem', padding: '6px 12px' }}
+            >
+              {t('workspace.tabs.changes')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'terminal'}
+              className={`btn btn--sm ${activeTab === 'terminal' ? 'btn--primary' : 'btn--ghost'}`}
+              data-testid="workspace-tab-terminal"
+              onClick={() => handleSelectTab('terminal')}
+              style={{ flex: 1, borderRadius: '4px', fontSize: '0.85rem', padding: '6px 12px' }}
+            >
+              {t('workspace.tabs.terminal')}
+            </button>
           </div>
-        </div>
-
-        {/* Tab switcher: Files / Changes */}
-        <div
-          className="workspace-tabs"
-          data-testid="workspace-tabs"
-          role="tablist"
-          style={{
-            display: 'flex',
-            backgroundColor: 'var(--color-surface-variant, #f0f0f2)',
-            borderRadius: '6px',
-            padding: '2px',
-          }}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'files'}
-            className={`btn btn--sm ${activeTab === 'files' ? 'btn--primary' : 'btn--ghost'}`}
-            data-testid="workspace-tab-files"
-            onClick={() => handleSelectTab('files')}
-            style={{ flex: 1, borderRadius: '4px', fontSize: '0.85rem', padding: '6px 12px' }}
-          >
-            {t('workspace.tabs.files')}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'changes'}
-            className={`btn btn--sm ${activeTab === 'changes' ? 'btn--primary' : 'btn--ghost'}`}
-            data-testid="workspace-tab-changes"
-            onClick={() => handleSelectTab('changes')}
-            style={{ flex: 1, borderRadius: '4px', fontSize: '0.85rem', padding: '6px 12px' }}
-          >
-            {t('workspace.tabs.changes')}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'terminal'}
-            className={`btn btn--sm ${activeTab === 'terminal' ? 'btn--primary' : 'btn--ghost'}`}
-            data-testid="workspace-tab-terminal"
-            onClick={() => handleSelectTab('terminal')}
-            style={{ flex: 1, borderRadius: '4px', fontSize: '0.85rem', padding: '6px 12px' }}
-          >
-            {t('workspace.tabs.terminal')}
-          </button>
         </div>
 
         {/* Search bar (Files tab only) */}
@@ -510,6 +495,8 @@ export function WorkspaceScreen() {
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
+          // The terminal sizes itself to this box; other tabs scroll when the chrome above leaves too little room.
+          overflowY: activeTab === 'terminal' ? undefined : 'auto',
         }}
       >
         {activeTab === 'terminal' ? <TerminalView sessionId={activeSessionId} cwd={cwd} /> : null}
