@@ -70,6 +70,25 @@ describe('FilesTree', () => {
     expect(spacer.style.height).toBe(`${3000 * TREE_ROW_HEIGHT}px`);
   });
 
+  it('uses rows of at least 48 dp for folders and files (WS-SCR-003)', () => {
+    const items: FlatTreeItem[] = [
+      { node: { name: 'src', path: 'src', isFolder: true, children: [] }, depth: 0 },
+      { node: { name: 'a.ts', path: 'src/a.ts', isFolder: false, children: [] }, depth: 1 },
+    ];
+    render(
+      <FilesTree
+        items={items}
+        expandedPaths={new Set(['src'])}
+        onToggleFolder={vi.fn()}
+        onOpenFile={vi.fn()}
+      />,
+    );
+    expect(TREE_ROW_HEIGHT).toBeGreaterThanOrEqual(48);
+    for (const id of ['tree-folder-src', 'tree-file-src/a.ts']) {
+      expect(screen.getByTestId(id).style.height).toBe(`${TREE_ROW_HEIGHT}px`);
+    }
+  });
+
   it('renders empty label when items is empty', () => {
     render(
       <FilesTree

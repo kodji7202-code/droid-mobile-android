@@ -1861,3 +1861,16 @@ html[data-soft-keyboard='open'] .app-nav-bar {
     display: none;
   }
 }
+
+/* The workspace tree virtualises against its own scroll viewport, so the shell must have a definite height there. */
+.app-shell:has(.workspace-screen) {
+  height: 100dvh;
+}
+
+.app-main:has(> .workspace-screen) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+

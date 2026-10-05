@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { EyeIcon, EyeOffIcon, FolderIcon } from '../../components/icons';
@@ -490,6 +490,7 @@ export function WorkspaceScreen() {
         {activeTab === 'files' && (
           <FileSearch
             sessionId={activeSessionId}
+            cwd={cwd}
             query={searchQuery}
             showHidden={showHidden}
             onQueryChange={setSearchQuery}

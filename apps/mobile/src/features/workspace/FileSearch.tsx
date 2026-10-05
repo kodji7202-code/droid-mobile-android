@@ -7,6 +7,7 @@ const SEARCH_DEBOUNCE_MS = 250;
 
 interface FileSearchProps {
   sessionId: string;
+  cwd: string;
   query: string;
   showHidden: boolean;
   onQueryChange: (query: string) => void;
@@ -16,6 +17,7 @@ interface FileSearchProps {
 
 export function FileSearch({
   sessionId,
+  cwd,
   query,
   showHidden,
   onQueryChange,
@@ -76,7 +78,7 @@ export function FileSearch({
     return () => {
       clearTimeout(timer);
     };
-  }, [sessionId, trimmedQuery, showHidden, connection]);
+  }, [sessionId, cwd, trimmedQuery, showHidden, connection]);
 
   const highlightMatch = (path: string, match: string) => {
     const normalised = path.replace(/\\/g, '/');

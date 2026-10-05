@@ -7,7 +7,7 @@ import {
 } from '../../components/icons';
 import type { FlatTreeItem } from './treeBuilder';
 
-export const TREE_ROW_HEIGHT = 40;
+export const TREE_ROW_HEIGHT = 48;
 const OVERSCAN = 15;
 
 interface FilesTreeProps {
