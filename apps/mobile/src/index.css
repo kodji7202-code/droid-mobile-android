@@ -1501,3 +1501,158 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* ---- File Viewer (WS-013..017) ------------------------------------------- */
+
+.file-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+.file-viewer__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+
+.file-viewer__back-btn,
+.file-viewer__close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-fg);
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+}
+
+.file-viewer__title-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-viewer__path {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-viewer__size {
+  font-size: 0.8rem;
+  color: var(--color-fg-muted);
+}
+
+.file-viewer__body {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.file-viewer__loading,
+.file-viewer__binary {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--color-fg-muted);
+}
+
+.file-viewer__error {
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.file-viewer__error-message {
+  color: var(--color-danger);
+  margin-bottom: 1rem;
+}
+
+.file-viewer__error-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.file-viewer__image-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.file-viewer__image {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+}
+
+.file-viewer__truncation-notice {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--color-fg-muted);
+}
+
+.file-viewer__code-container {
+  display: flex;
+  min-width: 100%;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.file-viewer__line-numbers {
+  flex-shrink: 0;
+  padding-right: 0.75rem;
+  margin-right: 0.75rem;
+  border-right: 1px solid var(--color-border);
+  color: var(--color-fg-muted);
+  text-align: right;
+  user-select: none;
+  min-width: 2.5rem;
+}
+
+.file-viewer__line-number {
+  line-height: 1.5;
+}
+
+.file-viewer__line-numbers-pre {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.5;
+  color: inherit;
+}
+
+.file-viewer__code {
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  white-space: pre;
+  overflow-x: auto;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.5;
+}
+
+.file-viewer__code code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
