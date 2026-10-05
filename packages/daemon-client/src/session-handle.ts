@@ -14,6 +14,11 @@ import type {
   UpdateSessionSettingsOptions,
 } from '@factory/droid-sdk';
 import type { ChangeDirectoryResult, WorkspaceFileContent } from './connection';
+import type {
+  DaemonGetGitDiffResult,
+  DaemonResolvePullRequestStatusesRequestParams,
+  DaemonResolvePullRequestStatusesResult,
+} from './git';
 import type { NormalizedEvent } from './normalize';
 import { normalizeStreamEvent } from './normalize';
 import { isNonTransportFailure } from './classify';
@@ -79,6 +84,13 @@ export interface SessionHost {
     metadataOnly?: boolean;
     encoding?: 'utf8' | 'base64';
   }): Promise<WorkspaceFileContent>;
+  getGitDiff(
+    sessionId: string,
+    options?: { baseBranch?: string; statsOnly?: boolean },
+  ): Promise<DaemonGetGitDiffResult>;
+  resolvePullRequestStatuses(
+    params: DaemonResolvePullRequestStatusesRequestParams,
+  ): Promise<DaemonResolvePullRequestStatusesResult>;
 }
 
 /**
@@ -190,6 +202,31 @@ export class SessionHandle {
     return this.host.getFileContent({
       sessionId: this.id,
       ...params,
+    });
+  }
+
+  /** Fetches git status and unified diff for this session's working directory. */
+  getGitDiff(options?: {
+    baseBranch?: string;
+    statsOnly?: boolean;
+  }): Promise<DaemonGetGitDiffResult> {
+    return this.host.getGitDiff(this.id, options);
+  }
+
+  /** Resolves pull request status for this session's branch. */
+  resolvePullRequestStatuses(
+    invalidate?: boolean,
+  ): Promise<DaemonResolvePullRequestStatusesResult> {
+    return this.host.resolvePullRequestStatuses({
+      lookups: [
+        {
+          subject: {
+            kind: 'branch' as DaemonResolvePullRequestStatusesRequestParams['lookups'][number]['subject']['kind'],
+            sessionId: this.id,
+          },
+          ...(invalidate !== undefined ? { invalidate } : {}),
+        },
+      ],
     });
   }
 

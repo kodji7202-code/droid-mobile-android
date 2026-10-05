@@ -468,6 +468,37 @@
     "fileViewerRetry": "Reîncearcă",
     "fileViewerClose": "Închide",
     "fileViewerBinary": "Fișier binar ({{bytes}} octeți). Nu poate fi afișat ca text.",
-    "fileViewerTruncated": "Se afișează primul 1 MiB din {{total}}"
+    "fileViewerTruncated": "Se afișează primul 1 MiB din {{total}}",
+    "tabs": {
+      "files": "Fișiere",
+      "changes": "Modificări"
+    }
+  },
+  "git": {
+    "changes": "Modificări",
+    "files": "Fișiere",
+    "noChanges": "Fără modificări",
+    "notGitRepo": "Nu este un depozit git",
+    "branch": "Ramură",
+    "baseBranch": "Bază",
+    "status": {
+      "modified": "modificat",
+      "added": "adăugat",
+      "deleted": "șters",
+      "renamed": "redenumit",
+      "untracked": "neurmărit"
+    },
+    "pr": {
+      "open": "PR deschis",
+      "none": "Niciun pull request",
+      "unavailable": "PR indisponibil"
+    },
+    "diff": {
+      "back": "Înapoi",
+      "binary": "Diferențele pentru fișiere binare nu pot fi afișate",
+      "empty": "Nicio modificare în acest fișier",
+      "loading": "Se încarcă diferențele…",
+      "error": "Eroare la încărcarea diferențelor"
+    }
   }
 }

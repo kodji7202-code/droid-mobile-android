@@ -468,6 +468,37 @@
     "fileViewerRetry": "Retry",
     "fileViewerClose": "Close",
     "fileViewerBinary": "Binary file ({{bytes}} bytes). Cannot be displayed as text.",
-    "fileViewerTruncated": "Showing first 1 MiB of {{total}}"
+    "fileViewerTruncated": "Showing first 1 MiB of {{total}}",
+    "tabs": {
+      "files": "Files",
+      "changes": "Changes"
+    }
+  },
+  "git": {
+    "changes": "Changes",
+    "files": "Files",
+    "noChanges": "No changes",
+    "notGitRepo": "Not a git repository",
+    "branch": "Branch",
+    "baseBranch": "Base",
+    "status": {
+      "modified": "modified",
+      "added": "added",
+      "deleted": "deleted",
+      "renamed": "renamed",
+      "untracked": "untracked"
+    },
+    "pr": {
+      "open": "Open PR",
+      "none": "No pull request",
+      "unavailable": "PR unavailable"
+    },
+    "diff": {
+      "back": "Back",
+      "binary": "Binary file diff cannot be displayed",
+      "empty": "No changes in this file",
+      "loading": "Loading diff…",
+      "error": "Failed to load diff"
+    }
   }
 }

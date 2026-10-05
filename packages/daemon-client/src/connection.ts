@@ -38,6 +38,11 @@ import { toPage } from './paging';
 import type { SessionMessagesPage } from './paging';
 import { toModelSummary } from './settings';
 import type { DefaultsPatch, ModelSummary } from './settings';
+import type {
+  DaemonGetGitDiffResult,
+  DaemonResolvePullRequestStatusesRequestParams,
+  DaemonResolvePullRequestStatusesResult,
+} from './git';
 import { probeDaemonIdentity } from './probe';
 import type { DaemonIdentity } from './probe';
 import { INITIAL_CONNECTION_STATE, reduceConnectionState } from './status';
@@ -148,6 +153,16 @@ export interface DaemonConnection {
     metadataOnly?: boolean;
     encoding?: 'utf8' | 'base64';
   }): Promise<WorkspaceFileContent>;
+  /** Fetches git status and unified diff for the session working directory. */
+  getGitDiff(params: {
+    sessionId: string;
+    baseBranch?: string;
+    statsOnly?: boolean;
+  }): Promise<DaemonGetGitDiffResult>;
+  /** Resolves pull request statuses for branches across sessions (at most 20 lookups per call). */
+  resolvePullRequestStatuses(
+    params: DaemonResolvePullRequestStatusesRequestParams,
+  ): Promise<DaemonResolvePullRequestStatusesResult>;
   /** Daemon-wide default session settings (model, autonomy, ...). */
   getDefaultSettings(): Promise<DefaultSettings>;
   /** Writes daemon-wide defaults; resolves once the daemon acknowledged them. */
@@ -646,8 +661,17 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       mapSdkError(() =>
         requireDroid().workspace.searchFiles(sessionId, query, maxResults, showHidden),
       ),
-    getFileContent: (params) =>
-      mapSdkError(() => requireDroid().workspace.getFileContent(params)),
+    getFileContent: (params) => mapSdkError(() => requireDroid().workspace.getFileContent(params)),
+    getGitDiff: (sessionId, options) =>
+      mapSdkError(() =>
+        requireDroid().git.getDiff({
+          sessionId,
+          ...(options?.baseBranch ? { baseBranch: options.baseBranch } : {}),
+          ...(options?.statsOnly !== undefined ? { statsOnly: options.statsOnly } : {}),
+        }),
+      ),
+    resolvePullRequestStatuses: (params) =>
+      mapSdkError(() => requireDroid().git.resolvePullRequestStatuses(params)),
   };
 
   const connection: DaemonConnection = {
@@ -677,6 +701,8 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     searchFiles: (sessionId, query, maxResults, showHidden) =>
       host.searchFiles(sessionId, query, maxResults, showHidden),
     getFileContent: (params) => host.getFileContent(params),
+    getGitDiff: (params) => host.getGitDiff(params.sessionId, params),
+    resolvePullRequestStatuses: (params) => host.resolvePullRequestStatuses(params),
     getDefaultSettings: () => mapSdkError(() => requireDroid().settings.getDefaults()),
     updateDefaultSettings: async (patch) => {
       await mapSdkError(() =>

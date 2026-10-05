@@ -110,3 +110,4 @@ export type { ConnectionMachineEvent, ConnectionMachineState, ConnectionStatus }
 export { backoffDelay, DEFAULT_BACKOFF } from './backoff';
 export type { BackoffOptions } from './backoff';
 export { redactSecrets, REDACTED } from './redact';
+export * from './git';

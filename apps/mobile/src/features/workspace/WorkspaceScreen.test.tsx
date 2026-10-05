@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import type { DaemonConnection } from '@droidmobile/daemon-client';
+import type { DaemonConnection, DaemonGetGitDiffResult } from '@droidmobile/daemon-client';
 import { AppProviders } from '../../test/render-app';
 import { useConnectionStore } from '../../stores/connection';
 import { useSessionViewStore } from '../../stores/sessionView';
@@ -60,6 +60,53 @@ function setupConnection(overrides: Partial<DaemonConnection> = {}) {
     return { resolvedPath: workingDirectory };
   });
 
+  const getGitDiff = vi.fn(async (): Promise<DaemonGetGitDiffResult> => ({
+    success: true,
+    data: {
+      branch: 'main',
+      baseBranch: 'main',
+      totalAdditions: 3,
+      totalDeletions: 1,
+      files: [{ path: 'src/index.ts', additions: 3, deletions: 1, status: 'modified' }],
+      diff: `diff --git a/src/index.ts b/src/index.ts
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1,2 +1,4 @@
+ line 1
+-line 2
++line 2 mod
++line 3
++line 4
+`,
+      remoteUrl: null,
+      commits: [],
+      committedDiff: '',
+      committedFiles: [],
+      committedTotalAdditions: 0,
+      committedTotalDeletions: 0,
+      localDiff: '',
+      localFiles: [],
+      localTotalAdditions: 0,
+      localTotalDeletions: 0,
+      unstagedDiff: '',
+      unstagedFiles: [],
+      unstagedTotalAdditions: 0,
+      unstagedTotalDeletions: 0,
+    },
+  }));
+
+  const resolvePullRequestStatuses = vi.fn(async () => ({
+    statuses: [
+      {
+        subject: { kind: 'branch', sessionId: 's1' },
+        branch: 'main',
+        status: { state: 'open' as const, number: 42, url: 'https://github.com/org/repo/pull/42' },
+        resolvedAt: Date.now(),
+        staleAfterMs: 30000,
+      },
+    ],
+  }));
+
   const connection = {
     listFiles,
     searchFiles,
@@ -68,6 +115,8 @@ function setupConnection(overrides: Partial<DaemonConnection> = {}) {
     checkFolderTrust,
     trustFolder,
     changeDirectory,
+    getGitDiff,
+    resolvePullRequestStatuses,
     ...overrides,
   } as unknown as DaemonConnection;
 
@@ -81,6 +130,8 @@ function setupConnection(overrides: Partial<DaemonConnection> = {}) {
     checkFolderTrust,
     trustFolder,
     changeDirectory,
+    getGitDiff,
+    resolvePullRequestStatuses,
   };
 }
 
@@ -431,6 +482,209 @@ describe('WorkspaceScreen', () => {
       expect(screen.queryByTestId('file-viewer')).not.toBeInTheDocument();
       expect(screen.getByTestId('tree-folder-src')).toHaveAttribute('aria-expanded', 'true');
       expect(screen.getByTestId('tree-file-src/util.ts')).toBeInTheDocument();
+    });
+  });
+
+  it('switches to Changes tab, displays repo diff and PR status (VAL-WS-020, VAL-WS-039)', async () => {
+    const { getGitDiff, resolvePullRequestStatuses } = setupConnection();
+
+    useSessionViewStore.setState({
+      activeSessionId: 's1',
+      views: {
+        s1: {
+          id: 's1',
+          status: 'ready',
+          cwd: 'D:/alpha',
+          items: [],
+          queued: [],
+          turnActive: false,
+          workingState: 'idle',
+          stopRequested: false,
+          interrupted: false,
+          hasMore: false,
+          loadingOlder: false,
+          epoch: 1,
+        },
+      },
+    });
+
+    renderWorkspace();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace-tab-changes')).toBeInTheDocument();
+    });
+
+    // Switch to Changes tab
+    fireEvent.click(screen.getByTestId('workspace-tab-changes'));
+
+    await waitFor(() => {
+      expect(getGitDiff).toHaveBeenCalledWith({ sessionId: 's1' });
+      expect(resolvePullRequestStatuses).toHaveBeenCalledWith({
+        lookups: [{ subject: { kind: 'branch', sessionId: 's1' } }],
+      });
+    });
+
+    // Ground truth metadata
+    await waitFor(() => {
+      expect(screen.getByTestId('git-branch')).toHaveTextContent('main');
+      expect(screen.getByTestId('git-base-branch')).toHaveTextContent('main');
+      expect(screen.getByTestId('git-total-additions')).toHaveTextContent('+3');
+      expect(screen.getByTestId('git-total-deletions')).toHaveTextContent('-1');
+    });
+
+    // Changed file row
+    expect(screen.getByTestId('git-change-src/index.ts')).toBeInTheDocument();
+    expect(screen.getByTestId('git-status-badge')).toHaveTextContent('modified');
+    expect(screen.getByTestId('git-file-additions')).toHaveTextContent('+3');
+    expect(screen.getByTestId('git-file-deletions')).toHaveTextContent('-1');
+
+    // PR status chip
+    const prChip = screen.getByTestId('pr-status-chip');
+    expect(prChip).toBeInTheDocument();
+    expect(prChip).toHaveTextContent('#42');
+  });
+
+  it('opens unified diff view and navigates back (VAL-WS-021)', async () => {
+    setupConnection();
+
+    useSessionViewStore.setState({
+      activeSessionId: 's1',
+      views: {
+        s1: {
+          id: 's1',
+          status: 'ready',
+          cwd: 'D:/alpha',
+          items: [],
+          queued: [],
+          turnActive: false,
+          workingState: 'idle',
+          stopRequested: false,
+          interrupted: false,
+          hasMore: false,
+          loadingOlder: false,
+          epoch: 1,
+        },
+      },
+    });
+
+    renderWorkspace('/workspace?tab=changes');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('git-change-src/index.ts')).toBeInTheDocument();
+    });
+
+    // Tap changed file to open diff viewer
+    fireEvent.click(screen.getByTestId('git-change-src/index.ts'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('git-diff-view')).toBeInTheDocument();
+      expect(screen.getByTestId('git-diff-file-path')).toHaveTextContent('src/index.ts');
+      expect(screen.getByTestId('diff-hunk-header')).toHaveTextContent('@@ -1,2 +1,4 @@');
+    });
+
+    // Tap back button in diff viewer
+    fireEvent.click(screen.getByTestId('git-diff-back'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('git-diff-view')).not.toBeInTheDocument();
+      expect(screen.getByTestId('git-change-src/index.ts')).toBeInTheDocument();
+    });
+  });
+
+  it('handles clean repository state (VAL-WS-023)', async () => {
+    setupConnection({
+      getGitDiff: vi.fn(async (): Promise<DaemonGetGitDiffResult> => ({
+        success: true,
+        data: {
+          branch: 'main',
+          baseBranch: 'main',
+          totalAdditions: 0,
+          totalDeletions: 0,
+          files: [],
+          diff: '',
+          remoteUrl: null,
+          commits: [],
+          committedDiff: '',
+          committedFiles: [],
+          committedTotalAdditions: 0,
+          committedTotalDeletions: 0,
+          localDiff: '',
+          localFiles: [],
+          localTotalAdditions: 0,
+          localTotalDeletions: 0,
+          unstagedDiff: '',
+          unstagedFiles: [],
+          unstagedTotalAdditions: 0,
+          unstagedTotalDeletions: 0,
+        },
+      })),
+    });
+
+    useSessionViewStore.setState({
+      activeSessionId: 's1',
+      views: {
+        s1: {
+          id: 's1',
+          status: 'ready',
+          cwd: 'D:/alpha',
+          items: [],
+          queued: [],
+          turnActive: false,
+          workingState: 'idle',
+          stopRequested: false,
+          interrupted: false,
+          hasMore: false,
+          loadingOlder: false,
+          epoch: 1,
+        },
+      },
+    });
+
+    renderWorkspace('/workspace?tab=changes');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('git-no-changes')).toBeInTheDocument();
+      expect(screen.queryByTestId('git-not-a-repo')).toBeNull();
+    });
+  });
+
+  it('handles non-git repository folder state without error toasts (VAL-WS-023)', async () => {
+    setupConnection({
+      getGitDiff: vi.fn(async (): Promise<DaemonGetGitDiffResult> => ({
+        success: false,
+        unavailableReason: 'not_git_repository' as unknown as Extract<
+          DaemonGetGitDiffResult,
+          { success: false }
+        >['unavailableReason'],
+        unavailableMessage: 'Not a git repository',
+      })),
+    });
+
+    useSessionViewStore.setState({
+      activeSessionId: 's1',
+      views: {
+        s1: {
+          id: 's1',
+          status: 'ready',
+          cwd: 'D:/alpha',
+          items: [],
+          queued: [],
+          turnActive: false,
+          workingState: 'idle',
+          stopRequested: false,
+          interrupted: false,
+          hasMore: false,
+          loadingOlder: false,
+          epoch: 1,
+        },
+      },
+    });
+
+    renderWorkspace('/workspace?tab=changes');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('git-not-a-repo')).toBeInTheDocument();
+      expect(screen.queryByTestId('toast-container')).toBeNull();
     });
   });
 });
