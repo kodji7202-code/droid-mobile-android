@@ -279,6 +279,25 @@
       "approveAlways": "Always approve",
       "deny": "Deny"
     },
+    "exitSpec": {
+      "title": "Spec ready",
+      "noPlan": "The agent sent no plan text.",
+      "newSessionSearching": "Looking for the new session…",
+      "newSessionMissing": "The new session did not show up yet. Check the sessions list.",
+      "openSessions": "Open sessions",
+      "option": {
+        "proceed_once": "Proceed once",
+        "proceed_auto_run": "Proceed and auto-run",
+        "proceed_auto_run_low": "Proceed, auto-run low",
+        "proceed_auto_run_medium": "Proceed, auto-run medium",
+        "proceed_auto_run_high": "Proceed, auto-run high",
+        "proceed_new_session": "New session",
+        "proceed_new_session_low": "New session, low autonomy",
+        "proceed_new_session_medium": "New session, medium autonomy",
+        "proceed_new_session_high": "New session, high autonomy",
+        "cancel": "Cancel and stay in Spec"
+      }
+    },
     "askUser": {
       "title": "Droid has a question",
       "multiHint": "Select all that apply",

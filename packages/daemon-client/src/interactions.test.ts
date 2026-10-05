@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { canApproveAlways, cancelledAskUser, permissionAnswer } from './interactions';
+import {
+  canApproveAlways,
+  cancelledAskUser,
+  exitSpecPlan,
+  permissionAnswer,
+  permissionOptionAnswer,
+  permissionOptionValues,
+} from './interactions';
 import type { PermissionRequest } from './interactions';
 
 function request(values: string[]): PermissionRequest {
@@ -30,6 +37,33 @@ describe('permissionAnswer', () => {
     expect(canApproveAlways(none)).toBe(false);
     expect(canApproveAlways(full)).toBe(true);
     expect(permissionAnswer(none, 'always')).toBe('proceed_once');
+  });
+});
+
+describe('exit spec mode requests', () => {
+  const spec = {
+    toolUses: [{ details: { type: 'exit_spec_mode', plan: '# Plan\n- step', title: 'T' } }],
+    options: ['proceed_once', 'proceed_new_session_high', 'cancel'].map((value) => ({
+      value,
+      label: value,
+    })),
+  } as unknown as PermissionRequest;
+
+  it('extracts the plan and ignores other permission requests', () => {
+    expect(exitSpecPlan(spec)).toEqual({ plan: '# Plan\n- step', title: 'T' });
+    expect(exitSpecPlan(request(['proceed_once']))).toBeUndefined();
+  });
+
+  it('answers with an offered option and cancels anything else', () => {
+    expect(permissionOptionValues(spec)).toEqual([
+      'proceed_once',
+      'proceed_new_session_high',
+      'cancel',
+    ]);
+    expect(permissionOptionAnswer(spec, 'proceed_new_session_high')).toBe(
+      'proceed_new_session_high',
+    );
+    expect(permissionOptionAnswer(spec, 'proceed_auto_run_high')).toBe('cancel');
   });
 });
 

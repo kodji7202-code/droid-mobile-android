@@ -279,6 +279,25 @@
       "approveAlways": "Aprobă mereu",
       "deny": "Refuză"
     },
+    "exitSpec": {
+      "title": "Specificația este gata",
+      "noPlan": "Agentul nu a trimis text de plan.",
+      "newSessionSearching": "Caut sesiunea nouă…",
+      "newSessionMissing": "Sesiunea nouă nu a apărut încă. Verifică lista de sesiuni.",
+      "openSessions": "Deschide sesiunile",
+      "option": {
+        "proceed_once": "Continuă o dată",
+        "proceed_auto_run": "Continuă cu rulare automată",
+        "proceed_auto_run_low": "Continuă, rulare automată joasă",
+        "proceed_auto_run_medium": "Continuă, rulare automată medie",
+        "proceed_auto_run_high": "Continuă, rulare automată înaltă",
+        "proceed_new_session": "Sesiune nouă",
+        "proceed_new_session_low": "Sesiune nouă, autonomie joasă",
+        "proceed_new_session_medium": "Sesiune nouă, autonomie medie",
+        "proceed_new_session_high": "Sesiune nouă, autonomie înaltă",
+        "cancel": "Anulează și rămâi în Spec"
+      }
+    },
     "askUser": {
       "title": "Droid are o întrebare",
       "multiHint": "Alege tot ce se aplică",

@@ -1059,6 +1059,11 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   min-height: 48px;
 }
 
+.interaction-dialog__actions--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .interaction-dialog__question {
   border: 0;
   margin: 0 0 1rem;

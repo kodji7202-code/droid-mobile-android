@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import { cancelledAskUser, permissionAnswer } from '@droidmobile/daemon-client';
+import {
+  cancelledAskUser,
+  permissionAnswer,
+  permissionOptionAnswer,
+} from '@droidmobile/daemon-client';
 import type {
   AskUserAnswer,
   AskUserRequest,
@@ -50,6 +54,8 @@ interface InteractionStore {
     generation?: number,
   ): Promise<AskUserAnswer>;
   answerPermission(id: string, decision: PermissionDecision): void;
+  /** Answers with one of the daemon's own option values (e.g. the exit-spec-mode choices). */
+  answerPermissionOption(id: string, value: string): void;
   answerAskUser(id: string, answer: AskUserAnswer): void;
   /**
    * Cancels every open request (of one session, of one facade generation, or all) because the daemon can
@@ -139,6 +145,11 @@ export const useInteractionStore = create<InteractionStore>((set, get) => {
     answerPermission(id, decision) {
       const entry = take(id);
       if (entry?.kind === 'permission') entry.settle(permissionAnswer(entry.request, decision));
+    },
+
+    answerPermissionOption(id, value) {
+      const entry = take(id);
+      if (entry?.kind === 'permission') entry.settle(permissionOptionAnswer(entry.request, value));
     },
 
     answerAskUser(id, answer) {

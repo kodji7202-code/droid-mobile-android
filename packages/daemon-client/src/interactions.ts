@@ -62,6 +62,36 @@ export function permissionAnswer(
   return 'proceed_once';
 }
 
+export interface ExitSpecPlan {
+  plan: string;
+  title?: string;
+}
+
+/** The plan of an `exit_spec_mode` request, or undefined for every other permission request. */
+export function exitSpecPlan(request: PermissionRequest): ExitSpecPlan | undefined {
+  for (const { details } of request.toolUses) {
+    // The SDK enum is a runtime export we do not import: compare on the wire value.
+    if ((details.type as string) === 'exit_spec_mode') {
+      const spec = details as { plan?: string; title?: string };
+      return { plan: spec.plan ?? '', ...(spec.title ? { title: spec.title } : {}) };
+    }
+  }
+  return undefined;
+}
+
+/** Option values the daemon offered, in its order. */
+export function permissionOptionValues(request: PermissionRequest): string[] {
+  return optionValues(request);
+}
+
+/** Answers with one of the daemon's own options; anything it did not offer cancels. */
+export function permissionOptionAnswer(
+  request: PermissionRequest,
+  value: string,
+): PermissionAnswer {
+  return optionValues(request).includes(value) ? (value as PermissionAnswer) : 'cancel';
+}
+
 export function cancelledAskUser(): AskUserAnswer {
   return { cancelled: true, answers: [] };
 }

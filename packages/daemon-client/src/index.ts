@@ -25,7 +25,15 @@ export type {
   SettingsPatch,
 } from './settings';
 export type { SessionMessage, TokenUsage } from '@factory/droid-sdk';
-export { canApproveAlways, cancelledAskUser, permissionAnswer } from './interactions';
+export {
+  canApproveAlways,
+  cancelledAskUser,
+  exitSpecPlan,
+  permissionAnswer,
+  permissionOptionAnswer,
+  permissionOptionValues,
+} from './interactions';
+export type { ExitSpecPlan } from './interactions';
 export type {
   AskUserAnswer,
   AskUserHandler,
