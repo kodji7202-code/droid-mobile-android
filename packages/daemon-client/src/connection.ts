@@ -51,7 +51,9 @@ import type {
   DaemonResolvePullRequestStatusesResult,
 } from './git';
 import { createMcpClient } from './mcp';
+import { createSkillsClient } from './skills';
 import type { McpClient } from './mcp';
+import type { SkillsClient } from './skills';
 import { probeDaemonIdentity } from './probe';
 import { createTerminalClient } from './terminal-client';
 import type { TerminalClient } from './terminal-client';
@@ -143,6 +145,8 @@ export interface DaemonConnection {
   openTerminalClient(): TerminalClient;
   /** MCP server management on a scratch session owned by the client. */
   readonly mcp: McpClient;
+  /** Skill listing and enablement on a scratch session owned by the client. */
+  readonly skills: SkillsClient;
 
   /** Asks the daemon whether a working directory exists and is a directory. */
   validateDirectory(path: string): Promise<DirectoryValidation>;
@@ -740,6 +744,11 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     openedSessionIds: () => [...handles.keys()],
     openTerminalClient: () => createTerminalClient({ url, apiKey }),
     mcp: createMcpClient({
+      droid: requireDroid,
+      generation: () => droidToken,
+      run: mapSdkError,
+    }),
+    skills: createSkillsClient({
       droid: requireDroid,
       generation: () => droidToken,
       run: mapSdkError,

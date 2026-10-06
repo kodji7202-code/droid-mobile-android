@@ -140,6 +140,64 @@
     "mcp": {
       "title": "MCP servers",
       "description": "Tool servers the daemon connects to."
+    },
+    "skills": {
+      "title": "Skills",
+      "description": "Instructions the agent can use, from built-ins, you and your project."
+    }
+  },
+  "skills": {
+    "loading": "Loading skills",
+    "loadFailedTitle": "Could not load skills",
+    "loadFailed": "The daemon did not answer. Check the connection and try again.",
+    "empty": {
+      "title": "No skills",
+      "message": "The daemon reports no skills for this folder."
+    },
+    "noDescription": "No description provided.",
+    "working": "Working",
+    "toggleLabel": "Enable {{name}}",
+    "scope": {
+      "project": "Project folder: {{folder}}",
+      "none": "No project is open. Showing user-level skills only."
+    },
+    "origin": {
+      "builtin": "Built-in",
+      "personal": "Personal",
+      "project": "Project",
+      "automation": "Automation",
+      "unknown": "Other"
+    },
+    "state": {
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "disabledUser": "Disabled for all projects",
+      "disabledProject": "Disabled for this project",
+      "disabledBoth": "Disabled for all projects and this project",
+      "disabledFile": "Disabled by the skill file"
+    },
+    "level": {
+      "title": "Disable {{name}}",
+      "message": "Choose where {{name}} is switched off.",
+      "legend": "Apply to",
+      "user": "All projects",
+      "userHint": "Your user settings. Every project is affected.",
+      "project": "This project only",
+      "projectHint": "Only {{folder}} is affected.",
+      "projectUnavailable": "Open a session in a project folder to use this.",
+      "confirm": "Disable"
+    },
+    "errors": {
+      "disable": "Could not disable {{name}}. The daemon state is unchanged.",
+      "enable": "Could not enable {{name}}. The daemon state is unchanged."
+    },
+    "detail": {
+      "description": "Description",
+      "origin": "Origin",
+      "state": "State",
+      "source": "Source",
+      "missingTitle": "Skill not found",
+      "missing": "{{name}} is not in the daemon's list for this folder."
     }
   },
   "mcp": {

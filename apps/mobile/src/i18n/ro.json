@@ -140,6 +140,64 @@
     "mcp": {
       "title": "Servere MCP",
       "description": "Servere de unelte la care se conectează daemonul."
+    },
+    "skills": {
+      "title": "Abilități",
+      "description": "Instrucțiuni pe care agentul le poate folosi: integrate, personale și ale proiectului."
+    }
+  },
+  "skills": {
+    "loading": "Se încarcă abilitățile",
+    "loadFailedTitle": "Abilitățile nu s-au putut încărca",
+    "loadFailed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou.",
+    "empty": {
+      "title": "Nicio abilitate",
+      "message": "Daemonul nu raportează abilități pentru acest dosar."
+    },
+    "noDescription": "Nu există descriere.",
+    "working": "Se lucrează",
+    "toggleLabel": "Activează {{name}}",
+    "scope": {
+      "project": "Dosarul proiectului: {{folder}}",
+      "none": "Niciun proiect nu este deschis. Se afișează doar abilitățile la nivel de utilizator."
+    },
+    "origin": {
+      "builtin": "Integrată",
+      "personal": "Personală",
+      "project": "Proiect",
+      "automation": "Automatizare",
+      "unknown": "Alta"
+    },
+    "state": {
+      "enabled": "Activă",
+      "disabled": "Dezactivată",
+      "disabledUser": "Dezactivată pentru toate proiectele",
+      "disabledProject": "Dezactivată pentru acest proiect",
+      "disabledBoth": "Dezactivată pentru toate proiectele și pentru acest proiect",
+      "disabledFile": "Dezactivată de fișierul abilității"
+    },
+    "level": {
+      "title": "Dezactivează {{name}}",
+      "message": "Alege unde se dezactivează {{name}}.",
+      "legend": "Se aplică la",
+      "user": "Toate proiectele",
+      "userHint": "Setările tale de utilizator. Toate proiectele sunt afectate.",
+      "project": "Doar acest proiect",
+      "projectHint": "Doar {{folder}} este afectat.",
+      "projectUnavailable": "Deschide o sesiune într-un dosar de proiect pentru a folosi această opțiune.",
+      "confirm": "Dezactivează"
+    },
+    "errors": {
+      "disable": "Nu s-a putut dezactiva {{name}}. Starea din daemon este neschimbată.",
+      "enable": "Nu s-a putut activa {{name}}. Starea din daemon este neschimbată."
+    },
+    "detail": {
+      "description": "Descriere",
+      "origin": "Origine",
+      "state": "Stare",
+      "source": "Sursă",
+      "missingTitle": "Abilitatea nu a fost găsită",
+      "missing": "{{name}} nu este în lista daemonului pentru acest dosar."
     }
   },
   "mcp": {

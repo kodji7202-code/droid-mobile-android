@@ -16,6 +16,12 @@ const SECTIONS: readonly ExtensionSection[] = [
     titleKey: 'extensions.mcp.title',
     descriptionKey: 'extensions.mcp.description',
   },
+  {
+    to: '/extensions/skills',
+    testId: 'extensions-skills',
+    titleKey: 'extensions.skills.title',
+    descriptionKey: 'extensions.skills.description',
+  },
 ];
 
 /** Extensions hub: one full-width entry per section (>= 48 dp touch targets). */

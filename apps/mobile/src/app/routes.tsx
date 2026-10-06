@@ -10,6 +10,9 @@ import { ExtensionsScreen } from '../features/extensions/ExtensionsScreen';
 import { McpDetailScreen } from '../features/extensions/mcp/McpDetailScreen';
 import { McpLayout } from '../features/extensions/mcp/McpLayout';
 import { McpScreen } from '../features/extensions/mcp/McpScreen';
+import { SkillDetailScreen } from '../features/extensions/skills/SkillDetailScreen';
+import { SkillsLayout } from '../features/extensions/skills/SkillsLayout';
+import { SkillsScreen } from '../features/extensions/skills/SkillsScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { AppearanceScreen } from '../features/settings/AppearanceScreen';
 import { LanguageScreen } from '../features/settings/LanguageScreen';
@@ -41,6 +44,14 @@ export function createAppRoutes(): RouteObject[] {
           children: [
             { index: true, element: <McpScreen /> },
             { path: ':name', element: <McpDetailScreen /> },
+          ],
+        },
+        {
+          path: 'extensions/skills',
+          element: <SkillsLayout />,
+          children: [
+            { index: true, element: <SkillsScreen /> },
+            { path: ':name', element: <SkillDetailScreen /> },
           ],
         },
         { path: 'settings', element: <SettingsScreen /> },

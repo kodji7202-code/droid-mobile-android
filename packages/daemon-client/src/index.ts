@@ -113,6 +113,15 @@ export { redactSecrets, REDACTED } from './redact';
 export * from './git';
 export { createMcpClient, toMcpServer } from './mcp';
 export type { AddMcpServerInput, McpClient, McpClientDeps, McpServer, McpTool } from './mcp';
+export { createSkillsClient, toSkill } from './skills';
+export type {
+  SetSkillDisabledInput,
+  Skill,
+  SkillLevel,
+  SkillList,
+  SkillsClient,
+  SkillsClientDeps,
+} from './skills';
 export { createTerminalClient, parseTerminalFrame } from './terminal-client';
 export type {
   CreateTerminalParams,
