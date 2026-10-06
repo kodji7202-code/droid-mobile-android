@@ -101,6 +101,18 @@ describe('ConnectScreen', () => {
     expect(screen.getByTestId('connect-key-input')).toHaveAttribute('type', 'password');
   });
 
+  it('keeps the key masked and opts the key and pairing inputs out of credential autofill', () => {
+    renderConnect();
+    const key = screen.getByTestId('connect-key-input');
+    expect(key).toHaveAttribute('type', 'password');
+    for (const field of [key, screen.getByTestId('connect-paste-pairing')]) {
+      expect(field).toHaveAttribute('autocomplete', 'off');
+      expect(field).toHaveAttribute('data-lpignore', 'true');
+      expect(field).toHaveAttribute('data-1p-ignore', 'true');
+    }
+    expect(key).toHaveAttribute('name', 'daemon-access-token');
+  });
+
   it('rejects a malformed key inline without constructing a connection, then clears on edit', async () => {
     const user = userEvent.setup();
     renderConnect();

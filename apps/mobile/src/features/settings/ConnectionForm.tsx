@@ -125,6 +125,7 @@ export function ConnectionForm({ mode, initial, onSubmit, onCancel }: Connection
           className="field__control"
           data-testid="connection-form-key"
           type="password"
+          name="daemon-access-token"
           ref={keyInput}
           onChange={(event) => {
             setHasKey(event.target.value.trim() !== '');
@@ -134,6 +135,9 @@ export function ConnectionForm({ mode, initial, onSubmit, onCancel }: Connection
           autoCorrect="off"
           autoComplete="off"
           spellCheck={false}
+          data-lpignore="true"
+          data-1p-ignore="true"
+          data-form-type="other"
         />
         {mode === 'edit' ? (
           <p className="field__description">{t('connections.keyEditHint')}</p>

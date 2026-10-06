@@ -87,6 +87,8 @@ export interface ConnectionManagerDeps {
   removeSavedConnection(id: string): void;
   clearSavedConnections(): void;
   getSecureStore(): SecureStore;
+  /** Removes this device's push registration (best effort, never rejects) when the last connection goes. */
+  releasePush?(): Promise<void>;
   checkUrl(
     rawUrl: string,
   ): { ok: true; url: string } | { ok: false; reason: 'malformed' | 'insecure' };
@@ -370,6 +372,8 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
   async function forget(id: string): Promise<void> {
     const saved = deps.loadSavedConnections();
     const wasActive = state.activeConnectionId === id || saved.activeId === id;
+    // The bridge registration outlives any single connection; it ends with the last one.
+    if (saved.connections.every((entry) => entry.id === id)) await deps.releasePush?.();
     let successor: string | null = null;
     // The Connect screen reads the saved list when it mounts (on close), so the
     // entry must be gone by then or the form would be prefilled with its URL.
@@ -413,6 +417,7 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
         // a probe that never connected may not close cleanly
       }
     }
+    await deps.releasePush?.();
     // Keys go first: metadata is the only record needed to retry a failed delete.
     const results = await Promise.allSettled(
       [...ids, PENDING_BRIDGE_SECRET_ID].map((id) => store.deleteSecret(id)),

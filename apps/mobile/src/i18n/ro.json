@@ -641,6 +641,51 @@
       "turnText": "Droid a terminat răspunsul în {{session}}"
     }
   },
+  "push": {
+    "title": "Notificări push",
+    "description": "Primești cereri de aprobare și răspunsuri finalizate chiar și cu aplicația închisă. Bridge-ul FCM de pe PC le trimite prin Firebase; înregistrează telefonul cu secretul de asociere de pe PC.",
+    "unavailable": "Notificările push sunt disponibile doar în aplicația Android.",
+    "status": {
+      "unregistered": "Neînregistrat",
+      "registering": "Se înregistrează…",
+      "registered": "Înregistrat",
+      "unregistering": "Se oprește…"
+    },
+    "bridgeLabel": "Bridge",
+    "deviceLabel": "Numele dispozitivului",
+    "deviceIdLabel": "ID dispozitiv",
+    "disable": "Oprește notificările push",
+    "disableLocal": "Oprește doar pe acest telefon",
+    "disableLocalHint": "Bridge-ul nu a putut fi contactat, deci dispozitivul poate rămâne înregistrat acolo. Poți opri totuși notificările push pe acest telefon.",
+    "pairingLabel": "Cod de asociere",
+    "pairingHint": "Lipește codul de asociere de pe PC. Înregistrarea pornește imediat, iar codul nu este păstrat.",
+    "replaceHint": "Lipește sau scanează un cod de asociere nou ca să treci la alt bridge.",
+    "scanImage": "Scanează codul QR dintr-o imagine",
+    "scanNoQr": "Nu s-a găsit niciun cod QR în imaginea aleasă.",
+    "scanFailed": "Imaginea nu a putut fi citită. Încearcă să lipești codul de asociere.",
+    "manualHint": "Sau introdu manual datele bridge-ului.",
+    "pendingNotice": "Un cod de asociere pentru {{bridge}} este pregătit. Alege „Înregistrează acest telefon” ca să-l folosești sau șterge-l.",
+    "pendingDiscard": "Șterge codul de asociere",
+    "bridgeUrlLabel": "Adresa bridge-ului",
+    "secretLabel": "Secretul de asociere al bridge-ului",
+    "register": "Înregistrează acest telefon",
+    "error": {
+      "invalidUrl": "Aceasta nu este o adresă validă de bridge.",
+      "insecure": "Adresa bridge-ului trebuie să înceapă cu https://.",
+      "missingSecret": "Introdu secretul de asociere al bridge-ului.",
+      "unauthorized": "Bridge-ul a respins secretul de asociere. Verifică-l și încearcă din nou.",
+      "unreachable": "Bridge-ul nu a putut fi contactat. Verifică adresa și conexiunea.",
+      "rejected": "Bridge-ul nu a acceptat această înregistrare.",
+      "rateLimited": "Bridge-ul este ocupat. Încearcă din nou peste un minut.",
+      "server": "Bridge-ul a raportat o eroare. Încearcă mai târziu.",
+      "token": "Telefonul nu a putut obține un token push de la Firebase. Verifică Google Play services și conexiunea.",
+      "storage": "Secretul de asociere nu a putut fi păstrat în siguranță pe telefon, deci nu s-a înregistrat nimic.",
+      "unsupported": "Notificările push sunt disponibile doar în aplicația Android.",
+      "pairingInvalid": "Acesta nu este un cod de asociere valid.",
+      "pairingNoBridge": "Acest cod de asociere nu conține datele bridge-ului push. Creează unul cu opțiunile pentru bridge.",
+      "unregisterFailed": "Bridge-ul nu a putut fi contactat, deci telefonul rămâne înregistrat."
+    }
+  },
   "language": {
     "english": "English",
     "romanian": "Română"

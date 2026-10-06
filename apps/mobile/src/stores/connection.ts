@@ -12,6 +12,7 @@ import { appLog } from '../diagnostics/logBuffer';
 import { useInteractionStore } from './interactions';
 import { isDebugBuild } from '../platform/buildFlavor';
 import { getSecureStore } from '../platform/secureStore';
+import { releasePushRegistration } from './push';
 import {
   addSavedConnection,
   clearSavedConnections,
@@ -91,6 +92,7 @@ export const useConnectionStore = create<ConnectionStore>((set) => {
     removeSavedConnection,
     clearSavedConnections,
     getSecureStore,
+    releasePush: releasePushRegistration,
     checkUrl: (rawUrl) => checkDaemonUrl(rawUrl, isDebugBuild()),
     onChange: (state) => set(state),
   });

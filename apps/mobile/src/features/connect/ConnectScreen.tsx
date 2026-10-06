@@ -205,12 +205,16 @@ export function ConnectScreen() {
             className="field__control"
             data-testid="connect-key-input"
             type="password"
+            name="daemon-access-token"
             ref={keyInput}
             onChange={onKeyChange}
             autoCapitalize="none"
             autoCorrect="off"
             autoComplete="off"
             spellCheck={false}
+            data-lpignore="true"
+            data-1p-ignore="true"
+            data-form-type="other"
           />
         </div>
         {errorKey ? (
@@ -257,6 +261,9 @@ export function ConnectScreen() {
             autoCorrect="off"
             autoComplete="off"
             spellCheck={false}
+            data-lpignore="true"
+            data-1p-ignore="true"
+            data-form-type="other"
           />
           <p className="field__description" id="connect-pairing-hint">
             {t('connect.pairingHint')}

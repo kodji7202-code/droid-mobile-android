@@ -601,6 +601,22 @@ p {
   font-weight: 600;
 }
 
+.push-details {
+  margin: 0.75rem 0;
+  display: grid;
+  gap: 0.125rem;
+}
+
+.push-details dt {
+  font-size: 0.8125rem;
+  color: var(--color-fg-muted);
+}
+
+.push-details dd {
+  margin: 0 0 0.5rem;
+  overflow-wrap: anywhere;
+}
+
 .settings-toggle__control {
   flex: none;
   width: 48px;

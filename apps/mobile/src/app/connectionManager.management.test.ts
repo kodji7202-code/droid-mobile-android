@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ConnectionStatus, DaemonConnection } from '@droidmobile/daemon-client';
 import {
   createConnectionManager,
@@ -76,6 +76,7 @@ function setup(
     return conn;
   });
 
+  const releasePush = vi.fn(() => Promise.resolve());
   const deps: ConnectionManagerDeps = {
     createConnection,
     loadSavedConnections: () => ({ activeId: saved.activeId, connections: [...saved.connections] }),
@@ -114,9 +115,11 @@ function setup(
     }),
     checkUrl: (raw) =>
       raw.startsWith('ftp') ? { ok: false, reason: 'malformed' } : { ok: true, url: raw },
+    releasePush,
     onChange: () => undefined,
   };
   return {
+    releasePush,
     manager: createConnectionManager(deps),
     saved,
     secrets,
@@ -269,6 +272,15 @@ describe('forget', () => {
     expect(secrets.size).toBe(0);
   });
 
+  it('releases the push registration only when the last connection is forgotten', async () => {
+    const { manager, releasePush } = setup();
+    await manager.switchTo('a');
+    await manager.forget('b');
+    expect(releasePush).not.toHaveBeenCalled();
+    await manager.forget('a');
+    expect(releasePush).toHaveBeenCalledTimes(1);
+  });
+
   it('removes the saved entry before closing so the Connect screen mounts empty', async () => {
     const { manager, saved, created } = setup({ connections: [A], keys: ['a'] });
     await manager.switchTo('a');
@@ -305,6 +317,19 @@ describe('signOut', () => {
     expect(saved.connections).toEqual([]);
     expect(saved.activeId).toBeNull();
     expect(secrets.size).toBe(0);
+  });
+
+  it('releases the push registration before any key is deleted', async () => {
+    const { manager, secrets, releasePush } = setup();
+    await manager.switchTo('a');
+    let keysAtRelease = -1;
+    releasePush.mockImplementation(() => {
+      keysAtRelease = secrets.size;
+      return Promise.resolve();
+    });
+    await manager.signOut();
+    expect(releasePush).toHaveBeenCalledTimes(1);
+    expect(keysAtRelease).toBe(2);
   });
 
   it('wipes saved metadata before closing so the Connect screen mounts empty', async () => {

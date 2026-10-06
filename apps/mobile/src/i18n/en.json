@@ -639,6 +639,51 @@
       "turnText": "Droid finished replying in {{session}}"
     }
   },
+  "push": {
+    "title": "Push notifications",
+    "description": "Receive approval requests and finished turns even when the app is closed. Your PC's FCM bridge sends them through Firebase; register this phone with the pairing secret from your PC.",
+    "unavailable": "Push notifications are only available in the Android app.",
+    "status": {
+      "unregistered": "Not registered",
+      "registering": "Registering…",
+      "registered": "Registered",
+      "unregistering": "Turning off…"
+    },
+    "bridgeLabel": "Bridge",
+    "deviceLabel": "Device name",
+    "deviceIdLabel": "Device ID",
+    "disable": "Turn off push",
+    "disableLocal": "Turn off on this phone only",
+    "disableLocalHint": "The bridge could not be reached, so the device may stay registered there. You can still turn push off on this phone.",
+    "pairingLabel": "Pairing code",
+    "pairingHint": "Paste the pairing code from your PC. Registration starts right away and the code is not kept.",
+    "replaceHint": "Paste or scan a new pairing code to switch to another bridge.",
+    "scanImage": "Scan QR from image",
+    "scanNoQr": "No QR code was found in that image.",
+    "scanFailed": "The image could not be read. Try pasting the pairing code instead.",
+    "manualHint": "Or enter the bridge details by hand.",
+    "pendingNotice": "A pairing code for {{bridge}} is ready. Choose Register this phone to use it, or discard it.",
+    "pendingDiscard": "Discard pairing code",
+    "bridgeUrlLabel": "Bridge URL",
+    "secretLabel": "Bridge pairing secret",
+    "register": "Register this phone",
+    "error": {
+      "invalidUrl": "That is not a valid bridge address.",
+      "insecure": "The bridge address must start with https://.",
+      "missingSecret": "Enter the bridge pairing secret.",
+      "unauthorized": "The bridge rejected the pairing secret. Check it and try again.",
+      "unreachable": "The bridge could not be reached. Check its address and your connection.",
+      "rejected": "The bridge did not accept this registration.",
+      "rateLimited": "The bridge is busy. Try again in a minute.",
+      "server": "The bridge reported an error. Try again later.",
+      "token": "This phone could not get a push token from Firebase. Check Google Play services and your connection.",
+      "storage": "The pairing secret could not be stored safely on this phone, so nothing was registered.",
+      "unsupported": "Push notifications are only available in the Android app.",
+      "pairingInvalid": "That is not a valid pairing code.",
+      "pairingNoBridge": "This pairing code has no push bridge details. Create one with the bridge options.",
+      "unregisterFailed": "The bridge could not be reached, so this phone is still registered."
+    }
+  },
   "language": {
     "english": "English",
     "romanian": "Română"

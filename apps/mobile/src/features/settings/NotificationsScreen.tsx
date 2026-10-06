@@ -5,6 +5,7 @@ import { SettingsSubHeader } from './SettingsSubHeader';
 import { useNotificationPermission } from './useNotificationPermission';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ChevronRightIcon } from '../../components/icons';
+import { PushSection } from '../push/PushSection';
 import { appNotifications } from '../../platform/appNotifications';
 import { daemonService } from '../../platform/daemonService';
 import { useNotificationSettingsStore } from '../../stores/notificationSettings';
@@ -15,7 +16,8 @@ type Channel = 'approvals' | 'turns';
 /**
  * Settings > Notifications: the master switch with the Android permission flow (rationale,
  * system dialog, a way to the system settings after a refusal), one switch per notification
- * channel, "Stay connected" and the entry to the battery-optimisation guidance.
+ * channel, "Stay connected", the push registration with the FCM bridge and the entry to the
+ * battery-optimisation guidance.
  */
 export function NotificationsScreen() {
   const { t } = useTranslation();
@@ -161,6 +163,7 @@ export function NotificationsScreen() {
           </p>
         )}
       </div>
+      <PushSection />
       <NavLink
         to="/settings/notifications/battery"
         className="settings-row"

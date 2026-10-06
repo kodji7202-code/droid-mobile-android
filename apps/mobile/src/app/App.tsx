@@ -1,4 +1,4 @@
-import { Suspense, useMemo } from 'react';
+import { Suspense, useEffect, useMemo } from 'react';
 import { RouterProvider, createHashRouter, createMemoryRouter } from 'react-router';
 import { Capacitor } from '@capacitor/core';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -10,6 +10,7 @@ import { Skeleton } from '../components/Skeleton';
 import { useAppResume } from './useAppResume';
 import { useDaemonService } from './useDaemonService';
 import { useLocalNotifications } from './useLocalNotifications';
+import { startPushRegistry } from '../stores/push';
 
 /**
  * App root: global error boundary, theme and toast providers, and the router
@@ -19,6 +20,7 @@ import { useLocalNotifications } from './useLocalNotifications';
 export default function App() {
   useAppResume();
   useDaemonService();
+  useEffect(() => startPushRegistry(), []);
   const router = useMemo(() => {
     const routes = createAppRoutes();
     return Capacitor.isNativePlatform()
