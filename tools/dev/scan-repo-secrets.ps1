@@ -22,7 +22,7 @@ $patterns = [ordered]@{
     'fk- token outside *.test.* files' = 'fk-[A-Za-z0-9_-]{8,}'
     'service_account json type' = '"type": *"service_account"'
     'PEM private key'           = 'BEGIN (RSA |EC )?PRIVATE KEY'
-    'private_key_id'            = 'private_key_id'
+    'private_key_id value'      = 'private_key_id.{1,6}[0-9a-f]{20,}'
 }
 foreach ($name in $patterns.Keys) {
     $hits = 0

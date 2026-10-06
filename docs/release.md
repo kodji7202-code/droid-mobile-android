@@ -58,7 +58,7 @@ exits non-zero on any failure. Only booleans, counts and certificate fingerprint
 - `assets/capacitor.config.json`: `https` scheme, no `server.cleartext` or `server.url`,
   WebView debugging off.
 - No file in the APK with `factory` in its name.
-- No API key, `fk-` token, service-account `private_key_id` or PEM private key in any entry
+- No API key, `fk-` token, service-account key id or PEM private key in any entry
   of the APK or AAB.
 
 ## Install on a phone
