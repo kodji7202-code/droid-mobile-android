@@ -39,9 +39,9 @@ describe('module surface (VAL-PCH-001)', () => {
     expect(r.out.match(/errors=0/g)?.length).toBe(files.length);
   });
 
-  it('import prints nothing and exposes the daemon, serve and pairing commands', () => {
+  it('import prints nothing and exposes every command and the Doctor alias', () => {
     const r = runPs(
-      "'IMPORTED'; (Get-Command -Module DroidMobileHelper | Sort-Object Name | ForEach-Object Name) -join ','",
+      "'IMPORTED'; (Get-Command -Module DroidMobileHelper | Sort-Object Name | ForEach-Object Name) -join ','; (Get-Alias Doctor).ResolvedCommandName",
     );
     expect(r.code).toBe(0);
     expect(r.out.trim().split(/\r?\n/)[0]).toBe('IMPORTED');
@@ -51,6 +51,9 @@ describe('module surface (VAL-PCH-001)', () => {
       'Enable-TailscaleServe',
       'Disable-TailscaleServe',
       'New-PairingCode',
+      'Install-DroidHooks',
+      'Uninstall-DroidHooks',
+      'Get-DroidDoctor',
     ]) {
       expect(r.out).toContain(name);
     }

@@ -10,11 +10,16 @@ Import-Module CimCmdlets -ErrorAction Stop
 . (Join-Path $PSScriptRoot 'lib\Daemon.ps1')
 . (Join-Path $PSScriptRoot 'lib\Tailscale.ps1')
 . (Join-Path $PSScriptRoot 'lib\Pairing.ps1')
+. (Join-Path $PSScriptRoot 'lib\Hooks.ps1')
+. (Join-Path $PSScriptRoot 'lib\Doctor.ps1')
 
 Export-ModuleMember -Function @(
   'Start-DroidDaemon',
   'Stop-DroidDaemon',
   'Enable-TailscaleServe',
   'Disable-TailscaleServe',
-  'New-PairingCode'
-)
+  'New-PairingCode',
+  'Install-DroidHooks',
+  'Uninstall-DroidHooks',
+  'Get-DroidDoctor'
+) -Alias 'Doctor'
