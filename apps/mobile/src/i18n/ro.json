@@ -136,6 +136,110 @@
     "loadFailed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou.",
     "saveFailed": "Modificarea nu a fost salvată. Valoarea anterioară rămâne în vigoare."
   },
+  "extensions": {
+    "mcp": {
+      "title": "Servere MCP",
+      "description": "Servere de unelte la care se conectează daemonul."
+    }
+  },
+  "mcp": {
+    "add": "Adaugă server",
+    "loading": "Se încarcă serverele MCP",
+    "loadFailedTitle": "Serverele MCP nu s-au putut încărca",
+    "loadFailed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou.",
+    "empty": {
+      "title": "Niciun server MCP",
+      "message": "Adaugă un server ca să oferi daemonului mai multe unelte."
+    },
+    "working": "Se lucrează",
+    "toggleLabel": "Activează {{name}}",
+    "remove": "Elimină",
+    "removeLabel": "Elimină {{name}}",
+    "toolCount_one": "{{count}} unealtă",
+    "toolCount_few": "{{count}} unelte",
+    "toolCount_other": "{{count}} de unelte",
+    "source": {
+      "user": "Utilizator",
+      "project": "Proiect",
+      "org": "Organizație"
+    },
+    "status": {
+      "connecting": "Se conectează",
+      "connected": "Conectat",
+      "disconnected": "Deconectat",
+      "failed": "Eșuat",
+      "disabled": "Dezactivat",
+      "authRequired": "Autentificare necesară"
+    },
+    "errors": {
+      "toggle": "{{name}} nu a putut fi modificat. Starea din daemon este neschimbată.",
+      "remove": "{{name}} nu a putut fi eliminat.",
+      "auth": "Autentificarea pentru {{name}} nu a putut porni.",
+      "cancelAuth": "Autentificarea pentru {{name}} nu a putut fi anulată."
+    },
+    "removeConfirm": {
+      "title": "Elimini {{name}}?",
+      "message": "Serverul {{name}} este eliminat din daemon. Autentificarea salvată este ștearsă."
+    },
+    "auth": {
+      "start": "Autentifică",
+      "title": "Autentificare la {{name}}",
+      "waiting": "Se așteaptă linkul de autorizare…",
+      "instructions": "Deschide pagina în browser și termină autentificarea. Ecranul se actualizează când ai terminat.",
+      "open": "Deschide în browser",
+      "copy": "Copiază linkul",
+      "copied": "Link copiat",
+      "copyFailed": "Linkul nu a putut fi copiat"
+    },
+    "form": {
+      "title": "Adaugă server MCP",
+      "transport": "Transport",
+      "transports": {
+        "stdio": "stdio (comandă locală)",
+        "http": "http",
+        "sse": "sse"
+      },
+      "name": "Nume",
+      "url": "URL",
+      "command": "Comandă",
+      "args": "Argumente",
+      "argsHint": "Separate prin spații. Folosește ghilimele pentru grupare, de exemplu -e \"console.log(1)\".",
+      "env": "Variabile de mediu",
+      "envHint": "Câte un CHEIE=VALOARE pe linie.",
+      "save": "Adaugă serverul",
+      "adding": "Se adaugă…",
+      "addFailed": "Daemonul nu a acceptat serverul. Încearcă din nou.",
+      "errors": {
+        "name": {
+          "required": "Introdu un nume.",
+          "duplicate": "Există deja un server cu acest nume."
+        },
+        "url": {
+          "required": "Introdu un URL.",
+          "invalid": "Introdu un URL http sau https valid."
+        },
+        "command": {
+          "required": "Introdu o comandă."
+        },
+        "args": {
+          "invalid": "Închide ghilimelele deschise din argumente."
+        },
+        "env": {
+          "invalid": "Folosește câte un CHEIE=VALOARE pe linie, cu o cheie din litere, cifre sau liniuță jos."
+        }
+      }
+    },
+    "detail": {
+      "tools": "Unelte",
+      "noTools": "Nicio unealtă disponibilă",
+      "noToolsOffline": "Serverul nu este conectat, deci nu oferă unelte.",
+      "noToolsConnected": "Serverul este conectat, dar nu oferă unelte.",
+      "toolsFailedTitle": "Uneltele nu s-au putut încărca",
+      "toolsFailed": "Daemonul nu a răspuns. Încearcă din nou.",
+      "missingTitle": "Serverul nu a fost găsit",
+      "missing": "{{name}} nu mai este în lista daemonului."
+    }
+  },
   "about": {
     "title": "Despre",
     "appVersion": "Versiune aplicație",

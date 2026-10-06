@@ -111,6 +111,8 @@ export { backoffDelay, DEFAULT_BACKOFF } from './backoff';
 export type { BackoffOptions } from './backoff';
 export { redactSecrets, REDACTED } from './redact';
 export * from './git';
+export { createMcpClient, toMcpServer } from './mcp';
+export type { AddMcpServerInput, McpClient, McpClientDeps, McpServer, McpTool } from './mcp';
 export { createTerminalClient, parseTerminalFrame } from './terminal-client';
 export type {
   CreateTerminalParams,

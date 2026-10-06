@@ -50,6 +50,8 @@ import type {
   DaemonResolvePullRequestStatusesRequestParams,
   DaemonResolvePullRequestStatusesResult,
 } from './git';
+import { createMcpClient } from './mcp';
+import type { McpClient } from './mcp';
 import { probeDaemonIdentity } from './probe';
 import { createTerminalClient } from './terminal-client';
 import type { TerminalClient } from './terminal-client';
@@ -139,6 +141,8 @@ export interface DaemonConnection {
    * owns it: connect(), then dispose() when done. Shells outlive the sidecar.
    */
   openTerminalClient(): TerminalClient;
+  /** MCP server management on a scratch session owned by the client. */
+  readonly mcp: McpClient;
 
   /** Asks the daemon whether a working directory exists and is a directory. */
   validateDirectory(path: string): Promise<DirectoryValidation>;
@@ -735,6 +739,11 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     getDaemonIdentity: () => mapSdkError(() => probeDaemonIdentity(url, apiKey)),
     openedSessionIds: () => [...handles.keys()],
     openTerminalClient: () => createTerminalClient({ url, apiKey }),
+    mcp: createMcpClient({
+      droid: requireDroid,
+      generation: () => droidToken,
+      run: mapSdkError,
+    }),
 
     validateDirectory: (path) =>
       mapSdkError(() => requireDroid().workspace.validateDirectory(path)),

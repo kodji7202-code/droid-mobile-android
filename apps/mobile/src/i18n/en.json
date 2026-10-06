@@ -136,6 +136,109 @@
     "loadFailed": "The daemon did not answer. Check the connection and try again.",
     "saveFailed": "The change was not saved. The previous value is still in effect."
   },
+  "extensions": {
+    "mcp": {
+      "title": "MCP servers",
+      "description": "Tool servers the daemon connects to."
+    }
+  },
+  "mcp": {
+    "add": "Add server",
+    "loading": "Loading MCP servers",
+    "loadFailedTitle": "Could not load MCP servers",
+    "loadFailed": "The daemon did not answer. Check the connection and try again.",
+    "empty": {
+      "title": "No MCP servers",
+      "message": "Add a server to give the daemon more tools."
+    },
+    "working": "Working",
+    "toggleLabel": "Enable {{name}}",
+    "remove": "Remove",
+    "removeLabel": "Remove {{name}}",
+    "toolCount_one": "{{count}} tool",
+    "toolCount_other": "{{count}} tools",
+    "source": {
+      "user": "User",
+      "project": "Project",
+      "org": "Organization"
+    },
+    "status": {
+      "connecting": "Connecting",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "failed": "Failed",
+      "disabled": "Disabled",
+      "authRequired": "Authentication required"
+    },
+    "errors": {
+      "toggle": "Could not change {{name}}. The daemon state is unchanged.",
+      "remove": "Could not remove {{name}}.",
+      "auth": "Could not start sign-in for {{name}}.",
+      "cancelAuth": "Could not cancel sign-in for {{name}}."
+    },
+    "removeConfirm": {
+      "title": "Remove {{name}}?",
+      "message": "The server {{name}} is removed from the daemon. Its stored sign-in is cleared."
+    },
+    "auth": {
+      "start": "Authenticate",
+      "title": "Signing in to {{name}}",
+      "waiting": "Waiting for the authorization link…",
+      "instructions": "Open the page in your browser and finish signing in. This screen updates when you are done.",
+      "open": "Open in browser",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "copyFailed": "Could not copy the link"
+    },
+    "form": {
+      "title": "Add MCP server",
+      "transport": "Transport",
+      "transports": {
+        "stdio": "stdio (local command)",
+        "http": "http",
+        "sse": "sse"
+      },
+      "name": "Name",
+      "url": "URL",
+      "command": "Command",
+      "args": "Arguments",
+      "argsHint": "Separated by spaces. Use quotes to group, for example -e \"console.log(1)\".",
+      "env": "Environment variables",
+      "envHint": "One KEY=VALUE per line.",
+      "save": "Add server",
+      "adding": "Adding…",
+      "addFailed": "The daemon did not accept the server. Try again.",
+      "errors": {
+        "name": {
+          "required": "Enter a name.",
+          "duplicate": "A server with this name already exists."
+        },
+        "url": {
+          "required": "Enter a URL.",
+          "invalid": "Enter a valid http or https URL."
+        },
+        "command": {
+          "required": "Enter a command."
+        },
+        "args": {
+          "invalid": "Close the open quote in the arguments."
+        },
+        "env": {
+          "invalid": "Use one KEY=VALUE per line, with a letter, digit or underscore key."
+        }
+      }
+    },
+    "detail": {
+      "tools": "Tools",
+      "noTools": "No tools available",
+      "noToolsOffline": "This server is not connected, so it exposes no tools.",
+      "noToolsConnected": "This server is connected but exposes no tools.",
+      "toolsFailedTitle": "Could not load tools",
+      "toolsFailed": "The daemon did not answer. Try again.",
+      "missingTitle": "Server not found",
+      "missing": "{{name}} is not in the daemon list anymore."
+    }
+  },
   "about": {
     "title": "About",
     "appVersion": "App version",

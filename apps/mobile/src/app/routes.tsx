@@ -7,6 +7,9 @@ import { SessionsScreen } from '../features/sessions/SessionsScreen';
 import { SessionScreen } from '../features/session/SessionScreen';
 import { WorkspaceScreen } from '../features/workspace/WorkspaceScreen';
 import { ExtensionsScreen } from '../features/extensions/ExtensionsScreen';
+import { McpDetailScreen } from '../features/extensions/mcp/McpDetailScreen';
+import { McpLayout } from '../features/extensions/mcp/McpLayout';
+import { McpScreen } from '../features/extensions/mcp/McpScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { AppearanceScreen } from '../features/settings/AppearanceScreen';
 import { LanguageScreen } from '../features/settings/LanguageScreen';
@@ -32,6 +35,14 @@ export function createAppRoutes(): RouteObject[] {
         { path: 'sessions/:id', element: <SessionScreen /> },
         { path: 'workspace', element: <WorkspaceScreen /> },
         { path: 'extensions', element: <ExtensionsScreen /> },
+        {
+          path: 'extensions/mcp',
+          element: <McpLayout />,
+          children: [
+            { index: true, element: <McpScreen /> },
+            { path: ':name', element: <McpDetailScreen /> },
+          ],
+        },
         { path: 'settings', element: <SettingsScreen /> },
         { path: 'settings/appearance', element: <AppearanceScreen /> },
         { path: 'settings/language', element: <LanguageScreen /> },
