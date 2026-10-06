@@ -595,6 +595,12 @@ p {
   min-height: 48px;
 }
 
+.settings-section-title {
+  margin: 1rem 0 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
 .settings-toggle__control {
   flex: none;
   width: 48px;

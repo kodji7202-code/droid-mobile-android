@@ -599,11 +599,45 @@
   },
   "notifications": {
     "title": "Notifications",
-    "unavailable": "Notification settings are available when notifications are enabled.",
     "stayConnected": "Stay connected",
     "stayConnectedDescription": "Keeps the connection to your daemon alive while the app is in the background. A low-priority notification with a Stop button stays visible while this is on.",
     "stayConnectedUnavailable": "Stay connected is only available in the Android app.",
-    "batteryGuidance": "Battery optimisation"
+    "batteryGuidance": "Battery optimisation",
+    "master": "Notifications",
+    "masterDescription": "Get notified when Droid needs your approval or finishes a turn while you are on another screen or in another app.",
+    "notAvailable": "Notifications are only available in the Android app.",
+    "permission": {
+      "label": "Android permission",
+      "granted": "Allowed",
+      "denied": "Not allowed"
+    },
+    "denied": "Android is blocking notifications for Droid Mobile. Allow them in the system settings to receive approval requests and finished turns.",
+    "openSettings": "Open notification settings",
+    "rationale": {
+      "title": "Allow notifications?",
+      "message": "Droid Mobile uses notifications to tell you when Droid needs your approval or has finished a turn while the app is in the background. Android asks for your permission next.",
+      "confirm": "Continue"
+    },
+    "channelsTitle": "Notification types",
+    "channel": {
+      "approvals": "Approval requests",
+      "turns": "Finished turns",
+      "service": "Background connection"
+    },
+    "channelDescription": {
+      "approvals": "Alerts you when Droid waits for your approval. Shown on top of other apps.",
+      "turns": "A quiet notice when a turn finishes while you are somewhere else."
+    },
+    "local": {
+      "requestTitle": "Approval needed",
+      "requestText": "{{session}}: {{detail}}",
+      "requestFallback": "Droid is waiting for your approval in {{session}}",
+      "askTitle": "Droid has a question",
+      "askText": "Droid is waiting for your answer in {{session}}",
+      "approve": "Approve",
+      "turnTitle": "Turn finished",
+      "turnText": "Droid finished replying in {{session}}"
+    }
   },
   "language": {
     "english": "English",

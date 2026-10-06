@@ -601,11 +601,45 @@
   },
   "notifications": {
     "title": "Notificări",
-    "unavailable": "Setările de notificări sunt disponibile când notificările sunt activate.",
     "stayConnected": "Rămâi conectat",
     "stayConnectedDescription": "Menține conexiunea cu daemonul activă cât timp aplicația rulează în fundal. Cât este pornită, rămâne vizibilă o notificare cu prioritate redusă și un buton Oprește.",
     "stayConnectedUnavailable": "Opțiunea „Rămâi conectat” este disponibilă doar în aplicația Android.",
-    "batteryGuidance": "Optimizarea bateriei"
+    "batteryGuidance": "Optimizarea bateriei",
+    "master": "Notificări",
+    "masterDescription": "Primești o notificare când Droid are nevoie de aprobarea ta sau termină un răspuns cât timp ești în alt ecran sau în altă aplicație.",
+    "notAvailable": "Notificările sunt disponibile doar în aplicația Android.",
+    "permission": {
+      "label": "Permisiune Android",
+      "granted": "Permisă",
+      "denied": "Nepermisă"
+    },
+    "denied": "Android blochează notificările pentru Droid Mobile. Permite-le din setările sistemului ca să primești cereri de aprobare și răspunsuri finalizate.",
+    "openSettings": "Deschide setările de notificări",
+    "rationale": {
+      "title": "Permiți notificările?",
+      "message": "Droid Mobile folosește notificări ca să te anunțe când Droid are nevoie de aprobarea ta sau a terminat un răspuns cât timp aplicația este în fundal. Android îți cere apoi permisiunea.",
+      "confirm": "Continuă"
+    },
+    "channelsTitle": "Tipuri de notificări",
+    "channel": {
+      "approvals": "Cereri de aprobare",
+      "turns": "Răspunsuri finalizate",
+      "service": "Conexiune în fundal"
+    },
+    "channelDescription": {
+      "approvals": "Te anunță când Droid așteaptă aprobarea ta. Apare deasupra altor aplicații.",
+      "turns": "O notificare discretă când un răspuns se termină cât timp ești în altă parte."
+    },
+    "local": {
+      "requestTitle": "Aprobare necesară",
+      "requestText": "{{session}}: {{detail}}",
+      "requestFallback": "Droid așteaptă aprobarea ta în {{session}}",
+      "askTitle": "Droid are o întrebare",
+      "askText": "Droid așteaptă răspunsul tău în {{session}}",
+      "approve": "Aprobă",
+      "turnTitle": "Răspuns finalizat",
+      "turnText": "Droid a terminat răspunsul în {{session}}"
+    }
   },
   "language": {
     "english": "English",

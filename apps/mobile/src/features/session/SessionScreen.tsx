@@ -7,6 +7,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { Skeleton } from '../../components/Skeleton';
 import { useToast } from '../../components/Toast';
 import { useConnectionStore } from '../../stores/connection';
+import { useForegroundStore } from '../../stores/foreground';
 import { useInteractionStore } from '../../stores/interactions';
 import { useSessionViewStore } from '../../stores/sessionView';
 import { ChatComposer, WAITING_STATE } from '../chat/ChatComposer';
@@ -71,6 +72,12 @@ export function SessionScreen() {
       setActiveSessionId(id);
     }
   }, [id, setActiveSessionId]);
+
+  useEffect(() => {
+    if (id === '') return undefined;
+    useForegroundStore.getState().setViewedSessionId(id);
+    return () => useForegroundStore.getState().setViewedSessionId(null);
+  }, [id]);
 
   useEffect(() => {
     if (ready && connection && id !== '') {

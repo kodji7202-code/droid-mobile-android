@@ -6,6 +6,8 @@ import { renderAppAt } from '../../test/render-app';
 import { stubMatchMedia } from '../../test/match-media';
 import { useConnectionStore } from '../../stores/connection';
 import { changeAppLanguage } from '../../i18n/init';
+import en from '../../i18n/en.json';
+import ro from '../../i18n/ro.json';
 
 const SECTIONS = [
   { rowTestId: 'settings-connection', pageTestId: 'connection-screen', name: 'Connection' },
@@ -61,17 +63,18 @@ describe('Settings landing (phone)', () => {
     expect(screen.queryByTestId(section.pageTestId)).not.toBeInTheDocument();
   });
 
-  it('shows localized notifications content that says the toggles need notifications', async () => {
+  it('shows localized notifications content with the master toggle', async () => {
     const user = userEvent.setup();
     renderAppAt('/settings/notifications');
-    expect(screen.getByTestId('notifications-unavailable')).toHaveTextContent(
-      'available when notifications are enabled',
+    expect(screen.getByTestId('settings-notifications-toggle')).toBeInTheDocument();
+    expect(screen.getByTestId('settings-notifications-unsupported')).toHaveTextContent(
+      en.notifications.notAvailable,
     );
     await act(async () => {
       await changeAppLanguage('ro');
     });
-    expect(screen.getByTestId('notifications-unavailable')).toHaveTextContent(
-      'disponibile când notificările sunt activate',
+    expect(screen.getByTestId('settings-notifications-unsupported')).toHaveTextContent(
+      ro.notifications.notAvailable,
     );
     await user.click(screen.getByTestId('settings-back'));
     expect(screen.getByTestId('settings-notifications')).toHaveTextContent('Notificări');

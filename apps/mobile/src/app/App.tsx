@@ -9,6 +9,7 @@ import { LockGate } from '../features/lock/LockGate';
 import { Skeleton } from '../components/Skeleton';
 import { useAppResume } from './useAppResume';
 import { useDaemonService } from './useDaemonService';
+import { useLocalNotifications } from './useLocalNotifications';
 
 /**
  * App root: global error boundary, theme and toast providers, and the router
@@ -24,6 +25,7 @@ export default function App() {
       ? createMemoryRouter(routes, { initialEntries: ['/'] })
       : createHashRouter(routes);
   }, []);
+  useLocalNotifications((to) => router.navigate(to));
 
   return (
     <ErrorBoundary>
