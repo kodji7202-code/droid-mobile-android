@@ -736,7 +736,7 @@
     "forgetMessage": "Remove \"{{label}}\" and its stored API key from this device?",
     "forgetConfirm": "Forget",
     "save": "Save",
-    "saving": "Saving?",
+    "saving": "Saving…",
     "keyEditHint": "Leave empty to keep the stored key.",
     "errorMissingKey": "The key for this connection is not stored on this device. Edit the connection and enter its key."
   },

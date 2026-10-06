@@ -13,6 +13,8 @@ const KEYS: Array<{ key: ExtraKey; label: string; i18n: string }> = [
   { key: 'tab', label: 'Tab', i18n: 'terminal.keys.tab' },
 ];
 
+const CTRL_KEYCAP = 'Ctrl';
+
 const ARROWS: Array<{ key: ExtraKey; label: string; i18n: string }> = [
   { key: 'up', label: '↑', i18n: 'terminal.keys.up' },
   { key: 'down', label: '↓', i18n: 'terminal.keys.down' },
@@ -62,7 +64,7 @@ export function ExtraKeysBar({ ctrlArmed, disabled, onKey, onToggleCtrl }: Extra
         onMouseDown={keep}
         onClick={onToggleCtrl}
       >
-        Ctrl
+        {CTRL_KEYCAP}
       </button>
       {ARROWS.map((k) => button(k.key, k.label, k.i18n))}
     </div>

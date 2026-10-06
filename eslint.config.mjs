@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
+import localRules from './tools/eslint/no-hardcoded-strings.mjs';
 
 export default tseslint.config(
   {
@@ -29,6 +30,13 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
     },
+  },
+  {
+    files: ['apps/mobile/src/**/*.{ts,tsx}'],
+    // Fixture routes are development-only and absent from the production bundle.
+    ignores: ['**/*.test.{ts,tsx}', 'apps/mobile/src/test/**', '**/__fixtures__/**'],
+    plugins: { local: localRules },
+    rules: { 'local/no-hardcoded-strings': 'error' },
   },
   {
     files: ['**/*.{ts,tsx,jsx}'],

@@ -1005,7 +1005,7 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
 }
 
 .session-message--streaming .session-message__text::after {
-  content: '?';
+  content: '\258D';
   opacity: 0.6;
 }
 

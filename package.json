@@ -19,6 +19,7 @@
     "test": "vitest run --project unit --maxWorkers=4",
     "test:integration": "vitest run --project integration --maxWorkers=4 --passWithNoTests",
     "build": "npm run build --workspaces --if-present",
+    "i18n:check": "vitest run --project unit apps/mobile/src/i18n/bundles.test.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "android:debug": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/build-android.ps1 -Variant debug",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "axe-core": "4.11.0",
     "eslint": "10.12.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "prettier": "3.9.9",
