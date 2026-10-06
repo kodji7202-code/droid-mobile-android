@@ -16,6 +16,7 @@ export function Transcript({ items, onRetry, retryDisabled = false }: Transcript
   const { t } = useTranslation();
   let bubble = 0;
   let errors = 0;
+  let notices = 0;
   return (
     <ol className="session-messages" data-testid="session-messages">
       {items.map((item) => {
@@ -37,6 +38,20 @@ export function Transcript({ items, onRetry, retryDisabled = false }: Transcript
             );
           }
           case 'user': {
+            if (item.notice) {
+              const k = notices;
+              notices += 1;
+              return (
+                <li
+                  key={`notice:${item.id}`}
+                  className="session-message session-message--notice"
+                  data-testid={`msg-notice-${k}`}
+                >
+                  <span className="session-message__role">{t('chat.commandPrompt')}</span>
+                  <p className="session-message__text">{item.text}</p>
+                </li>
+              );
+            }
             const n = bubble;
             bubble += 1;
             return (

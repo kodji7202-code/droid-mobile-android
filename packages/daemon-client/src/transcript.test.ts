@@ -432,3 +432,96 @@ describe('appendTurnFailure', () => {
     expect(appendTurnFailure(errored, 'local-1', result())).toEqual(errored);
   });
 });
+
+describe('custom slash commands', () => {
+  const echo = (text: string): NormalizedEvent => ({
+    type: 'user',
+    message: msg('u9', 'user', 1, [{ type: 'text', text }]) as never,
+  });
+  const expanded =
+    '<system-notification>\nReply with the single word OK.\n\n</system-notification>';
+
+  it('settles the pending bubble when the daemon echoes "/<name> is running"', () => {
+    const pending = addPendingUser([], 'local-1', '/val-hello');
+    expect(replay([echo('/val-hello is running')], pending)).toEqual([
+      {
+        kind: 'user',
+        id: 'u9',
+        localId: 'local-1',
+        text: '/val-hello is running',
+        delivery: 'sent',
+      },
+    ]);
+  });
+
+  it('matches a command sent with arguments and ignores a different command name', () => {
+    const withArgs = addPendingUser([], 'local-1', '/review main branch');
+    expect(replay([echo('/review is running')], withArgs)[0]).toMatchObject({
+      delivery: 'sent',
+      id: 'u9',
+    });
+    const other = addPendingUser([], 'local-1', '/review');
+    const result = replay([echo('/val-hello is running')], other);
+    expect(result.map((item) => (item as { delivery: string }).delivery).sort()).toEqual([
+      'sending',
+      'sent',
+    ]);
+  });
+
+  it('does not treat plain text that merely looks like an echo as a command', () => {
+    const pending = addPendingUser([], 'local-1', 'review is running');
+    expect(replay([echo('/review is running')], pending)).toHaveLength(2);
+  });
+
+  it('settles a pending command bubble from the streamed body, which arrives without an echo', () => {
+    const pending = addPendingUser([], 'local-1', '/val-hello topic');
+    const live = replay([echo(expanded)], pending);
+    expect(live).toEqual([
+      {
+        kind: 'user',
+        id: 'command-u9',
+        localId: 'local-1',
+        text: '/val-hello is running',
+        delivery: 'sent',
+      },
+      {
+        kind: 'user',
+        id: 'u9',
+        text: 'Reply with the single word OK.',
+        delivery: 'sent',
+        notice: true,
+      },
+    ]);
+  });
+
+  it('leaves a pending plain message alone when a notification arrives', () => {
+    const pending = addPendingUser([], 'local-1', 'hello');
+    expect(replay([echo(expanded)], pending)[0]).toMatchObject({ delivery: 'sending' });
+  });
+  it('shows the expanded command prompt as a notice without its wrapper', () => {
+    const items = itemsFromMessages([
+      msg('u1', 'user', 1, text('/val-hello is running')),
+      msg('n1', 'user', 2, text(expanded)),
+      msg('a1', 'assistant', 3, text('OK')),
+    ]);
+    expect(items).toEqual([
+      { kind: 'user', id: 'u1', text: '/val-hello is running', delivery: 'sent' },
+      {
+        kind: 'user',
+        id: 'n1',
+        text: 'Reply with the single word OK.',
+        delivery: 'sent',
+        notice: true,
+      },
+      { kind: 'assistant', id: 'a1', text: 'OK', streaming: false },
+    ]);
+  });
+
+  it('drops a lost-echo local command bubble once the daemon stored its echo', () => {
+    const previous: TranscriptItem[] = [
+      { kind: 'user', id: 'local-1', text: '/val-hello', delivery: 'failed' },
+    ];
+    const recovered = itemsFromMessages([msg('u1', 'user', 1, text('/val-hello is running'))]);
+    expect(reconcileLocalItems(recovered, previous)).toEqual(recovered);
+  });
+});

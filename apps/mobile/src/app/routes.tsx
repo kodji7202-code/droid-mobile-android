@@ -6,6 +6,8 @@ import { ConnectScreen } from '../features/connect/ConnectScreen';
 import { SessionsScreen } from '../features/sessions/SessionsScreen';
 import { SessionScreen } from '../features/session/SessionScreen';
 import { WorkspaceScreen } from '../features/workspace/WorkspaceScreen';
+import { CommandsLayout } from '../features/extensions/commands/CommandsLayout';
+import { CommandsScreen } from '../features/extensions/commands/CommandsScreen';
 import { ExtensionsScreen } from '../features/extensions/ExtensionsScreen';
 import { McpDetailScreen } from '../features/extensions/mcp/McpDetailScreen';
 import { McpLayout } from '../features/extensions/mcp/McpLayout';
@@ -56,6 +58,11 @@ export function createAppRoutes(): RouteObject[] {
             { index: true, element: <SkillsScreen /> },
             { path: ':name', element: <SkillDetailScreen /> },
           ],
+        },
+        {
+          path: 'extensions/commands',
+          element: <CommandsLayout />,
+          children: [{ index: true, element: <CommandsScreen /> }],
         },
         {
           path: 'extensions/plugins',

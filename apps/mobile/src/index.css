@@ -889,6 +889,15 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   opacity: 0.75;
 }
 
+.session-message--notice {
+  align-self: flex-end;
+  max-width: 90%;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
 .session-message__text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1023,6 +1032,63 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   margin: 0;
   font-size: 0.875rem;
   color: var(--color-fg-muted);
+}
+
+.slash-popup {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(40vh, 16rem);
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+}
+
+.slash-popup__note {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-fg-muted);
+}
+
+.slash-popup__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.slash-popup__item--active {
+  background: var(--color-surface-variant);
+}
+
+.slash-popup__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.slash-popup__hint {
+  margin-left: 0.5rem;
+  font-weight: 400;
+  color: var(--color-fg-muted);
+}
+
+.slash-popup__description {
+  font-size: 0.875rem;
+  color: var(--color-fg-muted);
+  overflow-wrap: anywhere;
 }
 
 .chat-queue {

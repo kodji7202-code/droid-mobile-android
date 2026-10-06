@@ -145,6 +145,10 @@
       "title": "Skills",
       "description": "Instructions the agent can use, from built-ins, you and your project."
     },
+    "commands": {
+      "title": "Commands",
+      "description": "Custom slash commands from your .factory/commands folders."
+    },
     "plugins": {
       "title": "Plugins",
       "description": "Plugins from your marketplaces, with the marketplaces themselves."
@@ -306,6 +310,19 @@
       "source": "Source",
       "missingTitle": "Skill not found",
       "missing": "{{name}} is not in the daemon's list for this folder."
+    }
+  },
+  "commands": {
+    "loading": "Loading commands",
+    "loadFailedTitle": "Could not load commands",
+    "loadFailed": "The daemon did not answer. Check the connection and try again.",
+    "empty": {
+      "title": "No commands",
+      "message": "Add a Markdown file to .factory/commands to create a slash command."
+    },
+    "scope": {
+      "project": "Project folder: {{folder}}",
+      "none": "No project is open. Showing user-level commands only."
     }
   },
   "mcp": {
@@ -584,6 +601,13 @@
       "title": "Droid has a question",
       "multiHint": "Select all that apply",
       "submit": "Send answer"
+    },
+    "commandPrompt": "Command prompt",
+    "slash": {
+      "label": "Slash commands",
+      "loading": "Loading commands",
+      "loadFailed": "Could not load commands",
+      "noMatch": "No matching commands"
     }
   },
   "session": {

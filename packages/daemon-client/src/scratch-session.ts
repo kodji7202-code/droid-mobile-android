@@ -72,3 +72,77 @@ export function createHomeScratchSession(deps: ScratchSessionDeps): HomeScratchS
     },
   };
 }
+
+interface CwdScratchEntry {
+  cwd: string | undefined;
+  opening: Promise<ScratchSession>;
+}
+
+export interface CwdScratchSession {
+  /** Id of a live scratch session whose cwd is `cwd` (the home folder when omitted). */
+  id(cwd?: string): Promise<string>;
+  /** Closes the scratch session; the next id() opens a new one. */
+  release(): Promise<void>;
+}
+
+/**
+ * Skills and commands are scoped to the cwd of an open session and a long-lived
+ * session can report stale state, so the client owns one scratch session for
+ * the folder it is asked about: replaced when the folder or the socket changes.
+ */
+export function createCwdScratchSession(deps: ScratchSessionDeps): CwdScratchSession {
+  let scratch: CwdScratchEntry | null = null;
+
+  async function open(cwd: string | undefined): Promise<ScratchSession> {
+    const droid = deps.droid();
+    const generation = deps.generation();
+    let folder = cwd;
+    if (folder === undefined) {
+      const home = await droid.workspace.validateDirectory('~');
+      if (!home.isValid || !home.resolvedPath) {
+        throw new DaemonClientError('unknown', home.error ?? 'The daemon has no home folder.');
+      }
+      folder = home.resolvedPath;
+    }
+    const session = await droid.sessions.create({ cwd: folder });
+    return { id: session.id, generation, session };
+  }
+
+  async function close(entry: CwdScratchEntry): Promise<void> {
+    const known = await entry.opening.catch(() => null);
+    if (!known || known.generation !== deps.generation()) return;
+    await known.session.close().catch(() => undefined);
+  }
+
+  return {
+    id: (cwd) =>
+      deps.run(async () => {
+        let current = scratch;
+        if (current) {
+          const known = await current.opening.catch(() => null);
+          if (current.cwd !== cwd) {
+            scratch = null;
+            void close(current);
+            current = null;
+          } else if (!known || known.generation !== deps.generation()) {
+            scratch = null;
+            current = null;
+          }
+        }
+        if (!current) {
+          const entry: CwdScratchEntry = { cwd, opening: open(cwd) };
+          current = entry;
+          scratch = entry;
+          entry.opening.catch(() => {
+            if (scratch === entry) scratch = null;
+          });
+        }
+        return (await current.opening).id;
+      }),
+    async release() {
+      const current = scratch;
+      scratch = null;
+      if (current) await close(current);
+    },
+  };
+}

@@ -145,6 +145,10 @@
       "title": "Abilități",
       "description": "Instrucțiuni pe care agentul le poate folosi: integrate, personale și ale proiectului."
     },
+    "commands": {
+      "title": "Comenzi",
+      "description": "Comenzi slash personalizate din folderele .factory/commands."
+    },
     "plugins": {
       "title": "Pluginuri",
       "description": "Pluginuri din piețele tale, împreună cu piețele însele."
@@ -307,6 +311,19 @@
       "source": "Sursă",
       "missingTitle": "Abilitatea nu a fost găsită",
       "missing": "{{name}} nu este în lista daemonului pentru acest dosar."
+    }
+  },
+  "commands": {
+    "loading": "Se încarcă comenzile",
+    "loadFailedTitle": "Comenzile nu au putut fi încărcate",
+    "loadFailed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou.",
+    "empty": {
+      "title": "Nicio comandă",
+      "message": "Adaugă un fișier Markdown în .factory/commands pentru a crea o comandă slash."
+    },
+    "scope": {
+      "project": "Folder de proiect: {{folder}}",
+      "none": "Niciun proiect deschis. Se afișează doar comenzile la nivel de utilizator."
     }
   },
   "mcp": {
@@ -586,6 +603,13 @@
       "title": "Droid are o întrebare",
       "multiHint": "Alege tot ce se aplică",
       "submit": "Trimite răspunsul"
+    },
+    "commandPrompt": "Prompt comandă",
+    "slash": {
+      "label": "Comenzi slash",
+      "loading": "Se încarcă comenzile",
+      "loadFailed": "Comenzile nu au putut fi încărcate",
+      "noMatch": "Nicio comandă potrivită"
     }
   },
   "session": {

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { UserAttachment } from '@droidmobile/daemon-client';
+import type { SlashCommand, UserAttachment } from '@droidmobile/daemon-client';
 import { ATTACH_ACCEPT, readAttachment } from './attachments';
 import type { AttachmentRejection } from './attachments';
 import { AttachmentThumb } from './AttachmentThumb';
 import { QueuedMessages } from './QueuedMessages';
+import { SlashPopup } from './SlashPopup';
+import { useSlashAutocomplete } from './useSlashAutocomplete';
 import type { QueuedMessage } from '../../stores/sessionView';
 
 interface ChatComposerProps {
@@ -20,6 +22,8 @@ interface ChatComposerProps {
   onRestoredConsumed?(nonce: number): void;
   queued?: readonly QueuedMessage[];
   onCancelQueued?(requestId: string): void;
+  /** Reads the custom slash commands for this session; without it typing / is plain text. */
+  loadCommands?: () => Promise<readonly SlashCommand[]>;
   onSend(text: string, attachments: UserAttachment[]): void;
   onInterrupt(): void;
 }
@@ -36,6 +40,7 @@ export function ChatComposer({
   onRestoredConsumed,
   queued = [],
   onCancelQueued,
+  loadCommands,
   onSend,
   onInterrupt,
 }: ChatComposerProps) {
@@ -44,6 +49,15 @@ export function ChatComposer({
   const [attachments, setAttachments] = useState<UserAttachment[]>([]);
   const [rejections, setRejections] = useState<AttachmentRejection[]>([]);
   const picker = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const slash = useSlashAutocomplete({
+    draft: text,
+    loadCommands,
+    onPick: (next) => {
+      setText(next);
+      input.current?.focus();
+    },
+  });
   // Files are read asynchronously; counting what is already queued keeps the limit exact.
   const attachedCount = useRef(0);
   // Send waits for in-flight reads so a late completion can never miss its turn or land in the next draft.
@@ -144,6 +158,14 @@ export function ChatComposer({
           ))}
         </ul>
       ) : null}
+      {slash.open ? (
+        <SlashPopup
+          state={slash.state}
+          matches={slash.matches}
+          active={slash.active}
+          onPick={slash.pick}
+        />
+      ) : null}
       <div className="chat-composer__row">
         <input
           ref={picker}
@@ -165,6 +187,7 @@ export function ChatComposer({
           +
         </button>
         <textarea
+          ref={input}
           className="field__control chat-composer__input"
           data-testid="chat-input"
           aria-label={t('chat.inputLabel')}
@@ -173,6 +196,9 @@ export function ChatComposer({
           value={text}
           disabled={disabled}
           onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (slash.onKeyDown(event)) event.preventDefault();
+          }}
         />
         {turnActive && !stopInDialog ? (
           <button

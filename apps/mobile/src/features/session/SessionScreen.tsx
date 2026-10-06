@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { BackIcon, ContextIcon, SettingsIcon } from '../../components/icons';
@@ -73,6 +73,11 @@ export function SessionScreen() {
       void open(connection, id, readyEpoch);
     }
   }, [ready, connection, id, readyEpoch, open]);
+
+  const loadCommands = useCallback(
+    () => (connection ? connection.commands.listForSession(id) : Promise.resolve([])),
+    [connection, id],
+  );
 
   const items = view?.items;
   const itemCount = items?.length ?? 0;
@@ -250,6 +255,7 @@ export function SessionScreen() {
           restored={view?.restored}
           onRestoredConsumed={(nonce) => consumeRestored(id, nonce)}
           onCancelQueued={(requestId) => void cancelQueued(id, requestId)}
+          loadCommands={loadCommands}
           turnActive={Boolean(view?.turnActive) || awaitingApproval}
           workingState={awaitingApproval ? WAITING_STATE : (view?.workingState ?? 'idle')}
           disabled={view?.status !== 'ready'}

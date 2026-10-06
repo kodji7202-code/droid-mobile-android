@@ -28,6 +28,12 @@ const SECTIONS: readonly ExtensionSection[] = [
     titleKey: 'extensions.plugins.title',
     descriptionKey: 'extensions.plugins.description',
   },
+  {
+    to: '/extensions/commands',
+    testId: 'extensions-commands',
+    titleKey: 'extensions.commands.title',
+    descriptionKey: 'extensions.commands.description',
+  },
 ];
 
 /** Extensions hub: one full-width entry per section (>= 48 dp touch targets). */

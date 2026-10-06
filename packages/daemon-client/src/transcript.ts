@@ -25,6 +25,8 @@ export interface UserItem {
   localId?: string;
   /** Absent when the message carried none. */
   attachments?: UserAttachment[];
+  /** Daemon-injected text (such as an expanded slash command) the user did not type. */
+  notice?: true;
 }
 
 export interface AssistantItem {
@@ -128,6 +130,17 @@ export function isHiddenUserMessage(id: string, text: string): boolean {
   return text === '' || id.startsWith('context-') || text.startsWith('<system-reminder>');
 }
 
+/** A sent custom slash command is stored as "/<name> is running"; its body follows as a notification. */
+const COMMAND_ECHO = /^\/(\S+) is running$/;
+const NOTIFICATION = /^<system-notification>\s*([\s\S]*?)\s*<\/system-notification>$/;
+
+/** True when the stored message is the daemon's echo of the text this device sent. */
+function sameUserText(sent: string, stored: string): boolean {
+  if (sent === stored) return true;
+  const echo = COMMAND_ECHO.exec(stored);
+  return echo !== null && sent.split(/\s+/, 1)[0] === `/${echo[1]}`;
+}
+
 /** After an interrupt the daemon stores these as user messages; they are not something the user typed. */
 const INTERRUPT_MARKERS = new Set(['Request cancelled by user', 'Request interrupted by user']);
 
@@ -193,8 +206,39 @@ function applyMessage(items: TranscriptItem[], message: SessionMessage): Transcr
       const lastTalk = [...next].reverse().find((item) => item.kind !== 'tool');
       return lastTalk?.kind === 'assistant' ? markStopped(next) : next;
     }
+    const notification = NOTIFICATION.exec(text);
+    if (notification) {
+      if (notification[1] === '') return next;
+      // The stream never carries the "/<name> is running" echo (only history does), so the
+      // body arriving is the proof that the command this device sent was accepted.
+      const command = next.findIndex(
+        (item) => item.kind === 'user' && item.delivery === 'sending' && item.text.startsWith('/'),
+      );
+      const settled =
+        command === -1
+          ? next
+          : next.map((item, index) =>
+              index === command && item.kind === 'user'
+                ? {
+                    ...item,
+                    id: `command-${id}`,
+                    localId: item.localId ?? item.id,
+                    text: `${item.text.split(/\s+/, 1)[0]} is running`,
+                    delivery: 'sent' as const,
+                  }
+                : item,
+            );
+      return upsert(settled, {
+        kind: 'user',
+        id,
+        text: notification[1]!,
+        delivery: 'sent',
+        notice: true,
+      });
+    }
     const pending = next.findIndex(
-      (item) => item.kind === 'user' && item.delivery === 'sending' && item.text === text,
+      (item) =>
+        item.kind === 'user' && item.delivery === 'sending' && sameUserText(item.text, text),
     );
     const local = pending === -1 ? undefined : (next[pending] as UserItem).attachments;
     // The daemon only echoes images; files the user attached exist only on this device.
@@ -324,7 +368,7 @@ export function reconcileLocalItems(
     const match = recovered.find(
       (candidate) =>
         candidate.kind === 'user' &&
-        candidate.text === item.text &&
+        sameUserText(item.text, candidate.text) &&
         !knownIds.has(candidate.id) &&
         !claimed.has(candidate.id),
     );

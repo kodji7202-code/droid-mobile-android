@@ -1,4 +1,4 @@
-﻿/**
+/**
  * createDaemonConnection: the adapter's connection core (architecture.md 3.1).
  *
  * - One WebSocket, one `daemon.authenticate`, over the SDK facade
@@ -52,9 +52,11 @@ import type {
 } from './git';
 import { createMcpClient } from './mcp';
 import { createPluginsClient } from './plugins';
+import { createCommandsClient } from './commands';
 import { createSkillsClient } from './skills';
 import type { McpClient } from './mcp';
 import type { PluginsClient } from './plugins';
+import type { CommandsClient } from './commands';
 import type { SkillsClient } from './skills';
 import { probeDaemonIdentity } from './probe';
 import { createTerminalClient } from './terminal-client';
@@ -149,6 +151,8 @@ export interface DaemonConnection {
   readonly mcp: McpClient;
   /** Skill listing and enablement on a scratch session owned by the client. */
   readonly skills: SkillsClient;
+  /** Custom slash command discovery (read only). */
+  readonly commands: CommandsClient;
   /** Plugin marketplaces and plugins on a scratch session owned by the client. */
   readonly plugins: PluginsClient;
 
@@ -753,6 +757,11 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       run: mapSdkError,
     }),
     skills: createSkillsClient({
+      droid: requireDroid,
+      generation: () => droidToken,
+      run: mapSdkError,
+    }),
+    commands: createCommandsClient({
       droid: requireDroid,
       generation: () => droidToken,
       run: mapSdkError,

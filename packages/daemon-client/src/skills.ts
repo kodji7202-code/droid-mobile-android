@@ -6,13 +6,10 @@
  * asked about (home when none): created on first use, replaced when the
  * folder or the socket changes, closed by release().
  */
-import type {
-  ConnectedDroid,
-  ConnectedDroidSession,
-  SettingsLevel,
-  SkillInfo,
-} from '@factory/droid-sdk';
+import type { ConnectedDroid, SettingsLevel, SkillInfo } from '@factory/droid-sdk';
 import { DaemonClientError } from './errors';
+import { createCwdScratchSession } from './scratch-session';
+import type { ScratchSessionDeps } from './scratch-session';
 
 /** Levels the daemon accepts for a disable/enable; the string equals the enum value. */
 export type SkillLevel = 'user' | 'project';
@@ -67,80 +64,16 @@ export function toSkill(info: Readonly<SkillInfo>): Skill {
   };
 }
 
-export interface SkillsClientDeps {
-  droid(): ConnectedDroid;
-  /** Identity of the current facade; a different value means the socket was replaced. */
-  generation(): number;
-  /** Runs a facade call, converting SDK failures into classified errors. */
-  run<T>(op: () => Promise<T>): Promise<T>;
-}
-
-interface ScratchSession {
-  id: string;
-  generation: number;
-  session: ConnectedDroidSession;
-}
-
-interface ScratchEntry {
-  cwd: string | undefined;
-  opening: Promise<ScratchSession>;
-}
+export type SkillsClientDeps = ScratchSessionDeps;
 
 export function createSkillsClient(deps: SkillsClientDeps): SkillsClient {
-  let scratch: ScratchEntry | null = null;
-
-  async function openScratch(cwd: string | undefined): Promise<ScratchSession> {
-    const droid = deps.droid();
-    const generation = deps.generation();
-    let folder = cwd;
-    if (folder === undefined) {
-      const home = await droid.workspace.validateDirectory('~');
-      if (!home.isValid || !home.resolvedPath) {
-        throw new DaemonClientError('unknown', home.error ?? 'The daemon has no home folder.');
-      }
-      folder = home.resolvedPath;
-    }
-    const session = await droid.sessions.create({ cwd: folder });
-    return { id: session.id, generation, session };
-  }
-
-  async function closeEntry(entry: ScratchEntry): Promise<void> {
-    const known = await entry.opening.catch(() => null);
-    if (!known || known.generation !== deps.generation()) return;
-    await known.session.close().catch(() => undefined);
-  }
-
-  function sessionId(cwd: string | undefined): Promise<string> {
-    return deps.run(async () => {
-      let current = scratch;
-      if (current) {
-        const known = await current.opening.catch(() => null);
-        if (current.cwd !== cwd) {
-          scratch = null;
-          void closeEntry(current);
-          current = null;
-        } else if (!known || known.generation !== deps.generation()) {
-          scratch = null;
-          current = null;
-        }
-      }
-      if (!current) {
-        const entry: ScratchEntry = { cwd, opening: openScratch(cwd) };
-        current = entry;
-        scratch = entry;
-        entry.opening.catch(() => {
-          if (scratch === entry) scratch = null;
-        });
-      }
-      return (await current.opening).id;
-    });
-  }
+  const scratch = createCwdScratchSession(deps);
 
   async function withSession<T>(
     cwd: string | undefined,
     op: (id: string, skills: ConnectedDroid['skills']) => Promise<T>,
   ): Promise<T> {
-    const id = await sessionId(cwd);
+    const id = await scratch.id(cwd);
     return deps.run(() => op(id, deps.droid().skills));
   }
 
@@ -165,10 +98,6 @@ export function createSkillsClient(deps: SkillsClientDeps): SkillsClient {
           throw new DaemonClientError('unknown', 'The daemon did not change the skill.');
         }
       }),
-    async release() {
-      const current = scratch;
-      scratch = null;
-      if (current) await closeEntry(current);
-    },
+    release: () => scratch.release(),
   };
 }

@@ -122,6 +122,8 @@ export type {
   PluginsClient,
   PluginsClientDeps,
 } from './plugins';
+export { createCommandsClient, toSlashCommand } from './commands';
+export type { CommandsClient, CommandsClientDeps, SlashCommand } from './commands';
 export { createSkillsClient, toSkill } from './skills';
 export type {
   SetSkillDisabledInput,
