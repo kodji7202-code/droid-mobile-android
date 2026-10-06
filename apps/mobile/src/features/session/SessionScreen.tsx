@@ -94,6 +94,11 @@ export function SessionScreen() {
   const itemCount = items?.length ?? 0;
   const lastText = items?.at(-1);
 
+  const missing = view?.notFound === true;
+  useEffect(() => {
+    if (missing) navigate('/sessions', { replace: true, state: { sessionNotFound: true } });
+  }, [missing, navigate]);
+
   const contentSignal = useMemo(
     () => ({ itemCount, lastText, interrupted: view?.interrupted }),
     [itemCount, lastText, view?.interrupted],

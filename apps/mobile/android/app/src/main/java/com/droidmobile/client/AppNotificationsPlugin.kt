@@ -41,10 +41,16 @@ class AppNotificationsPlugin : Plugin() {
         deliverTap(intent)
     }
 
+    /** A tap on a local notification or on a push the system displayed for the bridge's FCM message. */
     private fun deliverTap(intent: Intent?) {
-        val sessionId = intent?.getStringExtra(AppNotifier.EXTRA_SESSION_ID)?.takeIf { it.isNotBlank() } ?: return
+        if (intent == null) return
+        val sessionId = intent.getStringExtra(AppNotifier.EXTRA_SESSION_ID)?.takeIf { it.isNotBlank() }
+            ?: PushPayload.sessionIdOf { intent.getStringExtra(it) }
+            ?: return
         // Consumed: a recreated activity must not navigate again.
         intent.removeExtra(AppNotifier.EXTRA_SESSION_ID)
+        intent.removeExtra(PushPayload.EXTRA_KIND)
+        intent.removeExtra(PushPayload.EXTRA_SESSION_ID)
         notifyListeners("notificationTapped", JSObject().put("sessionId", sessionId), true)
     }
 

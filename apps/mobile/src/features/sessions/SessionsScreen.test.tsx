@@ -77,12 +77,16 @@ function fakeConnection(all: DaemonSessionSummary[]) {
   };
 }
 
-function renderScreen(all: DaemonSessionSummary[], status: 'ready' | 'offline' = 'ready') {
+function renderScreen(
+  all: DaemonSessionSummary[],
+  status: 'ready' | 'offline' = 'ready',
+  routeState?: object,
+) {
   const fake = fakeConnection(all);
   useConnectionStore.setState({ connection: fake.connection, status, readyEpoch: 1 });
   render(
     <AppProviders>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[{ pathname: '/sessions', state: routeState }]}>
         <SessionsScreen />
       </MemoryRouter>
     </AppProviders>,
@@ -94,6 +98,25 @@ afterEach(() => {
   vi.useRealTimers();
   act(() => {
     useConnectionStore.setState({ connection: null, status: 'offline', readyEpoch: 0 });
+  });
+});
+
+describe('SessionsScreen missing session notice', () => {
+  it('explains that a session opened from a notification no longer exists, until dismissed', async () => {
+    renderScreen([summary(0)], 'ready', { sessionNotFound: true });
+    const notice = screen.getByTestId('sessions-not-found');
+    expect(notice).toHaveTextContent('That session no longer exists');
+    await screen.findByTestId('session-item-s000');
+    expect(screen.getByTestId('sessions-not-found')).toBeInTheDocument();
+
+    await userEvent.setup().click(screen.getByTestId('sessions-not-found-dismiss'));
+    expect(screen.queryByTestId('sessions-not-found')).not.toBeInTheDocument();
+  });
+
+  it('shows no notice on a normal visit', async () => {
+    renderScreen([summary(0)]);
+    await screen.findByTestId('session-item-s000');
+    expect(screen.queryByTestId('sessions-not-found')).not.toBeInTheDocument();
   });
 });
 

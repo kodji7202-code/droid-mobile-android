@@ -966,6 +966,7 @@
     "offline": "Offline. Conversația se reîncarcă când daemonul e din nou accesibil.",
     "loadFailedTitle": "Nu am putut deschide sesiunea",
     "loadFailed": "Daemonul nu a putut relua această sesiune. Încearcă din nou.",
+    "notFound": "Sesiunea aceea nu mai există. Alege alta din listă.",
     "loadOlder": "Încarcă mesajele anterioare",
     "loadingOlder": "Se încarcă…",
     "jumpToLatest": "Salt la ultimul mesaj",

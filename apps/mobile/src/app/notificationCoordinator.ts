@@ -60,6 +60,8 @@ function approvableFromNotification(entry: PendingInteraction): boolean {
 export class NotificationCoordinator {
   private readonly posted = new Map<string, 'request' | 'turn'>();
   private readonly wasActive = new Map<string, boolean>();
+  private readonly requestSessions = new Map<string, string>();
+  private clearedViewed: string | null = null;
 
   constructor(
     private readonly api: Pick<AppNotificationsApi, 'post' | 'cancel'>,
@@ -82,6 +84,7 @@ export class NotificationCoordinator {
         wanted.add(tag);
         if (this.posted.has(tag)) continue;
         this.posted.set(tag, 'request');
+        this.requestSessions.set(tag, entry.sessionId);
         const session = sessionName(entry.sessionId);
         const detail = requestDetail(entry);
         const permission = entry.kind === 'permission';
@@ -137,6 +140,20 @@ export class NotificationCoordinator {
       if (wanted.has(tag)) continue;
       this.posted.delete(tag);
       void this.api.cancel(tag);
+      const sessionId = this.requestSessions.get(tag);
+      this.requestSessions.delete(tag);
+      const stillWaiting = [...this.requestSessions.values()].includes(sessionId ?? '');
+      if (sessionId !== undefined && !stillWaiting) void this.api.cancel(`approvals:${sessionId}`);
+    }
+
+    const viewed = snapshot.appActive ? snapshot.viewedSessionId : null;
+    if (viewed !== this.clearedViewed) {
+      this.clearedViewed = viewed;
+      // The bridge pushes under the same tags, so the user's own look at the session withdraws them.
+      if (viewed !== null) {
+        void this.api.cancel(`approvals:${viewed}`);
+        void this.api.cancel(`turn:${viewed}`);
+      }
     }
   }
 }

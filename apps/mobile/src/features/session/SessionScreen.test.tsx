@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DaemonConnection, SessionMessage } from '@droidmobile/daemon-client';
 import { AppProviders } from '../../test/render-app';
@@ -38,6 +38,11 @@ function fakeConnection(pages: SessionMessage[][]) {
   };
 }
 
+function ListRoute() {
+  const state = useLocation().state as { sessionNotFound?: boolean } | null;
+  return <p data-testid="list-route">{state?.sessionNotFound ? 'not-found' : 'list'}</p>;
+}
+
 function renderRoute(connection: DaemonConnection) {
   useConnectionStore.setState({ connection, status: 'ready', readyEpoch: 1 });
   render(
@@ -45,7 +50,7 @@ function renderRoute(connection: DaemonConnection) {
       <MemoryRouter initialEntries={['/sessions/s1']}>
         <Routes>
           <Route path="/sessions/:id" element={<SessionScreen />} />
-          <Route path="/sessions" element={<p data-testid="list-route">list</p>} />
+          <Route path="/sessions" element={<ListRoute />} />
         </Routes>
       </MemoryRouter>
     </AppProviders>,
@@ -243,6 +248,17 @@ describe('SessionScreen', () => {
     await user.click(await screen.findByTestId('error-state-retry'));
     expect(await screen.findByText('No messages yet')).toBeInTheDocument();
     expect(resumeSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns to the sessions list with a message when the session does not exist', async () => {
+    const { connection, resumeSession } = fakeConnection([[]]);
+    resumeSession.mockRejectedValueOnce(
+      Object.assign(new Error('Session not found'), { name: 'SessionNotFoundError' }),
+    );
+    renderRoute(connection);
+
+    expect(await screen.findByTestId('list-route')).toHaveTextContent('not-found');
+    expect(screen.queryByTestId('session-loading')).not.toBeInTheDocument();
   });
 
   it('offers fork, compact and rewind from the actions menu', async () => {

@@ -186,12 +186,18 @@ One message per device (`token` is set, nothing else identifies the device):
     "title": "Droid Mobile",
     "body": "Open the app to see what needs your attention."
   },
-  "android": { "priority": "high", "ttl": 3600000, "notification": { "channelId": "turns" } }
+  "android": {
+    "priority": "high",
+    "ttl": 3600000,
+    "notification": { "channelId": "turns", "tag": "turn:<session_id>" }
+  }
 }
 ```
 
 `data` has exactly the keys `kind` and `sessionId`. Title and body are fixed strings that never
-depend on the hook input. Messages expire after one hour (`ttl`). A failure for one device
+depend on the hook input. The Android notification `tag` is `turn:<session_id>` for `stop` and
+`idle_prompt` and `approvals:<session_id>` for `permission_prompt`: the app posts and withdraws its
+own notifications under the same tags, so a push and a local notification for one event show once. Messages expire after one hour (`ttl`). A failure for one device
 (malformed token, FCM error) is logged and never blocks the others. Tokens FCM reports as
 `registration-token-not-registered` (or invalid) are removed from the store and the removal is
 logged with the device id and a masked token.

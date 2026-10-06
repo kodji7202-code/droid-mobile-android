@@ -86,6 +86,19 @@ export interface SessionView {
   /** Connection epoch the view was loaded under; a new epoch triggers a reload. */
   epoch: number;
   error?: string;
+  /** True when the daemon reported that the session does not exist (deleted, or a stale link). */
+  notFound?: boolean;
+}
+
+/** The SDK reports an unknown session as `SessionNotFoundError`, possibly wrapped by the adapter. */
+export function isSessionNotFound(err: unknown, depth = 0): boolean {
+  if (typeof err !== 'object' || err === null || depth > 3) return false;
+  const { name, code, cause } = err as { name?: unknown; code?: unknown; cause?: unknown };
+  return (
+    name === 'SessionNotFoundError' ||
+    code === 'SESSION_NOT_FOUND' ||
+    isSessionNotFound(cause, depth + 1)
+  );
 }
 
 interface SessionViewStore {
@@ -399,7 +412,11 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
         });
       } catch (err) {
         if (!current()) return;
-        patch(id, { status: 'error', error: err instanceof Error ? err.message : String(err) });
+        patch(id, {
+          status: 'error',
+          error: err instanceof Error ? err.message : String(err),
+          ...(isSessionNotFound(err) ? { notFound: true } : {}),
+        });
       }
     },
 

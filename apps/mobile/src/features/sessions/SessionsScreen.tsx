@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { SessionHandle } from '@droidmobile/daemon-client';
 import { EmptyState } from '../../components/EmptyState';
@@ -47,6 +47,9 @@ export function SessionsScreen() {
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<SessionRowData | null>(null);
   const navigate = useNavigate();
+  // Set by the session screen when it was opened for a session the daemon does not have.
+  const notFound = (useLocation().state as { sessionNotFound?: boolean } | null)?.sessionNotFound;
+  const [notFoundDismissed, setNotFoundDismissed] = useState(false);
   const [renameBusy, setRenameBusy] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -204,6 +207,19 @@ export function SessionsScreen() {
         </button>
       </div>
 
+      {notFound && !notFoundDismissed ? (
+        <div className="sessions-notice sessions-notice--offline" role="status">
+          <span data-testid="sessions-not-found">{t('session.notFound')}</span>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            data-testid="sessions-not-found-dismiss"
+            onClick={() => setNotFoundDismissed(true)}
+          >
+            {t('common.dismiss')}
+          </button>
+        </div>
+      ) : null}
       {!ready ? (
         <p
           className="sessions-notice sessions-notice--offline"

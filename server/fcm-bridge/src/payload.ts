@@ -42,6 +42,15 @@ export function mapHookEvent(
   return null;
 }
 
+/**
+ * Android replaces a notification that carries the same tag. The app posts and cancels its
+ * own turn and approval notifications under these tags, so a push and a local notification
+ * for the same event end up as one.
+ */
+export function notificationTag(kind: BridgeEventKind, sessionId: string): string {
+  return `${kind === 'permission_prompt' ? 'approvals' : 'turn'}:${sessionId}`;
+}
+
 export function buildMessage(token: string, kind: BridgeEventKind, sessionId: string): Message {
   const { kind: dataKind, sessionId: dataSessionId } = buildPushPayload(kind, sessionId);
   return {
@@ -51,7 +60,10 @@ export function buildMessage(token: string, kind: BridgeEventKind, sessionId: st
     android: {
       priority: 'high',
       ttl: PUSH_TTL_MS,
-      notification: { channelId: CHANNEL_BY_KIND[kind] },
+      notification: {
+        channelId: CHANNEL_BY_KIND[kind],
+        tag: notificationTag(kind, dataSessionId),
+      },
     },
   };
 }

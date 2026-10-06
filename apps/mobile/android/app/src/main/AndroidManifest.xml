@@ -32,6 +32,14 @@
 
         </activity>
 
+        <!-- Pushes are shown by the system; without these they get the launcher icon and a generic channel. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_service" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="turns" />
+
         <service
             android:name=".DaemonService"
             android:exported="false"

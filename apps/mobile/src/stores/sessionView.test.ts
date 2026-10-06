@@ -208,6 +208,31 @@ describe('sessionView across connection replacement', () => {
     expect(texts()).toEqual([]);
   });
 
+  it.each([
+    ['name', Object.assign(new Error('Session not found'), { name: 'SessionNotFoundError' })],
+    ['code', Object.assign(new Error('rpc failed'), { code: 'SESSION_NOT_FOUND' })],
+    ['cause', new Error('wrapped', { cause: { name: 'SessionNotFoundError' } })],
+  ])('flags a session the daemon does not know (%s)', async (_, error) => {
+    const { connection, resumeSession } = setup([[]]);
+    resumeSession.mockRejectedValue(error);
+
+    await useSessionViewStore.getState().open(connection, 's1', 1);
+
+    expect(useSessionViewStore.getState().views['s1']).toMatchObject({
+      status: 'error',
+      notFound: true,
+    });
+  });
+
+  it('does not flag other load failures as a missing session', async () => {
+    const { connection, resumeSession } = setup([[]]);
+    resumeSession.mockRejectedValue(new Error('socket closed'));
+
+    await useSessionViewStore.getState().open(connection, 's1', 1);
+
+    expect(useSessionViewStore.getState().views['s1']?.notFound).toBeUndefined();
+  });
+
   it('ignores a load that resolves after the connection was replaced', async () => {
     const a = setup([[message('u1', 'user', 1, 'daemon A secret')]]);
     useConnectionStore.setState({ connection: a.connection, status: 'ready' });

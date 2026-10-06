@@ -963,6 +963,7 @@
     "offline": "Offline. The conversation reloads when the daemon is reachable again.",
     "loadFailedTitle": "Could not open the session",
     "loadFailed": "The daemon could not resume this session. Try again.",
+    "notFound": "That session no longer exists. Pick another one from the list.",
     "loadOlder": "Load earlier messages",
     "loadingOlder": "Loading…",
     "jumpToLatest": "Jump to latest",

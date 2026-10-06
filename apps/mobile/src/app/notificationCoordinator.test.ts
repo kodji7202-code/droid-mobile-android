@@ -179,6 +179,29 @@ describe('NotificationCoordinator', () => {
     expect(ctx.post).not.toHaveBeenCalled();
   });
 
+  it('withdraws the pushed approvals notification once the last request of a session is answered', () => {
+    const both = [permission('p1', 's1'), permission('p2', 's1')];
+    ctx.update({ pending: both, views: { s1: view(true) } });
+    ctx.update({ pending: [both[1]!], views: { s1: view(true) } });
+    expect(ctx.cancel).toHaveBeenCalledWith('request:p1');
+    expect(ctx.cancel).not.toHaveBeenCalledWith('approvals:s1');
+    ctx.update({ pending: [], views: { s1: view(true) } });
+    expect(ctx.cancel).toHaveBeenCalledWith('approvals:s1');
+  });
+
+  it('clears the pushed notifications of the session that comes on screen, once', () => {
+    ctx.update({ views: { s1: view(false) } });
+    ctx.update({ appActive: true, viewedSessionId: 's1', views: { s1: view(false) } });
+    expect(ctx.cancel).toHaveBeenCalledWith('approvals:s1');
+    expect(ctx.cancel).toHaveBeenCalledWith('turn:s1');
+    ctx.cancel.mockClear();
+    ctx.update({ appActive: true, viewedSessionId: 's1', views: { s1: view(false) } });
+    expect(ctx.cancel).not.toHaveBeenCalled();
+    ctx.update({ appActive: false, viewedSessionId: 's1', views: { s1: view(false) } });
+    ctx.update({ appActive: true, viewedSessionId: 's1', views: { s1: view(false) } });
+    expect(ctx.cancel).toHaveBeenCalledWith('turn:s1');
+  });
+
   it('uses the AskUser texts for a question', () => {
     const ask = {
       kind: 'askuser',
