@@ -1,5 +1,7 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../../../components/Toast';
+import { openAuthPage } from '../../../platform/openAuthPage';
 import { openExternal } from '../../../platform/openExternal';
 import { copyText } from '../../terminal/clipboard';
 import { authHost } from './mcpStatus';
@@ -20,6 +22,15 @@ export function McpAuthPanel({ name, url, onCancel }: McpAuthPanelProps) {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const host = url ? authHost(url) : null;
+  // The panel lives exactly as long as one Authenticate tap, so a ref makes the
+  // automatic open once-per-sign-in however often polling re-renders it.
+  const autoOpened = useRef(false);
+
+  useEffect(() => {
+    if (!url || autoOpened.current) return;
+    autoOpened.current = true;
+    void openAuthPage(url);
+  }, [url]);
 
   const copy = async () => {
     if (!url) return;

@@ -100,7 +100,9 @@ describe('CustomModelsScreen list', () => {
     const empty = await screen.findByTestId('custom-models-empty');
     expect(empty).toHaveTextContent('No custom models');
     expect(within(empty).getByTestId('custom-model-add')).toBeInTheDocument();
-    expect(screen.queryByTestId('custom-models-list')).toBeNull();
+    expect(
+      within(screen.getByTestId('custom-models-list')).getByTestId('custom-models-empty'),
+    ).toBeInTheDocument();
   });
 
   it('shows name, provider, model id, base URL and only the masked key', async () => {

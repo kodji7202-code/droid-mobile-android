@@ -61,7 +61,9 @@ describe('MarketplacesScreen list', () => {
     const empty = await screen.findByTestId('marketplaces-empty');
     expect(empty).toHaveTextContent('No marketplaces');
     expect(within(empty).getByTestId('marketplace-add')).toBeInTheDocument();
-    expect(screen.queryByTestId('marketplaces-list')).toBeNull();
+    expect(
+      within(screen.getByTestId('marketplaces-list')).getByTestId('marketplaces-empty'),
+    ).toBeInTheDocument();
   });
 
   it('shows name, source repo and plugin count for each marketplace', async () => {
@@ -154,7 +156,9 @@ describe('MarketplacesScreen add', () => {
     expect(screen.getByTestId('marketplace-add-submit')).toBeEnabled();
     expect(screen.getByTestId('marketplace-add-submit')).toHaveTextContent('Add marketplace');
     expect(screen.getByTestId('marketplace-add-repo')).toHaveValue('Factory-AI/does-not-exist-val');
-    expect(screen.queryByTestId('marketplaces-list')).toBeNull();
+    expect(
+      within(screen.getByTestId('marketplaces-list')).getByTestId('marketplaces-empty'),
+    ).toBeInTheDocument();
     await user.click(screen.getByTestId('marketplace-add-error-dismiss'));
     expect(screen.queryByTestId('marketplace-add-error')).toBeNull();
   });

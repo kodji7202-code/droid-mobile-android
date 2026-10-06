@@ -7,13 +7,26 @@ afterEach(() => {
 });
 
 describe('exportLogFile on the web', () => {
-  it('downloads the text as a named file and revokes the object URL', async () => {
+  function stubObjectUrls() {
     const createObjectURL = vi.fn(() => 'blob:report');
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL }));
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(() => undefined);
+    return { createObjectURL, revokeObjectURL };
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('downloads the text as a named file from an attached anchor and revokes the URL only later', async () => {
+    vi.useFakeTimers();
+    const { createObjectURL, revokeObjectURL } = stubObjectUrls();
+    let attached: { download: string; href: string; connected: boolean } | null = null;
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      attached = { download: this.download, href: this.href, connected: this.isConnected };
+    });
 
     const result = await exportLogFile('hello', 'logs.txt', { isNative: () => false });
 
@@ -23,8 +36,33 @@ describe('exportLogFile on the web', () => {
     expect(blob.type).toBe('text/plain;charset=utf-8');
     expect(blob.size).toBe(5);
     expect(click).toHaveBeenCalledTimes(1);
+    expect(attached).toEqual({ download: 'logs.txt', href: 'blob:report', connected: true });
+    expect(document.querySelector('a[download]')).toBeNull();
+
+    // Revoking in the same task cancels the download in Chromium.
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:report');
+  });
+
+  it('rejects, so no success is reported, when the click throws, and releases the URL', async () => {
+    const { revokeObjectURL } = stubObjectUrls();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    await expect(exportLogFile('hello', 'logs.txt', { isNative: () => false })).rejects.toThrow(
+      'blocked',
+    );
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:report');
     expect(document.querySelector('a[download]')).toBeNull();
+  });
+
+  it('rejects an empty report instead of downloading an empty file', async () => {
+    const { createObjectURL } = stubObjectUrls();
+    await expect(exportLogFile('', 'logs.txt', { isNative: () => false })).rejects.toThrow();
+    expect(createObjectURL).not.toHaveBeenCalled();
   });
 });
 

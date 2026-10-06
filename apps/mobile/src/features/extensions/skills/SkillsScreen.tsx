@@ -3,6 +3,7 @@ import { EmptyState } from '../../../components/EmptyState';
 import { ErrorState } from '../../../components/ErrorState';
 import { Skeleton } from '../../../components/Skeleton';
 import { useConnectionStore } from '../../../stores/connection';
+import { ExtensionList } from '../ExtensionList';
 import { ExtensionsSubHeader } from '../ExtensionsSubHeader';
 import { SkillRow } from './SkillRow';
 import { useProjectFolder, useSkills } from './useSkills';
@@ -49,16 +50,23 @@ export function SkillsScreen() {
           {t(`skills.errors.${skills.error.action}`, { name: skills.error.name })}
         </p>
       ) : null}
-      {state.status === 'ready' && list.length === 0 ? (
-        <div data-testid="skills-empty">
-          <EmptyState title={t('skills.empty.title')} message={t('skills.empty.message')} />
-        </div>
-      ) : null}
-      {list.length > 0 ? (
-        <ul
-          className="mcp-list"
-          data-testid="skills-list"
-          aria-label={t('extensions.skills.title')}
+      {state.status === 'ready' ? (
+        <ExtensionList
+          testId="skills-list"
+          label={t('extensions.skills.title')}
+          empty={
+            list.length === 0
+              ? {
+                  testId: 'skills-empty',
+                  content: (
+                    <EmptyState
+                      title={t('skills.empty.title')}
+                      message={t('skills.empty.message')}
+                    />
+                  ),
+                }
+              : null
+          }
         >
           {list.map((skill) => (
             <SkillRow
@@ -71,7 +79,7 @@ export function SkillsScreen() {
               onEnable={(item) => void skills.enable(item)}
             />
           ))}
-        </ul>
+        </ExtensionList>
       ) : null}
     </section>
   );

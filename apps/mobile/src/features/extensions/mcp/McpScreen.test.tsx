@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Capacitor } from '@capacitor/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DaemonConnection, McpServer, McpTool } from '@droidmobile/daemon-client';
 import { renderAppAt } from '../../../test/render-app';
@@ -7,6 +8,8 @@ import { useConnectionStore } from '../../../stores/connection';
 
 const openExternal = vi.hoisted(() => vi.fn(() => true));
 vi.mock('../../../platform/openExternal', () => ({ openExternal }));
+const browserOpen = vi.hoisted(() => vi.fn(async (_options: { url: string }) => {}));
+vi.mock('@capacitor/browser', () => ({ Browser: { open: browserOpen } }));
 const copyText = vi.hoisted(() => vi.fn(async () => true));
 vi.mock('../../terminal/clipboard', () => ({ copyText }));
 
@@ -81,6 +84,7 @@ function setup(initial: McpServer[], overrides: Partial<Mcp> = {}) {
 
 beforeEach(() => {
   openExternal.mockClear();
+  browserOpen.mockClear();
   copyText.mockClear();
 });
 
@@ -114,7 +118,7 @@ describe('McpScreen list', () => {
   it('shows an empty state with the add action when the daemon has no servers', async () => {
     setup([]);
     expect(await screen.findByTestId('mcp-empty')).toBeInTheDocument();
-    expect(screen.queryByTestId('mcp-list')).toBeNull();
+    expect(within(screen.getByTestId('mcp-list')).getByTestId('mcp-empty')).toBeInTheDocument();
     expect(screen.getByTestId('mcp-add')).toBeInTheDocument();
   });
 
@@ -340,6 +344,62 @@ describe('McpScreen OAuth', () => {
     expect(openExternal).toHaveBeenCalledWith(URL);
     await userEvent.click(screen.getByTestId('mcp-auth-copy-val-oauth-dummy'));
     expect(copyText).toHaveBeenCalledWith(URL);
+  });
+
+  describe('automatic open of the authorization page', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('opens it once per Authenticate on Android, not again on later polls, and keeps the panel', async () => {
+      vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true);
+      const { mcp, state } = setup([OAUTH]);
+      await userEvent.click(await screen.findByTestId('mcp-auth-val-oauth-dummy'));
+      expect(browserOpen).not.toHaveBeenCalled();
+
+      withPendingUrl(state);
+      await waitFor(() => expect(browserOpen).toHaveBeenCalledTimes(1), { timeout: 3000 });
+      expect(browserOpen).toHaveBeenCalledWith({ url: URL });
+      expect(mcp.authenticateServer).toHaveBeenCalledTimes(1);
+
+      const polls = vi.mocked(mcp.listServers).mock.calls.length;
+      await waitFor(
+        () => expect(vi.mocked(mcp.listServers).mock.calls.length).toBeGreaterThan(polls + 1),
+        {
+          timeout: 4000,
+        },
+      );
+      expect(browserOpen).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('mcp-auth-open-val-oauth-dummy')).toBeInTheDocument();
+      expect(screen.getByTestId('mcp-auth-cancel-val-oauth-dummy')).toBeInTheDocument();
+    }, 10000);
+
+    it('opens it again for a new Authenticate after cancelling', async () => {
+      vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true);
+      const { mcp, state } = setup([OAUTH]);
+      await userEvent.click(await screen.findByTestId('mcp-auth-val-oauth-dummy'));
+      withPendingUrl(state);
+      await waitFor(() => expect(browserOpen).toHaveBeenCalledTimes(1), { timeout: 3000 });
+      await userEvent.click(screen.getByTestId('mcp-auth-cancel-val-oauth-dummy'));
+      expect(mcp.cancelAuth).toHaveBeenCalledWith('val-oauth-dummy');
+      await waitFor(() =>
+        expect(screen.queryByTestId('mcp-auth-panel-val-oauth-dummy')).toBeNull(),
+      );
+
+      await userEvent.click(await screen.findByTestId('mcp-auth-val-oauth-dummy'));
+      await waitFor(() => expect(browserOpen).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    }, 10000);
+
+    it('does not open it on the web; the panel offers the explicit button', async () => {
+      vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(false);
+      const { state } = setup([OAUTH]);
+      await userEvent.click(await screen.findByTestId('mcp-auth-val-oauth-dummy'));
+      withPendingUrl(state);
+      expect(
+        await screen.findByTestId('mcp-auth-open-val-oauth-dummy', undefined, { timeout: 3000 }),
+      ).toBeInTheDocument();
+      expect(browserOpen).not.toHaveBeenCalled();
+    });
   });
 
   it('cancel calls cancelAuth, removes the panel and returns to Authentication required', async () => {

@@ -79,7 +79,9 @@ describe('Extensions > Commands', () => {
   it('shows the empty state when the daemon reports no commands', async () => {
     setup(async () => []);
     expect(await screen.findByTestId('commands-empty')).toHaveTextContent('No commands');
-    expect(screen.queryByTestId('commands-list')).toBeNull();
+    expect(
+      within(screen.getByTestId('commands-list')).getByTestId('commands-empty'),
+    ).toBeInTheDocument();
   });
 
   it('shows an error with retry when the daemon fails, then the list after retrying', async () => {

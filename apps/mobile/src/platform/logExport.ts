@@ -36,16 +36,32 @@ async function loadNative(): Promise<NativeExport> {
   };
 }
 
+/**
+ * Chromium reads a blob download after click() returns. Revoking the object
+ * URL in the same task cancels it (the file ends up empty or never appears),
+ * so the URL is released only after the browser had ample time to start it.
+ */
+const REVOKE_DELAY_MS = 60_000;
+
 function downloadInBrowser(text: string, fileName: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+  if (text.length === 0) throw new Error('Nothing to export');
   const anchor = document.createElement('a');
+  if (!('download' in anchor)) throw new Error('This browser cannot download files');
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
   anchor.href = url;
   anchor.download = fileName;
+  anchor.rel = 'noopener';
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  try {
+    anchor.click();
+  } catch (error) {
+    URL.revokeObjectURL(url);
+    throw error;
+  } finally {
+    anchor.remove();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
 }
 
 /**

@@ -6,6 +6,7 @@ import { EmptyState } from '../../../components/EmptyState';
 import { ErrorState } from '../../../components/ErrorState';
 import { Skeleton } from '../../../components/Skeleton';
 import { useConnectionStore } from '../../../stores/connection';
+import { ExtensionList } from '../ExtensionList';
 import { ExtensionsSubHeader } from '../ExtensionsSubHeader';
 import { ActionMessage } from '../plugins/ActionMessage';
 import { CustomModelRow } from './CustomModelRow';
@@ -99,20 +100,24 @@ export function CustomModelsScreen() {
           {t(`customModels.notices.${notice.action}`, { name: notice.name })}
         </ActionMessage>
       ) : null}
-      {state.status === 'ready' && list.length === 0 ? (
-        <div data-testid="custom-models-empty">
-          <EmptyState
-            title={t('customModels.empty.title')}
-            message={t('customModels.empty.message')}
-            action={addButton}
-          />
-        </div>
-      ) : null}
-      {list.length > 0 ? (
-        <ul
-          className="mcp-list"
-          data-testid="custom-models-list"
-          aria-label={t('extensions.customModels.title')}
+      {state.status === 'ready' ? (
+        <ExtensionList
+          testId="custom-models-list"
+          label={t('extensions.customModels.title')}
+          empty={
+            list.length === 0
+              ? {
+                  testId: 'custom-models-empty',
+                  content: (
+                    <EmptyState
+                      title={t('customModels.empty.title')}
+                      message={t('customModels.empty.message')}
+                      action={addButton}
+                    />
+                  ),
+                }
+              : null
+          }
         >
           {list.map((model) => (
             <CustomModelRow
@@ -123,7 +128,7 @@ export function CustomModelsScreen() {
               onDelete={() => setDeleting(model)}
             />
           ))}
-        </ul>
+        </ExtensionList>
       ) : null}
       <CustomModelSheet
         key={editing ? `${editing.rawIndex}:${editing.model}` : 'add'}

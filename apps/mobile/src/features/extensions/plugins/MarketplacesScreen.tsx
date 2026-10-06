@@ -5,6 +5,7 @@ import { EmptyState } from '../../../components/EmptyState';
 import { ErrorState } from '../../../components/ErrorState';
 import { Skeleton } from '../../../components/Skeleton';
 import { useConnectionStore } from '../../../stores/connection';
+import { ExtensionList } from '../ExtensionList';
 import { ExtensionsSubHeader } from '../ExtensionsSubHeader';
 import { ActionMessage } from './ActionMessage';
 import { AddMarketplaceSheet } from './AddMarketplaceSheet';
@@ -97,20 +98,24 @@ export function MarketplacesScreen() {
           {t(`marketplaces.notices.${notice.action}`, { name: notice.name })}
         </ActionMessage>
       ) : null}
-      {state.status === 'ready' && list.length === 0 ? (
-        <div data-testid="marketplaces-empty">
-          <EmptyState
-            title={t('marketplaces.empty.title')}
-            message={t('marketplaces.empty.message')}
-            action={addButton}
-          />
-        </div>
-      ) : null}
-      {list.length > 0 ? (
-        <ul
-          className="mcp-list"
-          data-testid="marketplaces-list"
-          aria-label={t('plugins.tabs.marketplaces')}
+      {state.status === 'ready' ? (
+        <ExtensionList
+          testId="marketplaces-list"
+          label={t('plugins.tabs.marketplaces')}
+          empty={
+            list.length === 0
+              ? {
+                  testId: 'marketplaces-empty',
+                  content: (
+                    <EmptyState
+                      title={t('marketplaces.empty.title')}
+                      message={t('marketplaces.empty.message')}
+                      action={addButton}
+                    />
+                  ),
+                }
+              : null
+          }
         >
           {list.map((marketplace) => (
             <MarketplaceRow
@@ -121,7 +126,7 @@ export function MarketplacesScreen() {
               onRemove={() => setRemoving(marketplace.name)}
             />
           ))}
-        </ul>
+        </ExtensionList>
       ) : null}
       <AddMarketplaceSheet
         open={adding}

@@ -246,7 +246,8 @@ describe.each(CASES)('Extensions list: $name', (item) => {
     const empty = await screen.findByTestId(`${item.prefix}-empty`);
     expect(empty.textContent ?? '').not.toBe('');
     expect(empty.textContent).not.toMatch(/\b[a-z]+\.[a-z]+\.[a-zA-Z.]+\b/);
-    expect(screen.queryByTestId(item.listId)).toBeNull();
+    expect(screen.getByTestId(item.listId)).toContainElement(empty);
+    expect(within(screen.getByTestId(item.listId)).queryAllByRole('listitem')).toHaveLength(0);
     expect(screen.queryByTestId(`${item.prefix}-loading`)).toBeNull();
   });
 

@@ -6,6 +6,7 @@ import { EmptyState } from '../../../components/EmptyState';
 import { ErrorState } from '../../../components/ErrorState';
 import { Skeleton } from '../../../components/Skeleton';
 import { useConnectionStore } from '../../../stores/connection';
+import { ExtensionList } from '../ExtensionList';
 import { ExtensionsSubHeader } from '../ExtensionsSubHeader';
 import { ActionMessage } from './ActionMessage';
 import { PluginRow } from './PluginRow';
@@ -69,28 +70,32 @@ export function PluginsScreen() {
           {t(`plugins.notices.${plugins.notice.action}`, { name: plugins.notice.name })}
         </ActionMessage>
       ) : null}
-      {state.status === 'ready' && entries.length === 0 ? (
-        <div data-testid="plugins-empty">
-          <EmptyState
-            title={t('plugins.empty.title')}
-            message={t('plugins.empty.message')}
-            action={
-              <Link
-                to="/extensions/plugins/marketplaces"
-                className="btn btn--primary"
-                data-testid="plugins-empty-marketplaces"
-              >
-                {t('plugins.empty.action')}
-              </Link>
-            }
-          />
-        </div>
-      ) : null}
-      {entries.length > 0 ? (
-        <ul
-          className="mcp-list"
-          data-testid="plugins-list"
-          aria-label={t('extensions.plugins.title')}
+      {state.status === 'ready' ? (
+        <ExtensionList
+          testId="plugins-list"
+          label={t('extensions.plugins.title')}
+          empty={
+            entries.length === 0
+              ? {
+                  testId: 'plugins-empty',
+                  content: (
+                    <EmptyState
+                      title={t('plugins.empty.title')}
+                      message={t('plugins.empty.message')}
+                      action={
+                        <Link
+                          to="/extensions/plugins/marketplaces"
+                          className="btn btn--primary"
+                          data-testid="plugins-empty-marketplaces"
+                        >
+                          {t('plugins.empty.action')}
+                        </Link>
+                      }
+                    />
+                  ),
+                }
+              : null
+          }
         >
           {entries.map((entry) => (
             <PluginRow
@@ -103,7 +108,7 @@ export function PluginsScreen() {
               onUpdate={() => void plugins.update(entry)}
             />
           ))}
-        </ul>
+        </ExtensionList>
       ) : null}
       <ConfirmDialog
         open={pending?.kind === 'install'}

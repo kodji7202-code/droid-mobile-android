@@ -5,6 +5,7 @@ import { EmptyState } from '../../../components/EmptyState';
 import { ErrorState } from '../../../components/ErrorState';
 import { Skeleton } from '../../../components/Skeleton';
 import { useConnectionStore } from '../../../stores/connection';
+import { ExtensionList } from '../ExtensionList';
 import { ExtensionsSubHeader } from '../ExtensionsSubHeader';
 import { AddMcpSheet } from './AddMcpSheet';
 import { McpServerRow } from './McpServerRow';
@@ -65,17 +66,25 @@ export function McpScreen() {
           {t(`mcp.errors.${mcp.error.action}`, { name: mcp.error.name })}
         </p>
       ) : null}
-      {mcp.state.status === 'ready' && servers.length === 0 ? (
-        <div data-testid="mcp-empty">
-          <EmptyState
-            title={t('mcp.empty.title')}
-            message={t('mcp.empty.message')}
-            action={addButton}
-          />
-        </div>
-      ) : null}
-      {servers.length > 0 ? (
-        <ul className="mcp-list" data-testid="mcp-list" aria-label={t('extensions.mcp.title')}>
+      {mcp.state.status === 'ready' ? (
+        <ExtensionList
+          testId="mcp-list"
+          label={t('extensions.mcp.title')}
+          empty={
+            servers.length === 0
+              ? {
+                  testId: 'mcp-empty',
+                  content: (
+                    <EmptyState
+                      title={t('mcp.empty.title')}
+                      message={t('mcp.empty.message')}
+                      action={addButton}
+                    />
+                  ),
+                }
+              : null
+          }
+        >
           {servers.map((server) => (
             <McpServerRow
               key={server.name}
@@ -93,7 +102,7 @@ export function McpScreen() {
               onCancelAuth={() => void mcp.cancelAuth(server.name)}
             />
           ))}
-        </ul>
+        </ExtensionList>
       ) : null}
       <AddMcpSheet
         open={adding}

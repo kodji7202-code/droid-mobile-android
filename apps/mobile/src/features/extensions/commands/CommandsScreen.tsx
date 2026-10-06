@@ -3,6 +3,7 @@ import { EmptyState } from '../../../components/EmptyState';
 import { ErrorState } from '../../../components/ErrorState';
 import { Skeleton } from '../../../components/Skeleton';
 import { useConnectionStore } from '../../../stores/connection';
+import { ExtensionList } from '../ExtensionList';
 import { ExtensionsSubHeader } from '../ExtensionsSubHeader';
 import { useProjectFolder } from '../skills/useSkills';
 import { CommandRow } from './CommandRow';
@@ -43,21 +44,28 @@ export function CommandsScreen() {
           />
         </div>
       ) : null}
-      {state.status === 'ready' && list.length === 0 ? (
-        <div data-testid="commands-empty">
-          <EmptyState title={t('commands.empty.title')} message={t('commands.empty.message')} />
-        </div>
-      ) : null}
-      {list.length > 0 ? (
-        <ul
-          className="mcp-list"
-          data-testid="commands-list"
-          aria-label={t('extensions.commands.title')}
+      {state.status === 'ready' ? (
+        <ExtensionList
+          testId="commands-list"
+          label={t('extensions.commands.title')}
+          empty={
+            list.length === 0
+              ? {
+                  testId: 'commands-empty',
+                  content: (
+                    <EmptyState
+                      title={t('commands.empty.title')}
+                      message={t('commands.empty.message')}
+                    />
+                  ),
+                }
+              : null
+          }
         >
           {list.map((command) => (
             <CommandRow key={command.name} command={command} />
           ))}
-        </ul>
+        </ExtensionList>
       ) : null}
     </section>
   );

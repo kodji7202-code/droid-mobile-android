@@ -120,7 +120,9 @@ describe('SkillsScreen list', () => {
     setup([]);
     const empty = await screen.findByTestId('skills-empty');
     expect(empty).toHaveTextContent('No skills');
-    expect(screen.queryByTestId('skills-list')).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('skills-list')).getByTestId('skills-empty'),
+    ).toBeInTheDocument();
   });
 
   it('shows an error with retry when the daemon does not answer, then recovers', async () => {
