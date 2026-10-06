@@ -144,6 +144,114 @@
     "skills": {
       "title": "Skills",
       "description": "Instructions the agent can use, from built-ins, you and your project."
+    },
+    "plugins": {
+      "title": "Plugins",
+      "description": "Plugins from your marketplaces, with the marketplaces themselves."
+    }
+  },
+  "plugins": {
+    "tabsLabel": "Plugins and marketplaces",
+    "tabs": {
+      "plugins": "Plugins",
+      "marketplaces": "Marketplaces"
+    },
+    "loading": "Loading plugins",
+    "loadFailedTitle": "Could not load plugins",
+    "loadFailed": "The daemon did not answer. Check the connection and try again.",
+    "empty": {
+      "title": "No plugins available",
+      "message": "Add a marketplace to find plugins to install.",
+      "action": "Open marketplaces"
+    },
+    "noDescription": "No description provided.",
+    "working": "Working",
+    "installed": "Installed",
+    "state": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "scope": {
+      "user": "user",
+      "project": "project",
+      "local": "local"
+    },
+    "scopeChip": "{{scope}} scope",
+    "install": "Install",
+    "installLabel": "Install {{name}}",
+    "uninstall": "Uninstall",
+    "uninstallLabel": "Uninstall {{name}}",
+    "update": "Update",
+    "updateLabel": "Update {{name}}",
+    "toggleLabel": "Enable {{name}}",
+    "installConfirm": {
+      "title": "Install {{name}}?",
+      "message": "Installs {{name}} from {{marketplace}} at {{scope}} scope, so it is available in all your projects."
+    },
+    "uninstallConfirm": {
+      "title": "Uninstall {{name}}?",
+      "message": "Removes {{name}} ({{scope}} scope) from the daemon."
+    },
+    "notices": {
+      "install": "{{name}} installed.",
+      "uninstall": "{{name}} uninstalled.",
+      "update": "{{name}} is up to date."
+    },
+    "errors": {
+      "install": "Could not install {{name}}.",
+      "uninstall": "Could not uninstall {{name}}.",
+      "toggle": "Could not change {{name}}. The daemon state is unchanged.",
+      "update": "Could not update {{name}}."
+    }
+  },
+  "marketplaces": {
+    "add": "Add marketplace",
+    "loading": "Loading marketplaces",
+    "loadFailedTitle": "Could not load marketplaces",
+    "loadFailed": "The daemon did not answer. Check the connection and try again.",
+    "empty": {
+      "title": "No marketplaces",
+      "message": "Add a GitHub marketplace to see the plugins it offers."
+    },
+    "working": "Working",
+    "update": "Update",
+    "updating": "Updating…",
+    "updateLabel": "Update {{name}}",
+    "remove": "Remove",
+    "removeLabel": "Remove {{name}}",
+    "autoUpdate": "Auto-update",
+    "pluginCount_one": "{{count}} plugin",
+    "pluginCount_other": "{{count}} plugins",
+    "sourceKind": {
+      "github": "GitHub",
+      "url": "Git URL",
+      "git-subdir": "Git folder",
+      "local": "Local folder"
+    },
+    "removeConfirm": {
+      "title": "Remove {{name}}?",
+      "message": "The marketplace {{name}} is removed from the daemon. Plugins already installed from it stay installed."
+    },
+    "notices": {
+      "add": "{{name}} added.",
+      "update": "{{name}} updated.",
+      "remove": "{{name}} removed."
+    },
+    "errors": {
+      "add": "Could not add the marketplace.",
+      "update": "Could not update {{name}}.",
+      "remove": "Could not remove {{name}}."
+    },
+    "form": {
+      "title": "Add marketplace",
+      "repo": "GitHub repository",
+      "hint": "Use owner/repo, for example Factory-AI/factory-plugins.",
+      "save": "Add marketplace",
+      "adding": "Adding…",
+      "errors": {
+        "required": "Enter a repository.",
+        "invalid": "Use the form owner/repo."
+      }
     }
   },
   "skills": {
@@ -312,6 +420,7 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "close": "Close",
+    "dismiss": "Dismiss",
     "retry": "Try again",
     "back": "Back"
   },

@@ -2208,6 +2208,67 @@ html[data-soft-keyboard='open'] .app-nav-bar {
   font-size: 0.875rem;
 }
 
+.plugins-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.plugins-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-height: 48px;
+  padding: 0 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-fg-muted);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.plugins-tabs__tab[aria-current='page'] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.action-message {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+}
+
+.action-message--error {
+  border-color: var(--color-danger);
+}
+
+.action-message--success {
+  border-color: var(--color-success);
+}
+
+.action-message__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.action-message--error .action-message__text > span:first-child {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.action-message__detail {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation-duration: 2.4s;

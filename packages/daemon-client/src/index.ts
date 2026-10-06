@@ -113,6 +113,15 @@ export { redactSecrets, REDACTED } from './redact';
 export * from './git';
 export { createMcpClient, toMcpServer } from './mcp';
 export type { AddMcpServerInput, McpClient, McpClientDeps, McpServer, McpTool } from './mcp';
+export { createPluginsClient, pluginId, toMarketplace } from './plugins';
+export type {
+  AvailablePlugin,
+  InstallPluginInput,
+  InstalledPlugin,
+  Marketplace,
+  PluginsClient,
+  PluginsClientDeps,
+} from './plugins';
 export { createSkillsClient, toSkill } from './skills';
 export type {
   SetSkillDisabledInput,

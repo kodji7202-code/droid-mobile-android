@@ -10,6 +10,9 @@ import { ExtensionsScreen } from '../features/extensions/ExtensionsScreen';
 import { McpDetailScreen } from '../features/extensions/mcp/McpDetailScreen';
 import { McpLayout } from '../features/extensions/mcp/McpLayout';
 import { McpScreen } from '../features/extensions/mcp/McpScreen';
+import { MarketplacesScreen } from '../features/extensions/plugins/MarketplacesScreen';
+import { PluginsLayout } from '../features/extensions/plugins/PluginsLayout';
+import { PluginsScreen } from '../features/extensions/plugins/PluginsScreen';
 import { SkillDetailScreen } from '../features/extensions/skills/SkillDetailScreen';
 import { SkillsLayout } from '../features/extensions/skills/SkillsLayout';
 import { SkillsScreen } from '../features/extensions/skills/SkillsScreen';
@@ -52,6 +55,14 @@ export function createAppRoutes(): RouteObject[] {
           children: [
             { index: true, element: <SkillsScreen /> },
             { path: ':name', element: <SkillDetailScreen /> },
+          ],
+        },
+        {
+          path: 'extensions/plugins',
+          element: <PluginsLayout />,
+          children: [
+            { index: true, element: <PluginsScreen /> },
+            { path: 'marketplaces', element: <MarketplacesScreen /> },
           ],
         },
         { path: 'settings', element: <SettingsScreen /> },

@@ -144,6 +144,115 @@
     "skills": {
       "title": "Abilități",
       "description": "Instrucțiuni pe care agentul le poate folosi: integrate, personale și ale proiectului."
+    },
+    "plugins": {
+      "title": "Pluginuri",
+      "description": "Pluginuri din piețele tale, împreună cu piețele însele."
+    }
+  },
+  "plugins": {
+    "tabsLabel": "Pluginuri și piețe",
+    "tabs": {
+      "plugins": "Pluginuri",
+      "marketplaces": "Piețe"
+    },
+    "loading": "Se încarcă pluginurile",
+    "loadFailedTitle": "Pluginurile nu s-au putut încărca",
+    "loadFailed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou.",
+    "empty": {
+      "title": "Niciun plugin disponibil",
+      "message": "Adaugă o piață pentru a găsi pluginuri de instalat.",
+      "action": "Deschide piețele"
+    },
+    "noDescription": "Nicio descriere.",
+    "working": "Se lucrează",
+    "installed": "Instalat",
+    "state": {
+      "enabled": "Activat",
+      "disabled": "Dezactivat"
+    },
+    "scope": {
+      "user": "utilizator",
+      "project": "proiect",
+      "local": "local"
+    },
+    "scopeChip": "domeniu {{scope}}",
+    "install": "Instalează",
+    "installLabel": "Instalează {{name}}",
+    "uninstall": "Dezinstalează",
+    "uninstallLabel": "Dezinstalează {{name}}",
+    "update": "Actualizează",
+    "updateLabel": "Actualizează {{name}}",
+    "toggleLabel": "Activează {{name}}",
+    "installConfirm": {
+      "title": "Instalezi {{name}}?",
+      "message": "Instalează {{name}} din {{marketplace}} la domeniul {{scope}}, deci este disponibil în toate proiectele tale."
+    },
+    "uninstallConfirm": {
+      "title": "Dezinstalezi {{name}}?",
+      "message": "Elimină {{name}} (domeniul {{scope}}) din daemon."
+    },
+    "notices": {
+      "install": "{{name}} a fost instalat.",
+      "uninstall": "{{name}} a fost dezinstalat.",
+      "update": "{{name}} este la zi."
+    },
+    "errors": {
+      "install": "Nu am putut instala {{name}}.",
+      "uninstall": "Nu am putut dezinstala {{name}}.",
+      "toggle": "Nu am putut modifica {{name}}. Starea din daemon este neschimbată.",
+      "update": "Nu am putut actualiza {{name}}."
+    }
+  },
+  "marketplaces": {
+    "add": "Adaugă o piață",
+    "loading": "Se încarcă piețele",
+    "loadFailedTitle": "Piețele nu s-au putut încărca",
+    "loadFailed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou.",
+    "empty": {
+      "title": "Nicio piață",
+      "message": "Adaugă o piață GitHub pentru a vedea pluginurile oferite de ea."
+    },
+    "working": "Se lucrează",
+    "update": "Actualizează",
+    "updating": "Se actualizează…",
+    "updateLabel": "Actualizează {{name}}",
+    "remove": "Elimină",
+    "removeLabel": "Elimină {{name}}",
+    "autoUpdate": "Actualizare automată",
+    "pluginCount_one": "{{count}} plugin",
+    "pluginCount_few": "{{count}} pluginuri",
+    "pluginCount_other": "{{count}} de pluginuri",
+    "sourceKind": {
+      "github": "GitHub",
+      "url": "URL Git",
+      "git-subdir": "Dosar Git",
+      "local": "Dosar local"
+    },
+    "removeConfirm": {
+      "title": "Elimini {{name}}?",
+      "message": "Piața {{name}} este eliminată din daemon. Pluginurile deja instalate din ea rămân instalate."
+    },
+    "notices": {
+      "add": "{{name}} a fost adăugată.",
+      "update": "{{name}} a fost actualizată.",
+      "remove": "{{name}} a fost eliminată."
+    },
+    "errors": {
+      "add": "Nu am putut adăuga piața.",
+      "update": "Nu am putut actualiza {{name}}.",
+      "remove": "Nu am putut elimina {{name}}."
+    },
+    "form": {
+      "title": "Adaugă o piață",
+      "repo": "Depozit GitHub",
+      "hint": "Folosește owner/repo, de exemplu Factory-AI/factory-plugins.",
+      "save": "Adaugă piața",
+      "adding": "Se adaugă…",
+      "errors": {
+        "required": "Introdu un depozit.",
+        "invalid": "Folosește forma owner/repo."
+      }
     }
   },
   "skills": {
@@ -313,6 +422,7 @@
     "cancel": "Anulare",
     "confirm": "Confirmare",
     "close": "Închidere",
+    "dismiss": "Închide mesajul",
     "retry": "Încearcă din nou",
     "back": "Înapoi"
   },

@@ -5,13 +5,10 @@
  * closed by release(). mcp.getConfig/updateConfig are deliberately unused:
  * the daemon list is the only source of truth.
  */
-import type {
-  ConnectedDroid,
-  ConnectedDroidSession,
-  McpServerStatusInfo,
-  SettingsLevel,
-} from '@factory/droid-sdk';
+import type { ConnectedDroid, McpServerStatusInfo, SettingsLevel } from '@factory/droid-sdk';
 import { DaemonClientError } from './errors';
+import { createHomeScratchSession } from './scratch-session';
+import type { ScratchSessionDeps } from './scratch-session';
 
 /** The daemon only accepts user-level toggles and removals; the string equals the enum value. */
 const USER_LEVEL = 'user' as SettingsLevel.User;
@@ -85,19 +82,7 @@ export function toMcpServer(info: Readonly<McpServerStatusInfo>): McpServer {
   };
 }
 
-export interface McpClientDeps {
-  droid(): ConnectedDroid;
-  /** Identity of the current facade; a different value means the socket was replaced. */
-  generation(): number;
-  /** Runs a facade call, converting SDK failures into classified errors. */
-  run<T>(op: () => Promise<T>): Promise<T>;
-}
-
-interface ScratchSession {
-  id: string;
-  generation: number;
-  session: ConnectedDroidSession;
-}
+export type McpClientDeps = ScratchSessionDeps;
 
 function addParams(sessionId: string, input: AddMcpServerInput) {
   if (input.type === 'stdio') {
@@ -114,42 +99,10 @@ function addParams(sessionId: string, input: AddMcpServerInput) {
 }
 
 export function createMcpClient(deps: McpClientDeps): McpClient {
-  let scratch: Promise<ScratchSession> | null = null;
-
-  async function openScratch(): Promise<ScratchSession> {
-    const droid = deps.droid();
-    const generation = deps.generation();
-    const home = await droid.workspace.validateDirectory('~');
-    if (!home.isValid || !home.resolvedPath) {
-      throw new DaemonClientError('unknown', home.error ?? 'The daemon has no home folder.');
-    }
-    const session = await droid.sessions.create({ cwd: home.resolvedPath });
-    return { id: session.id, generation, session };
-  }
-
-  function sessionId(): Promise<string> {
-    return deps.run(async () => {
-      let current = scratch;
-      if (current) {
-        const known = await current.catch(() => null);
-        if (!known || known.generation !== deps.generation()) {
-          scratch = null;
-          current = null;
-        }
-      }
-      if (!current) {
-        current = openScratch();
-        scratch = current;
-        current.catch(() => {
-          if (scratch === current) scratch = null;
-        });
-      }
-      return (await current).id;
-    });
-  }
+  const scratch = createHomeScratchSession(deps);
 
   async function withSession<T>(op: (id: string, mcp: ConnectedDroid['mcp']) => Promise<T>) {
-    const id = await sessionId();
+    const id = await scratch.id();
     return deps.run(() => op(id, deps.droid().mcp));
   }
 
@@ -227,13 +180,6 @@ export function createMcpClient(deps: McpClientDeps): McpClient {
           'remove the server',
         ),
       ),
-    async release() {
-      const current = scratch;
-      scratch = null;
-      if (!current) return;
-      const known = await current.catch(() => null);
-      if (!known || known.generation !== deps.generation()) return;
-      await known.session.close().catch(() => undefined);
-    },
+    release: () => scratch.release(),
   };
 }
