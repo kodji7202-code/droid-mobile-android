@@ -65,6 +65,23 @@ export function ExtensionsScreen() {
           ))}
         </ul>
       </nav>
+      <nav aria-label={t('automations.title')}>
+        <ul className="settings-list">
+          <li>
+            <Link
+              to="/extensions/automations"
+              className="settings-row"
+              data-testid="automations-open"
+            >
+              <span className="extensions-row__text">
+                <span>{t('automations.title')}</span>
+                <span className="field__description">{t('automations.entryDescription')}</span>
+              </span>
+              <ChevronRightIcon className="settings-row__chevron" />
+            </Link>
+          </li>
+        </ul>
+      </nav>
     </section>
   );
 }

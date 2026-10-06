@@ -2340,3 +2340,57 @@ html[data-soft-keyboard='open'] .app-nav-bar {
     animation-duration: 2.4s;
   }
 }
+
+.automation-detail__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+}
+
+.automation-detail__field dt {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+.automation-detail__field dd {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.automation-detail__text {
+  white-space: pre-wrap;
+}
+
+.automation-detail__raw {
+  color: var(--color-fg-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875rem;
+}
+
+.automation-detail__last {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.automation-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.automation-run {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.automation-run__session {
+  align-self: flex-start;
+  text-decoration: none;
+}

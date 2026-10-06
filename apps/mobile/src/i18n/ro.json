@@ -330,6 +330,74 @@
       "none": "Niciun proiect deschis. Se afișează doar comenzile la nivel de utilizator."
     }
   },
+  "automations": {
+    "title": "Automatizări",
+    "description": "Rulări programate pe calculatorul tău. Deschide una ca s-o rulezi acum, s-o pui în pauză sau s-o reiei.",
+    "entryDescription": "Rulări programate: rulează acum, pune în pauză sau reia, vezi istoricul.",
+    "loading": "Se încarcă automatizările",
+    "loadFailedTitle": "Nu s-au putut încărca automatizările",
+    "loadFailed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou.",
+    "controlsOffline": "Rularea, pauza și reluarea nu sunt disponibile cât timp conexiunea este întreruptă.",
+    "empty": {
+      "title": "Nicio automatizare",
+      "message": "Automatizările create cu Droid pe calculatorul tău apar aici."
+    },
+    "status": {
+      "active": "Activă",
+      "paused": "În pauză",
+      "invalid": "Invalidă"
+    },
+    "runStatus": {
+      "succeeded": "Reușită",
+      "failed": "Eșuată",
+      "running": "În desfășurare"
+    },
+    "schedule": {
+      "daily": "Zilnic",
+      "weekly": "Săptămânal",
+      "monthly": "Lunar",
+      "cron": "Program personalizat",
+      "none": "Fără program"
+    },
+    "run": "Rulează acum",
+    "pause": "Pauză",
+    "resume": "Reia",
+    "runStarting": "Se pornește rularea…",
+    "runConfirm": {
+      "title": "Rulezi {{name}} acum?",
+      "message": "Se deschide o sesiune nouă în folderul automatizării și se trimite promptul ei. Rularea consumă credite."
+    },
+    "errors": {
+      "run": "Nu s-a putut porni {{name}}.",
+      "pause": "Nu s-a putut pune în pauză {{name}}.",
+      "resume": "Nu s-a putut relua {{name}}."
+    },
+    "detail": {
+      "name": "Nume",
+      "schedule": "Program",
+      "prompt": "Prompt",
+      "status": "Stare",
+      "nextRun": "Următoarea rulare",
+      "lastRun": "Ultima rulare",
+      "notAvailable": "Indisponibil",
+      "missingTitle": "Automatizarea nu a fost găsită",
+      "missing": "Daemonul nu are nicio automatizare numită {{name}}."
+    },
+    "history": {
+      "open": "Istoricul rulărilor",
+      "title": "Istoricul rulărilor",
+      "loading": "Se încarcă istoricul rulărilor",
+      "loadFailedTitle": "Nu s-a putut încărca istoricul rulărilor",
+      "loadFailed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou.",
+      "empty": {
+        "title": "Nicio rulare încă",
+        "message": "Rulările acestei automatizări vor apărea aici."
+      },
+      "duration": "Durată: {{duration}}",
+      "openSession": "Deschide sesiunea",
+      "partial": "Se afișează ultimele {{shown}} din {{total}} rulări."
+    }
+  },
   "customModels": {
     "add": "Adaugă model",
     "edit": "Editează",

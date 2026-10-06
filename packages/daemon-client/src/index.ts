@@ -122,6 +122,15 @@ export type {
   PluginsClient,
   PluginsClientDeps,
 } from './plugins';
+export { createAutomationsClient, toAutomation, toAutomationRun } from './automations';
+export type {
+  Automation,
+  AutomationHistory,
+  AutomationRun,
+  AutomationRunDescriptor,
+  AutomationsClient,
+  AutomationsClientDeps,
+} from './automations';
 export { createCommandsClient, toSlashCommand } from './commands';
 export type { CommandsClient, CommandsClientDeps, SlashCommand } from './commands';
 export { createCustomModelsClient, toCustomModel, CUSTOM_MODEL_PROVIDERS } from './custom-models';

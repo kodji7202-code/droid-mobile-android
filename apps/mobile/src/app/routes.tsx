@@ -3,6 +3,9 @@ import type { RouteObject } from 'react-router';
 import { AppShell } from './AppShell';
 import { NotFoundScreen, RouteErrorBoundary } from './RouteErrorBoundary';
 import { ConnectScreen } from '../features/connect/ConnectScreen';
+import { AutomationDetailScreen } from '../features/automations/AutomationDetailScreen';
+import { AutomationHistoryScreen } from '../features/automations/AutomationHistoryScreen';
+import { AutomationsScreen } from '../features/automations/AutomationsScreen';
 import { SessionsScreen } from '../features/sessions/SessionsScreen';
 import { SessionScreen } from '../features/session/SessionScreen';
 import { WorkspaceScreen } from '../features/workspace/WorkspaceScreen';
@@ -74,6 +77,9 @@ export function createAppRoutes(): RouteObject[] {
             { path: 'marketplaces', element: <MarketplacesScreen /> },
           ],
         },
+        { path: 'extensions/automations', element: <AutomationsScreen /> },
+        { path: 'extensions/automations/:id', element: <AutomationDetailScreen /> },
+        { path: 'extensions/automations/:id/history', element: <AutomationHistoryScreen /> },
         { path: 'settings', element: <SettingsScreen /> },
         { path: 'settings/appearance', element: <AppearanceScreen /> },
         { path: 'settings/language', element: <LanguageScreen /> },

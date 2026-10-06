@@ -158,6 +158,44 @@ describe('applyStreamEvent', () => {
     ]);
   });
 
+  it('settles the bubble of a sent prompt that the history hides (automation run prompt)', () => {
+    const prompt = '<system-reminder>scaffold</system-reminder>\nReply with the single word OK';
+    const pending = addPendingUser([], 'local-1', prompt);
+    const echoed = replay(
+      [{ type: 'user', message: msg('u9', 'user', 1, text(prompt)) as never }],
+      pending,
+    );
+    expect(echoed).toEqual([
+      { kind: 'user', id: 'u9', localId: 'local-1', text: prompt, delivery: 'sent' },
+    ]);
+  });
+
+  it('settles the bubble when the live echo of a reminder-only prompt arrives without content', () => {
+    const prompt = '<system-reminder>scaffold</system-reminder>\nReply with the single word OK';
+    const pending = addPendingUser([], 'local-1', prompt);
+    const context = { type: 'user', message: msg('context-u9', 'user', 1, []) as never };
+    const echo = { type: 'user', message: msg('u9', 'user', 1, []) as never };
+    const echoed = replay([context, echo] as NormalizedEvent[], pending);
+    expect(echoed).toEqual([
+      { kind: 'user', id: 'u9', localId: 'local-1', text: prompt, delivery: 'sent' },
+    ]);
+  });
+
+  it('ignores a contentless echo when no reminder-style prompt is pending', () => {
+    const pending = addPendingUser([], 'local-1', 'hi');
+    const echo = { type: 'user', message: msg('u9', 'user', 1, []) as never };
+    expect(replay([echo] as NormalizedEvent[], pending)).toEqual(pending);
+  });
+  it('still hides a system-reminder message that this device did not send', () => {
+    const items = replay([
+      {
+        type: 'user',
+        message: msg('u1', 'user', 1, text('<system-reminder>x</system-reminder>')) as never,
+      },
+    ]);
+    expect(items).toEqual([]);
+  });
+
   it('merges partial deltas into one assistant item and the final message replaces it', () => {
     const delta = (value: string): NormalizedEvent => ({
       type: 'assistant_text_delta',

@@ -200,7 +200,30 @@ function applyMessage(items: TranscriptItem[], message: SessionMessage): Transcr
   if (role === 'user') {
     const text = textOfBlocks(blocks.filter((block) => !isReminderBlock(block)));
     const images = attachmentsOfBlocks(blocks);
-    if (isHiddenUserMessage(id, text) && !(text === '' && images.length > 0)) return next;
+    if (isHiddenUserMessage(id, text) && !(text === '' && images.length > 0)) {
+      // A prompt this device sent that starts with a system reminder (an automation run) is
+      // hidden from history, but its echo still proves delivery of the pending bubble. The live
+      // echo may arrive with its reminder text stripped, so an empty one matches by id shape.
+      const fullText = textOfBlocks(blocks);
+      const contextual = id.startsWith('context-');
+      const sent = next.findIndex(
+        (item) =>
+          item.kind === 'user' &&
+          item.delivery === 'sending' &&
+          !contextual &&
+          (fullText === '' ? item.text.startsWith('<system-reminder>') : item.text === fullText),
+      );
+      if (sent === -1) return next;
+      const copy = next.slice();
+      const pendingItem = next[sent] as UserItem;
+      copy[sent] = {
+        ...pendingItem,
+        id,
+        localId: pendingItem.localId ?? pendingItem.id,
+        delivery: 'sent',
+      };
+      return copy;
+    }
     if (INTERRUPT_MARKERS.has(text)) {
       // Only the turn being cut short is flagged, not an earlier answered one.
       const lastTalk = [...next].reverse().find((item) => item.kind !== 'tool');

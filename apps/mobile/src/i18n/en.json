@@ -329,6 +329,74 @@
       "none": "No project is open. Showing user-level commands only."
     }
   },
+  "automations": {
+    "title": "Automations",
+    "description": "Scheduled runs on your computer. Open one to run it now, pause it or resume it.",
+    "entryDescription": "Scheduled runs: run now, pause or resume, and see the history.",
+    "loading": "Loading automations",
+    "loadFailedTitle": "Could not load automations",
+    "loadFailed": "The daemon did not answer. Check the connection and try again.",
+    "controlsOffline": "Run, pause and resume are unavailable while the connection is down.",
+    "empty": {
+      "title": "No automations",
+      "message": "Automations created with Droid on your computer appear here."
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "invalid": "Invalid"
+    },
+    "runStatus": {
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "running": "Running"
+    },
+    "schedule": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "cron": "Custom schedule",
+      "none": "No schedule"
+    },
+    "run": "Run now",
+    "pause": "Pause",
+    "resume": "Resume",
+    "runStarting": "Starting the run…",
+    "runConfirm": {
+      "title": "Run {{name}} now?",
+      "message": "This opens a new session in the automation folder and sends its prompt. The run consumes credits."
+    },
+    "errors": {
+      "run": "Could not start {{name}}.",
+      "pause": "Could not pause {{name}}.",
+      "resume": "Could not resume {{name}}."
+    },
+    "detail": {
+      "name": "Name",
+      "schedule": "Schedule",
+      "prompt": "Prompt",
+      "status": "Status",
+      "nextRun": "Next run",
+      "lastRun": "Last run",
+      "notAvailable": "Not available",
+      "missingTitle": "Automation not found",
+      "missing": "The daemon has no automation called {{name}}."
+    },
+    "history": {
+      "open": "Run history",
+      "title": "Run history",
+      "loading": "Loading run history",
+      "loadFailedTitle": "Could not load the run history",
+      "loadFailed": "The daemon did not answer. Check the connection and try again.",
+      "empty": {
+        "title": "No runs yet",
+        "message": "Runs of this automation will be listed here."
+      },
+      "duration": "Duration: {{duration}}",
+      "openSession": "Open session",
+      "partial": "Showing the latest {{shown}} of {{total}} runs."
+    }
+  },
   "customModels": {
     "add": "Add model",
     "edit": "Edit",

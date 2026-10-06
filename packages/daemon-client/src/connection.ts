@@ -52,11 +52,13 @@ import type {
 } from './git';
 import { createMcpClient } from './mcp';
 import { createPluginsClient } from './plugins';
+import { createAutomationsClient } from './automations';
 import { createCommandsClient } from './commands';
 import { createCustomModelsClient } from './custom-models';
 import { createSkillsClient } from './skills';
 import type { McpClient } from './mcp';
 import type { PluginsClient } from './plugins';
+import type { AutomationsClient } from './automations';
 import type { CommandsClient } from './commands';
 import type { CustomModelsClient } from './custom-models';
 import type { SkillsClient } from './skills';
@@ -159,6 +161,8 @@ export interface DaemonConnection {
   readonly plugins: PluginsClient;
   /** Bring-your-own-key models; the daemon keeps the keys and reports only a mask. */
   readonly customModels: CustomModelsClient;
+  /** Scheduled automations: list, run descriptor, pause/resume and run history. */
+  readonly automations: AutomationsClient;
 
   /** Asks the daemon whether a working directory exists and is a directory. */
   validateDirectory(path: string): Promise<DirectoryValidation>;
@@ -776,6 +780,11 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       run: mapSdkError,
     }),
     customModels: createCustomModelsClient({
+      droid: requireDroid,
+      generation: () => droidToken,
+      run: mapSdkError,
+    }),
+    automations: createAutomationsClient({
       droid: requireDroid,
       generation: () => droidToken,
       run: mapSdkError,
