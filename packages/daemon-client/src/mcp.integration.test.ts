@@ -4,12 +4,13 @@
  * the list is compared with the recorded pre-state. No model prompt is sent.
  */
 import { afterAll, describe, expect, it } from 'vitest';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDaemonConnection } from './connection';
 import type { DaemonConnection } from './connection';
 import type { McpServer } from './mcp';
+import { removeScratchDir } from './integration-cleanup';
 
 const DAEMON_URL = process.env.DC_TEST_DAEMON_URL ?? 'ws://127.0.0.1:3101';
 const API_KEY = process.env.FACTORY_API_KEY;
@@ -84,7 +85,7 @@ afterAll(async () => {
     await conn.mcp.release().catch(() => undefined);
     conn.disconnect();
   }
-  if (scratchDir) await rm(scratchDir, { recursive: true, force: true }).catch(() => undefined);
+  if (scratchDir) await removeScratchDir(scratchDir);
 });
 
 describe('MCP servers (real daemon 3101)', () => {

@@ -33,3 +33,6 @@ secrets/
 # os
 Thumbs.db
 .DS_Store
+
+# written by the daemon when a session runs with cwd in this repo
+.factory/settings.json

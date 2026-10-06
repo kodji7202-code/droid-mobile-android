@@ -5,12 +5,13 @@
  * is sent.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDaemonConnection } from './connection';
 import type { DaemonConnection } from './connection';
 import type { Skill } from './skills';
+import { removeScratchDir } from './integration-cleanup';
 
 const DAEMON_URL = process.env.DC_TEST_DAEMON_URL ?? 'ws://127.0.0.1:3101';
 const API_KEY = process.env.FACTORY_API_KEY;
@@ -77,8 +78,8 @@ afterAll(async () => {
   }
   await conn.skills.release().catch(() => undefined);
   for (const item of open) item.disconnect();
-  await rm(projectDir, { recursive: true, force: true });
-  await rm(otherDir, { recursive: true, force: true });
+  await removeScratchDir(projectDir);
+  await removeScratchDir(otherDir);
   expect(disabledNames(await independent())).toEqual(preDisabled);
 });
 

@@ -4,10 +4,11 @@
  * No prompts are sent: sessions created here stay empty (never persisted).
  */
 import { afterAll, describe, expect, it } from 'vitest';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDaemonConnection } from './connection';
+import { removeScratchDir } from './integration-cleanup';
 
 const DAEMON_URL = process.env.DC_TEST_DAEMON_URL ?? 'ws://127.0.0.1:3101';
 const API_KEY = process.env.FACTORY_API_KEY;
@@ -21,7 +22,7 @@ if (!API_KEY) {
 let scratchRoot: string | undefined;
 
 afterAll(async () => {
-  if (scratchRoot) await rm(scratchRoot, { recursive: true, force: true }).catch(() => undefined);
+  if (scratchRoot) await removeScratchDir(scratchRoot);
 });
 
 async function scratch(): Promise<string> {

@@ -6,11 +6,12 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDaemonConnection } from './connection';
 import type { DaemonConnection } from './connection';
+import { removeScratchDir } from './integration-cleanup';
 
 const DAEMON_PORT = 3105;
 const DAEMON_URL = `ws://127.0.0.1:${DAEMON_PORT}`;
@@ -87,7 +88,7 @@ afterAll(async () => {
     conn.disconnect();
   }
   if (daemonPid !== null) await killThrowawayDaemon(daemonPid);
-  if (scratchDir) await rm(scratchDir, { recursive: true, force: true }).catch(() => undefined);
+  if (scratchDir) await removeScratchDir(scratchDir);
 });
 
 describe('daemon connection reconnect (throwaway daemon 3105)', () => {

@@ -1,13 +1,14 @@
-﻿/**
+/**
  * Queued messages against the real daemon (3101): a message queued during a
  * turn runs exactly once after it, and a cancelled one never runs.
  */
 import { describe, expect, it } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDaemonConnection } from './connection';
 import type { SessionHandle } from './session-handle';
+import { removeScratchDir } from './integration-cleanup';
 
 const DAEMON_URL = process.env.DC_TEST_DAEMON_URL ?? 'ws://127.0.0.1:3101';
 const API_KEY = process.env.FACTORY_API_KEY;
@@ -72,7 +73,7 @@ describe('queued messages against the real daemon (3101)', () => {
         await handle.archive({ force: true });
       } finally {
         conn.disconnect();
-        await rm(dir, { recursive: true, force: true });
+        await removeScratchDir(dir);
       }
     },
   );

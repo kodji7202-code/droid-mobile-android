@@ -4,11 +4,12 @@
  * its serialized state, exit code, and cleanup. No prompts are sent.
  */
 import { afterAll, describe, expect, it } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDaemonConnection } from './connection';
 import type { TerminalEvent } from './terminal-client';
+import { removeScratchDir } from './integration-cleanup';
 
 const DAEMON_URL = process.env.DC_TEST_DAEMON_URL ?? 'ws://127.0.0.1:3101';
 const API_KEY = process.env.FACTORY_API_KEY;
@@ -21,7 +22,7 @@ if (!API_KEY) {
 
 let scratchDir: string | undefined;
 afterAll(async () => {
-  if (scratchDir) await rm(scratchDir, { recursive: true, force: true }).catch(() => undefined);
+  if (scratchDir) await removeScratchDir(scratchDir);
 });
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
