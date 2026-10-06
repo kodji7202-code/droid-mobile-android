@@ -1,35 +1,46 @@
-import { Link } from 'react-router';
+import { NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ChevronRightIcon } from '../../components/icons';
 
+const SECTIONS = [
+  { to: '/settings/connection', testId: 'settings-connection', labelKey: 'settings.connection' },
+  { to: '/settings/security', testId: 'settings-security', labelKey: 'settings.security' },
+  {
+    to: '/settings/notifications',
+    testId: 'settings-notifications',
+    labelKey: 'settings.notifications',
+  },
+  { to: '/settings/appearance', testId: 'settings-appearance', labelKey: 'settings.appearance' },
+  { to: '/settings/language', testId: 'settings-language', labelKey: 'settings.language' },
+  { to: '/settings/defaults', testId: 'settings-defaults', labelKey: 'settings.defaults' },
+  { to: '/settings/about', testId: 'settings-about', labelKey: 'settings.about' },
+] as const;
+
 /**
- * Settings landing (stub: the sections their features add land here).
- * Each row is a full-width link with a >= 48 dp touch target.
+ * The Settings section list: the landing page on phones and the master pane on
+ * tablets. Each row is a full-width link with a >= 48 dp touch target, and the
+ * row of the open page is marked with aria-current.
  */
 export function SettingsScreen() {
   const { t } = useTranslation();
-  const sections = [
-    { to: '/settings/connection', testId: 'settings-connection', label: t('settings.connection') },
-    { to: '/settings/security', testId: 'settings-security', label: t('settings.security') },
-    { to: '/settings/defaults', testId: 'settings-defaults', label: t('settings.defaults') },
-    { to: '/settings/appearance', testId: 'settings-appearance', label: t('settings.appearance') },
-    { to: '/settings/language', testId: 'settings-language', label: t('settings.language') },
-    { to: '/settings/about', testId: 'settings-about', label: t('settings.about') },
-  ];
 
   return (
-    <section className="screen" data-testid="settings-screen" aria-labelledby="settings-title">
+    <section
+      className="screen settings-landing"
+      data-testid="settings-screen"
+      aria-labelledby="settings-title"
+    >
       <h2 className="screen__title" id="settings-title">
         {t('settings.title')}
       </h2>
       <nav aria-label={t('settings.title')}>
         <ul className="settings-list">
-          {sections.map((section) => (
+          {SECTIONS.map((section) => (
             <li key={section.to}>
-              <Link to={section.to} className="settings-row" data-testid={section.testId}>
-                <span>{section.label}</span>
+              <NavLink to={section.to} className="settings-row" data-testid={section.testId}>
+                <span>{t(section.labelKey)}</span>
                 <ChevronRightIcon className="settings-row__chevron" />
-              </Link>
+              </NavLink>
             </li>
           ))}
         </ul>

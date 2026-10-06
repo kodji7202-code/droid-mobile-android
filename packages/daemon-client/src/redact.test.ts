@@ -12,6 +12,13 @@ describe('redactSecrets', () => {
     expect(redactSecrets('fk-a1 then fk-b2')).toBe('[REDACTED] then [REDACTED]');
   });
 
+  it('redacts provider style sk- keys such as a custom model key', () => {
+    expect(redactSecrets('rejected sk-dummy-0000-NOTAREALKEY by provider')).toBe(
+      'rejected [REDACTED] by provider',
+    );
+    expect(redactSecrets('the sk-short word')).toBe('the sk-short word');
+  });
+
   it('leaves text without keys untouched', () => {
     expect(redactSecrets('connection ready')).toBe('connection ready');
   });

@@ -5,6 +5,8 @@ import type {
   CustomModelTarget,
   DaemonConnection,
 } from '@droidmobile/daemon-client';
+import { logFailure } from '../../../diagnostics/failures';
+import { appLog } from '../../../diagnostics/logBuffer';
 import { redactError } from '../mcp/mcpStatus';
 import { errorText, useDaemonRead } from '../plugins/useDaemonRead';
 
@@ -47,11 +49,13 @@ export function useCustomModels(connection: DaemonConnection | null) {
       setError(null);
       setNotice(null);
       setSaving(true);
+      if (input.apiKey) appLog.registerSecret(input.apiKey);
       try {
         await connection.customModels.save(input, target);
         setNotice({ action, name });
         return true;
       } catch (cause) {
+        logFailure('custom-model', cause);
         setError({ action, name, message: redactError(errorText(cause)) });
         return false;
       } finally {

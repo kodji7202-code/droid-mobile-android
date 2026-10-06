@@ -14,16 +14,22 @@ export interface DaemonIdentity {
   orgId: string;
   /** `factoryProtocolVersion` of the daemon's reply envelope (e.g. "1.244.0"). */
   daemonProtocolVersion?: string;
+  /** `droidCLIVersion` the daemon announces in `daemon.connection_status` (for example `0.232.0`). */
+  daemonVersion?: string;
 }
 
 /** The protocol version the SDK 0.9.1 build speaks. */
 export const SDK_FACTORY_PROTOCOL_VERSION = '1.201.1';
 const FACTORY_API_VERSION = '1.0.0';
+/** The daemon sends its status notification right after authenticate; older builds may never send it. */
+const STATUS_NOTIFICATION_WAIT_MS = 1_500;
 
 interface Envelope {
   id?: string | number | null;
   type?: string;
   factoryProtocolVersion?: string;
+  method?: string;
+  params?: { droidCLIVersion?: unknown };
   result?: { userId?: unknown; orgId?: unknown };
   error?: { code: number; message?: string; data?: unknown };
 }
@@ -46,10 +52,24 @@ export async function probeDaemonIdentity(
     const ws = new WebSocket(url);
     let settled = false;
     let requestId = '';
+    let identity: DaemonIdentity | null = null;
+    let statusTimer: ReturnType<typeof setTimeout> | undefined;
+    const finish = (daemonVersion: string | undefined) => {
+      if (settled || !identity) return;
+      settled = true;
+      clearTimeout(statusTimer);
+      try {
+        ws.close();
+      } catch {
+        // already closed
+      }
+      resolve(daemonVersion ? { ...identity, daemonVersion } : identity);
+    };
     const fail = (err: Error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(statusTimer);
       try {
         ws.close();
       } catch {
@@ -57,8 +77,14 @@ export async function probeDaemonIdentity(
       }
       reject(err);
     };
-    const timer = setTimeout(() => fail(new ConnectionError(`Timed out reaching the daemon at ${redactSecrets(url)}.`)), timeoutMs);
-    ws.addEventListener('error', () => fail(new ConnectionError(`Could not reach the daemon at ${redactSecrets(url)}.`)));
+    const timer = setTimeout(
+      () => fail(new ConnectionError(`Timed out reaching the daemon at ${redactSecrets(url)}.`)),
+      timeoutMs,
+    );
+    ws.addEventListener('error', () => {
+      if (identity) return finish(undefined);
+      fail(new ConnectionError(`Could not reach the daemon at ${redactSecrets(url)}.`));
+    });
     ws.addEventListener('open', () => {
       requestId = `probe-${Date.now()}`;
       ws.send(
@@ -80,11 +106,17 @@ export async function probeDaemonIdentity(
       } catch {
         return fail(new ConnectionError('The endpoint is not a daemon (unparseable frame).'));
       }
-      if (envelope.id !== requestId) return;
+      if (identity && envelope.method === 'daemon.connection_status') {
+        const version = envelope.params?.droidCLIVersion;
+        return finish(typeof version === 'string' ? version : undefined);
+      }
+      if (envelope.id !== requestId || identity) return;
       if (envelope.error) {
         const classified = classifyJsonRpcError(envelope.error, 'daemon.authenticate');
         if (classified.kind === 'version-warning') {
-          return fail(new ConnectionError('The daemon speaks a different protocol version than this client.'));
+          return fail(
+            new ConnectionError('The daemon speaks a different protocol version than this client.'),
+          );
         }
         return fail(classified.error);
       }
@@ -93,18 +125,9 @@ export async function probeDaemonIdentity(
       if (typeof userId !== 'string' || typeof orgId !== 'string') {
         return fail(new ConnectionError('The daemon authenticate reply was incomplete.'));
       }
-      settled = true;
+      identity = { userId, orgId, daemonProtocolVersion: envelope.factoryProtocolVersion };
       clearTimeout(timer);
-      try {
-        ws.close();
-      } catch {
-        // already closed
-      }
-      resolve({
-        userId,
-        orgId,
-        daemonProtocolVersion: envelope.factoryProtocolVersion,
-      });
+      statusTimer = setTimeout(() => finish(undefined), STATUS_NOTIFICATION_WAIT_MS);
     });
   });
 }

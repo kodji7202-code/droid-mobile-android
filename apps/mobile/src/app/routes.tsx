@@ -22,7 +22,8 @@ import { PluginsScreen } from '../features/extensions/plugins/PluginsScreen';
 import { SkillDetailScreen } from '../features/extensions/skills/SkillDetailScreen';
 import { SkillsLayout } from '../features/extensions/skills/SkillsLayout';
 import { SkillsScreen } from '../features/extensions/skills/SkillsScreen';
-import { SettingsScreen } from '../features/settings/SettingsScreen';
+import { NotificationsScreen } from '../features/settings/NotificationsScreen';
+import { SettingsDetailPlaceholder, SettingsLayout } from '../features/settings/SettingsLayout';
 import { AppearanceScreen } from '../features/settings/AppearanceScreen';
 import { LanguageScreen } from '../features/settings/LanguageScreen';
 import { ConnectionScreen } from '../features/settings/ConnectionScreen';
@@ -95,13 +96,20 @@ export function createAppRoutes(): RouteObject[] {
         { path: 'extensions/automations', element: <AutomationsScreen /> },
         { path: 'extensions/automations/:id', element: <AutomationDetailScreen /> },
         { path: 'extensions/automations/:id/history', element: <AutomationHistoryScreen /> },
-        { path: 'settings', element: <SettingsScreen /> },
-        { path: 'settings/appearance', element: <AppearanceScreen /> },
-        { path: 'settings/language', element: <LanguageScreen /> },
-        { path: 'settings/connection', element: <ConnectionScreen /> },
-        { path: 'settings/security', element: <SecurityScreen /> },
-        { path: 'settings/defaults', element: <DefaultsScreen /> },
-        { path: 'settings/about', element: <AboutScreen /> },
+        {
+          path: 'settings',
+          element: <SettingsLayout />,
+          children: [
+            { index: true, element: <SettingsDetailPlaceholder /> },
+            { path: 'connection', element: <ConnectionScreen /> },
+            { path: 'security', element: <SecurityScreen /> },
+            { path: 'notifications', element: <NotificationsScreen /> },
+            { path: 'appearance', element: <AppearanceScreen /> },
+            { path: 'language', element: <LanguageScreen /> },
+            { path: 'defaults', element: <DefaultsScreen /> },
+            { path: 'about', element: <AboutScreen /> },
+          ],
+        },
         { path: '*', element: <NotFoundScreen /> },
       ],
     },

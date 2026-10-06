@@ -1,6 +1,6 @@
 {
   "name": "@droidmobile/mobile",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -19,6 +19,8 @@
     "@capacitor/app": "8.1.2",
     "@capacitor/clipboard": "8.0.1",
     "@capacitor/core": "8.5.2",
+    "@capacitor/filesystem": "8.1.4",
+    "@capacitor/share": "8.0.3",
     "@capawesome/capacitor-file-picker": "8.1.0",
     "@droidmobile/daemon-client": "0.0.0",
     "@xterm/addon-fit": "0.11.0",

@@ -27,16 +27,18 @@ describe('AboutScreen', () => {
     expect(screen.getByTestId('about-sdk-version')).toHaveTextContent('0.9.1');
   });
 
-  it('reads the daemon protocol version on demand while ready', async () => {
+  it('reads the daemon and protocol versions on demand while ready', async () => {
     const getDaemonIdentity = vi.fn(async (): Promise<DaemonIdentity> => ({
       userId: 'user-1',
       orgId: 'org-1',
       daemonProtocolVersion: '1.244.0',
+      daemonVersion: '0.232.0',
     }));
     renderAbout({ getDaemonIdentity } as Partial<DaemonConnection>, 'ready');
     await waitFor(() =>
       expect(screen.getByTestId('about-protocol-version')).toHaveTextContent('1.244.0'),
     );
+    expect(screen.getByTestId('about-daemon-version')).toHaveTextContent('0.232.0');
     expect(getDaemonIdentity).toHaveBeenCalledTimes(1);
   });
 
@@ -45,6 +47,7 @@ describe('AboutScreen', () => {
     renderAbout({ getDaemonIdentity } as Partial<DaemonConnection>, 'offline');
     expect(getDaemonIdentity).not.toHaveBeenCalled();
     expect(screen.getByTestId('about-protocol-version')).toHaveTextContent('Unknown');
+    expect(screen.getByTestId('about-daemon-version')).toHaveTextContent('Unknown');
   });
 
   it('shows Unknown when the identity probe fails, without breaking the page', async () => {

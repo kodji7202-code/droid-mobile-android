@@ -131,4 +131,9 @@ describe('version-mismatch classification (VAL-ONBOARD-036)', () => {
     expect(raw.factoryProtocolVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(identity.daemonProtocolVersion).toBe(raw.factoryProtocolVersion);
   });
+
+  it('reports the daemon version announced after authenticate', async () => {
+    const identity = await probeDaemonIdentity(DAEMON_URL, API_KEY);
+    expect(identity.daemonVersion).toMatch(/^\d+\.\d+\.\d+$/);
+  });
 });

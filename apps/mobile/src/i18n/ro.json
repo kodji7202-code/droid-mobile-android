@@ -132,7 +132,9 @@
     "appearanceDescription": "Alege deschis, închis sau conform setării sistemului.",
     "language": "Limbă",
     "languageDescription": "Alege limba folosită în aplicație.",
-    "about": "Despre",
+    "about": "Despre și diagnosticare",
+    "notifications": "Notificări",
+    "selectSection": "Alege o secțiune pentru a vedea setările ei.",
     "theme": "Temă",
     "themeLight": "Deschisă",
     "themeDark": "Închisă",
@@ -575,11 +577,31 @@
     }
   },
   "about": {
-    "title": "Despre",
+    "title": "Despre și diagnosticare",
     "appVersion": "Versiune aplicație",
+    "daemonVersion": "Versiune daemon",
     "sdkVersion": "Versiune SDK",
     "protocolVersion": "Versiune protocol daemon",
-    "unknown": "Necunoscut"
+    "unknown": "Necunoscut",
+    "unofficial": "Droid Mobile este un client neoficial. Vorbește cu propriul tău daemon Droid prin SDK-ul public."
+  },
+  "diagnostics": {
+    "title": "Diagnosticare",
+    "status": "Conexiune",
+    "lastAuthenticated": "Ultima autentificare",
+    "never": "Niciodată",
+    "transport": "Transport",
+    "host": "Adresa daemonului",
+    "exportDescription": "Exportă evenimentele conexiunii, orele și codurile de eroare. Cheile API și tokenurile sunt eliminate.",
+    "export": "Exportă jurnalele",
+    "export_downloaded": "Fișierul de jurnal a fost descărcat.",
+    "export_shared": "Fișierul de jurnal este salvat și gata de trimis.",
+    "export_saved": "Fișierul de jurnal este salvat în memoria cache a aplicației.",
+    "export_failed": "Fișierul de jurnal nu a putut fi exportat."
+  },
+  "notifications": {
+    "title": "Notificări",
+    "unavailable": "Setările de notificări sunt disponibile când notificările sunt activate."
   },
   "language": {
     "english": "English",

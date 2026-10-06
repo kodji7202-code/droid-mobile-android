@@ -132,7 +132,9 @@
     "appearanceDescription": "Choose light, dark, or follow the system setting.",
     "language": "Language",
     "languageDescription": "Choose the language used across the app.",
-    "about": "About",
+    "about": "About & diagnostics",
+    "notifications": "Notifications",
+    "selectSection": "Choose a section to see its settings.",
     "theme": "Theme",
     "themeLight": "Light",
     "themeDark": "Dark",
@@ -573,11 +575,31 @@
     }
   },
   "about": {
-    "title": "About",
+    "title": "About & diagnostics",
     "appVersion": "App version",
+    "daemonVersion": "Daemon version",
     "sdkVersion": "SDK version",
     "protocolVersion": "Daemon protocol version",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "unofficial": "Droid Mobile is an unofficial client. It talks to your own Droid daemon through its public SDK."
+  },
+  "diagnostics": {
+    "title": "Diagnostics",
+    "status": "Connection",
+    "lastAuthenticated": "Last sign-in",
+    "never": "Never",
+    "transport": "Transport",
+    "host": "Daemon address",
+    "exportDescription": "Exports connection events, timestamps and error codes. API keys and tokens are removed.",
+    "export": "Export logs",
+    "export_downloaded": "Log file downloaded.",
+    "export_shared": "Log file saved and ready to share.",
+    "export_saved": "Log file saved in the app cache.",
+    "export_failed": "The log file could not be exported."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "unavailable": "Notification settings are available when notifications are enabled."
   },
   "language": {
     "english": "English",

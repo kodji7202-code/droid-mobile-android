@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
+import { installDiagnosticsCapture } from './diagnostics/capture';
 import { i18nReady } from './i18n/init';
 import App from './app/App';
 import { Capacitor } from '@capacitor/core';
@@ -8,6 +9,8 @@ import { createNativeSecureStore } from './platform/nativeSecureStore';
 import { setSecureStore } from './platform/secureStore';
 import { useConnectionStore } from './stores/connection';
 import { useLockStore } from './stores/lock';
+
+installDiagnosticsCapture();
 
 // Must run before the store restores: the web build keeps keys in memory only.
 if (Capacitor.isNativePlatform()) {

@@ -7,6 +7,9 @@
  */
 const FACTORY_API_KEY_PATTERN = /fk-[A-Za-z0-9][A-Za-z0-9_-]*/g;
 
+/** Provider keys entered for custom models (`sk-...`); the length floor spares ordinary hyphenated words. */
+const PROVIDER_KEY_PATTERN = /\bsk-[A-Za-z0-9_-]{12,}/g;
+
 const BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi;
 
 const NAMED_CREDENTIAL_PATTERN =
@@ -22,6 +25,7 @@ export const REDACTED = '[REDACTED]';
 export function redactSecrets(text: string): string {
   return text
     .replace(FACTORY_API_KEY_PATTERN, REDACTED)
+    .replace(PROVIDER_KEY_PATTERN, REDACTED)
     .replace(NAMED_CREDENTIAL_PATTERN, (match: string, prefix: string) => {
       const quote =
         /^(?:(?:Basic|Bearer|Digest)\s+)?(\\?["'])/i.exec(match.slice(prefix.length))?.[1] ?? '';

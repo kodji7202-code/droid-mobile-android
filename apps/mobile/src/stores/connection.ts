@@ -7,6 +7,8 @@ import {
 } from '../app/connectionManager';
 import type { ConnectionManager, ConnectionManagerState } from '../app/connectionManager';
 import { checkDaemonUrl } from '../features/connect/validation';
+import { logFailure } from '../diagnostics/failures';
+import { appLog } from '../diagnostics/logBuffer';
 import { useInteractionStore } from './interactions';
 import { isDebugBuild } from '../platform/buildFlavor';
 import { getSecureStore } from '../platform/secureStore';
@@ -50,6 +52,25 @@ interface ConnectionStore extends ConnectionManagerState {
   signOut: ConnectionManager['signOut'];
 }
 
+/**
+ * Runs a connection operation for the diagnostics log: the key it carries is
+ * registered for scrubbing before anything can print it, and a failure is
+ * logged (redacted) before it propagates unchanged.
+ */
+async function tracked<T>(
+  source: string,
+  secret: string | undefined,
+  run: () => Promise<T>,
+): Promise<T> {
+  if (secret) appLog.registerSecret(secret);
+  try {
+    return await run();
+  } catch (error) {
+    logFailure(source, error);
+    throw error;
+  }
+}
+
 export const useConnectionStore = create<ConnectionStore>((set) => {
   const manager = createConnectionManager({
     createConnection: (options) =>
@@ -76,14 +97,16 @@ export const useConnectionStore = create<ConnectionStore>((set) => {
 
   return {
     ...manager.getState(),
-    connect: (url, apiKey) => manager.connect(url, apiKey),
+    connect: (url, apiKey) => tracked('connect', apiKey, () => manager.connect(url, apiKey)),
     restore: () => manager.restore(),
     retry: () => manager.retry(),
     close: () => manager.close(),
     clearVersionWarning: () => manager.clearVersionWarning(),
-    addConnection: (input) => manager.addConnection(input),
-    switchTo: (id) => manager.switchTo(id),
-    updateConnection: (id, input) => manager.updateConnection(id, input),
+    addConnection: (input) =>
+      tracked('add-connection', input.apiKey, () => manager.addConnection(input)),
+    switchTo: (id) => tracked('switch-connection', undefined, () => manager.switchTo(id)),
+    updateConnection: (id, input) =>
+      tracked('update-connection', input.apiKey, () => manager.updateConnection(id, input)),
     forget: (id) => manager.forget(id),
     signOut: () => manager.signOut(),
   };

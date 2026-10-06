@@ -1,44 +1,21 @@
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SDK_PACKAGE_VERSION } from '@droidmobile/daemon-client';
-import type { DaemonIdentity } from '@droidmobile/daemon-client';
 import { SettingsSubHeader } from './SettingsSubHeader';
-import { useConnectionStore } from '../../stores/connection';
-import { APP_VERSION } from '../../platform/appVersion';
+import { DiagnosticsSection } from './DiagnosticsSection';
+import { useDaemonIdentity } from './useDaemonIdentity';
+import { useInstalledAppVersion } from '../../platform/appVersion';
 
 /**
- * Settings > About: app version (apps/mobile/package.json), SDK version
- * (packages/daemon-client pin) and the daemon-reported protocol version
- * (VAL-ONBOARD-035). The daemon version is read on demand through
- * connection.getDaemonIdentity() — a short-lived second WebSocket that never
- * runs as part of the connect flow.
+ * Settings > About and diagnostics: app version (the installed APK version on
+ * Android), the daemon and protocol versions the daemon reports, the SDK
+ * version, then the connection health and log export. The daemon identity is
+ * read on demand through a short-lived second WebSocket that never runs as
+ * part of the connect flow (VAL-ONBOARD-035, VAL-SET-021, VAL-SET-022).
  */
 export function AboutScreen() {
   const { t } = useTranslation();
-  const connection = useConnectionStore((state) => state.connection);
-  const status = useConnectionStore((state) => state.status);
-  const [identity, setIdentity] = useState<DaemonIdentity | null>(null);
-
-  useEffect(() => {
-    if (!connection || status !== 'ready') {
-      setIdentity(null);
-      return;
-    }
-    let cancelled = false;
-    connection
-      .getDaemonIdentity()
-      .then((value) => {
-        if (!cancelled) setIdentity(value);
-      })
-      .catch(() => {
-        if (!cancelled) setIdentity(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [connection, status]);
-
-  const protocolVersion = identity?.daemonProtocolVersion ?? t('about.unknown');
+  const appVersion = useInstalledAppVersion();
+  const identity = useDaemonIdentity();
 
   return (
     <section className="screen" data-testid="about-screen">
@@ -46,17 +23,27 @@ export function AboutScreen() {
       <dl className="about-list">
         <div className="about-row">
           <dt>{t('about.appVersion')}</dt>
-          <dd data-testid="about-app-version">{APP_VERSION}</dd>
+          <dd data-testid="about-app-version">{appVersion}</dd>
+        </div>
+        <div className="about-row">
+          <dt>{t('about.daemonVersion')}</dt>
+          <dd data-testid="about-daemon-version">
+            {identity?.daemonVersion ?? t('about.unknown')}
+          </dd>
+        </div>
+        <div className="about-row">
+          <dt>{t('about.protocolVersion')}</dt>
+          <dd data-testid="about-protocol-version">
+            {identity?.daemonProtocolVersion ?? t('about.unknown')}
+          </dd>
         </div>
         <div className="about-row">
           <dt>{t('about.sdkVersion')}</dt>
           <dd data-testid="about-sdk-version">{SDK_PACKAGE_VERSION}</dd>
         </div>
-        <div className="about-row">
-          <dt>{t('about.protocolVersion')}</dt>
-          <dd data-testid="about-protocol-version">{protocolVersion}</dd>
-        </div>
       </dl>
+      <p className="field__description">{t('about.unofficial')}</p>
+      <DiagnosticsSection identity={identity} />
     </section>
   );
 }
