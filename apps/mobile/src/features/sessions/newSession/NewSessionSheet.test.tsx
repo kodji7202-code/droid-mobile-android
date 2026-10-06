@@ -80,7 +80,7 @@ describe('NewSessionSheet', () => {
     await user.click(screen.getByTestId('session-new-create'));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ id: 'new-1' }));
-    expect(createSession).toHaveBeenCalledWith({ cwd: 'C:\\w' });
+    expect(createSession).toHaveBeenCalledWith({ cwd: 'C:\\w', interactionMode: 'auto' });
     expect(trustFolder).not.toHaveBeenCalled();
   });
 
@@ -189,7 +189,11 @@ describe('NewSessionSheet', () => {
     await user.click(screen.getByTestId('session-new-create'));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
-    expect(createSession).toHaveBeenCalledWith({ cwd: 'C:\\w', worktree: true });
+    expect(createSession).toHaveBeenCalledWith({
+      cwd: 'C:\\w',
+      worktree: true,
+      interactionMode: 'auto',
+    });
   });
 
   it('omits the worktree flag when the option is off', async () => {
@@ -201,7 +205,7 @@ describe('NewSessionSheet', () => {
     await waitFor(() => expect(screen.getByTestId('session-new-create')).toBeEnabled());
     await user.click(screen.getByTestId('session-new-create'));
     await waitFor(() => expect(createSession).toHaveBeenCalledTimes(1));
-    expect(createSession).toHaveBeenLastCalledWith({ cwd: 'C:\\w' });
+    expect(createSession).toHaveBeenLastCalledWith({ cwd: 'C:\\w', interactionMode: 'auto' });
   });
 
   it('reports a failed creation inline and stays usable', async () => {

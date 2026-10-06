@@ -98,7 +98,8 @@ export function NewSessionSheet({
       const handle = await daemon.createSession({
         cwd: target.path,
         ...(useWorktree ? { worktree: true } : {}),
-        ...(mode === 'auto' ? {} : { interactionMode: mode }),
+        // Always explicit: Normal ('auto') must override a Mission or Spec daemon default.
+        interactionMode: mode,
         ...(autonomy === '' ? {} : { autonomyLevel: autonomy }),
       });
       if (dismissed.current) {

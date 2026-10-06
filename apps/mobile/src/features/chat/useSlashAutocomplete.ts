@@ -29,6 +29,11 @@ export function useSlashAutocomplete({ draft, loadCommands, onPick }: Options) {
   // Escape hides the popup for that exact draft; any further edit shows it again.
   const open = query !== null && draft !== dismissedFor;
 
+  // Once the draft has left the dismissed text, typing it again is a fresh request.
+  useEffect(() => {
+    if (dismissedFor !== null && draft !== dismissedFor) setDismissedFor(null);
+  }, [draft, dismissedFor]);
+
   useEffect(() => {
     if (!open) return undefined;
     let current = true;

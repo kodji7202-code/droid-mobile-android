@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MissionFeatureSchema, MissionSnapshotSchema } from './mission-schemas';
+import {
+  MissionFeatureSchema,
+  MissionHeartbeatNotificationSchema,
+  MissionSnapshotSchema,
+  MissionStateChangedNotificationSchema,
+} from './mission-schemas';
 import { createMissionSource } from './mission-source';
+import { missionFromSnapshot } from './mission';
 import { missionPermission } from './interactions';
 import type { PermissionRequest } from './interactions';
 
@@ -82,6 +88,150 @@ describe('createMissionSource', () => {
     source.attach(second.droid);
     expect(source.snapshot('s1')?.state).toBe('running');
     MissionSnapshotSchema.parse(source.snapshot('s1'));
+  });
+});
+
+type ControllerListener = (event: { sessionId: string; notification: unknown }) => void;
+
+/** The controller as the SDK exposes it: it emits every session notification, heartbeats included. */
+function emittingFacade() {
+  const config: Config = {};
+  const listeners = new Set<ControllerListener>();
+  const controller = {
+    config,
+    on(event: string, listener: ControllerListener) {
+      if (event === 'sessionNotification') listeners.add(listener);
+    },
+    off(event: string, listener: ControllerListener) {
+      if (event === 'sessionNotification') listeners.delete(listener);
+    },
+  };
+  return {
+    droid: { controller },
+    config,
+    listenerCount: () => listeners.size,
+    emit: (sessionId: string, notification: unknown) => {
+      for (const listener of [...listeners]) listener({ sessionId, notification });
+    },
+  };
+}
+
+const heartbeat = (timestamp: string) =>
+  MissionHeartbeatNotificationSchema.parse({ type: 'mission_heartbeat', timestamp });
+const stateChanged = (state: string) =>
+  MissionStateChangedNotificationSchema.parse({ type: 'mission_state_changed', state });
+
+describe('mission heartbeats through the controller bridge', () => {
+  const T1 = '2026-10-05T10:00:00.000Z';
+  const T2 = '2026-10-05T10:05:00.000Z';
+
+  it('delivers a heartbeat outside any prompt stream to subscribers', () => {
+    const source = createMissionSource();
+    const facade = emittingFacade();
+    source.attach(facade.droid);
+    facade.config.getMissionStore?.('s1')?.setState('running');
+    const seen: (string | undefined)[] = [];
+    const stop = source.subscribe('s1', (snapshot) => {
+      seen.push(missionFromSnapshot(snapshot).lastActivity);
+    });
+    seen.length = 0;
+
+    facade.emit('s1', heartbeat(T1));
+    expect(seen).toEqual([T1]);
+    stop();
+  });
+
+  it('keeps the heartbeat across later snapshot updates', () => {
+    const source = createMissionSource();
+    const facade = emittingFacade();
+    source.attach(facade.droid);
+    const store = facade.config.getMissionStore?.('s1');
+    store?.setState('running');
+    const seen: (string | undefined)[] = [];
+    const stop = source.subscribe('s1', (snapshot) => {
+      seen.push(missionFromSnapshot(snapshot).lastActivity);
+    });
+
+    facade.emit('s1', heartbeat(T1));
+    store?.setState('paused');
+    store?.setFeatures([]);
+    expect(seen.at(-1)).toBe(T1);
+    expect(seen.every((activity, index) => index === 0 || activity === T1)).toBe(true);
+    stop();
+  });
+
+  it('keeps the heartbeat for a remounted subscription and for the first snapshot', () => {
+    const source = createMissionSource();
+    const facade = emittingFacade();
+    source.attach(facade.droid);
+    facade.config.getMissionStore?.('s1')?.setState('running');
+    const first = source.subscribe('s1', () => undefined);
+    facade.emit('s1', heartbeat(T1));
+    first();
+
+    expect(missionFromSnapshot(source.snapshot('s1')!).lastActivity).toBe(T1);
+    const seen: (string | undefined)[] = [];
+    const second = source.subscribe('s1', (snapshot) => {
+      seen.push(missionFromSnapshot(snapshot).lastActivity);
+    });
+    expect(seen).toEqual([T1]);
+    second();
+  });
+
+  it('never moves last activity backwards and ignores malformed timestamps', () => {
+    const source = createMissionSource();
+    const facade = emittingFacade();
+    source.attach(facade.droid);
+    facade.config.getMissionStore?.('s1')?.setState('running');
+
+    facade.emit('s1', heartbeat(T2));
+    facade.emit('s1', heartbeat(T1));
+    facade.emit('s1', heartbeat('not a date'));
+    expect(missionFromSnapshot(source.snapshot('s1')!).lastActivity).toBe(T2);
+  });
+
+  it('keeps a heartbeat that arrives before the mission store exists', () => {
+    const source = createMissionSource();
+    const facade = emittingFacade();
+    source.attach(facade.droid);
+    const seen: (string | undefined)[] = [];
+    const stop = source.subscribe('s1', (snapshot) => {
+      seen.push(missionFromSnapshot(snapshot).lastActivity);
+    });
+
+    facade.emit('s1', heartbeat(T1));
+    expect(seen).toEqual([]);
+    facade.config.getMissionStore?.('s1')?.setState('running');
+    expect(seen.at(-1)).toBe(T1);
+    stop();
+  });
+
+  it('scopes heartbeats to their session and survives a second facade', () => {
+    const source = createMissionSource();
+    const first = emittingFacade();
+    source.attach(first.droid);
+    first.config.getMissionStore?.('s1')?.setState('running');
+    first.config.getMissionStore?.('s2')?.setState('running');
+    first.emit('s1', heartbeat(T1));
+    const second = emittingFacade();
+    source.attach(second.droid);
+
+    expect(missionFromSnapshot(source.snapshot('s1')!).lastActivity).toBe(T1);
+    expect(missionFromSnapshot(source.snapshot('s2')!).lastActivity).toBeUndefined();
+    second.emit('s2', heartbeat(T2));
+    expect(missionFromSnapshot(source.snapshot('s2')!).lastActivity).toBe(T2);
+  });
+
+  it('ignores other notifications and snapshots stay SDK-valid', () => {
+    const source = createMissionSource();
+    const facade = emittingFacade();
+    source.attach(facade.droid);
+    facade.config.getMissionStore?.('s1')?.setState('running');
+    facade.emit('s1', stateChanged('paused'));
+    facade.emit('s1', heartbeat(T1));
+    const snapshot = source.snapshot('s1');
+    MissionSnapshotSchema.parse(snapshot);
+    expect(snapshot?.state).toBe('running');
   });
 });
 

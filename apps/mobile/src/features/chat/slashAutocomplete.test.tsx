@@ -79,6 +79,21 @@ describe('slash autocomplete', () => {
     expect(screen.queryByTestId('chat-slash-popup')).toBeNull();
   });
 
+  it('reopens after "/" then Escape, clearing the draft and typing "/" again', async () => {
+    const { user, input, load } = setup();
+    await user.type(input, '/');
+    await screen.findByTestId('chat-slash-popup');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('chat-slash-popup')).toBeNull();
+
+    await user.clear(input);
+    expect(screen.queryByTestId('chat-slash-popup')).toBeNull();
+    await user.type(input, '/');
+
+    expect(await screen.findByTestId('chat-slash-popup')).toBeInTheDocument();
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  });
+
   it('selects with the keyboard', async () => {
     const { user, input } = setup();
     await user.type(input, '/');

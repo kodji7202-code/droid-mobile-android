@@ -129,6 +129,37 @@ describe('NewSessionSheet mission mode', () => {
     expect(createSession).not.toHaveBeenCalled();
   });
 
+  it.each(['mission', 'spec'])(
+    'creates a Normal session with interactionMode auto when the daemon default is %s',
+    async (daemonDefault) => {
+      const { connection, createSession } = fakeConnection({
+        modelId: 'model-x',
+        interactionMode: daemonDefault,
+      });
+      const { user } = await renderReady(connection);
+      expect(screen.getByTestId('session-new-mode-auto')).toBeChecked();
+      await user.click(screen.getByTestId('session-new-create'));
+
+      await waitFor(() => expect(createSession).toHaveBeenCalledTimes(1));
+      expect(screen.queryByTestId('mission-start-confirm')).not.toBeInTheDocument();
+      expect(createSession).toHaveBeenCalledWith({ cwd: 'C:\\w', interactionMode: 'auto' });
+    },
+  );
+
+  it('still asks for confirmation for Mission when the daemon default is Mission', async () => {
+    const { connection, createSession } = fakeConnection({
+      modelId: 'model-x',
+      interactionMode: 'mission',
+    });
+    const { user } = await renderReady(connection);
+    await user.click(screen.getByTestId('session-new-mode-spec'));
+    await user.click(screen.getByTestId('session-new-mode-mission'));
+    await user.click(screen.getByTestId('session-new-create'));
+
+    expect(await screen.findByTestId('mission-start-confirm')).toBeInTheDocument();
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
   it('creates Normal and Spec sessions without confirmation', async () => {
     const { connection, createSession } = fakeConnection();
     const { user } = await renderReady(connection);
