@@ -149,6 +149,10 @@
       "title": "Commands",
       "description": "Custom slash commands from your .factory/commands folders."
     },
+    "customModels": {
+      "title": "Custom models",
+      "description": "Models you reach with your own API key."
+    },
     "plugins": {
       "title": "Plugins",
       "description": "Plugins from your marketplaces, with the marketplaces themselves."
@@ -323,6 +327,71 @@
     "scope": {
       "project": "Project folder: {{folder}}",
       "none": "No project is open. Showing user-level commands only."
+    }
+  },
+  "customModels": {
+    "add": "Add model",
+    "edit": "Edit",
+    "editLabel": "Edit {{name}}",
+    "delete": "Delete",
+    "deleteLabel": "Delete {{name}}",
+    "loading": "Loading custom models",
+    "loadFailedTitle": "Could not load custom models",
+    "loadFailed": "The daemon did not answer. Check the connection and try again.",
+    "empty": {
+      "title": "No custom models",
+      "message": "Add a model that you reach with your own API key."
+    },
+    "working": "Working",
+    "invalid": "Incomplete",
+    "providers": {
+      "anthropic": "Anthropic",
+      "openai": "OpenAI",
+      "generic-chat-completion-api": "Generic chat-completion API"
+    },
+    "key": {
+      "set": "API key {{mask}}",
+      "none": "No API key"
+    },
+    "deleteConfirm": {
+      "title": "Delete {{name}}?",
+      "message": "{{name}} and its stored API key are removed from the daemon. It disappears from the model picker."
+    },
+    "notices": {
+      "add": "{{name}} added.",
+      "edit": "{{name}} saved.",
+      "remove": "{{name}} deleted."
+    },
+    "errors": {
+      "save": "Could not save the model.",
+      "remove": "Could not delete {{name}}."
+    },
+    "form": {
+      "addTitle": "Add custom model",
+      "editTitle": "Edit custom model",
+      "provider": "Provider",
+      "displayName": "Display name",
+      "model": "Model ID",
+      "baseUrl": "Base URL",
+      "apiKey": "API key",
+      "keyHint": "Stored by the daemon. It is never shown again.",
+      "keyKeepPlaceholder": "Leave empty to keep the stored key",
+      "keyKeepHint": "Stored key {{mask}}. Type a new key only to replace it.",
+      "save": "Save",
+      "saving": "Saving…",
+      "errors": {
+        "model": {
+          "required": "Enter a model ID.",
+          "duplicate": "A custom model with this ID already exists."
+        },
+        "baseUrl": {
+          "required": "Enter a base URL.",
+          "invalid": "Use a URL that starts with http:// or https://."
+        },
+        "apiKey": {
+          "required": "Enter an API key."
+        }
+      }
     }
   },
   "mcp": {

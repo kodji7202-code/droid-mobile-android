@@ -53,10 +53,12 @@ import type {
 import { createMcpClient } from './mcp';
 import { createPluginsClient } from './plugins';
 import { createCommandsClient } from './commands';
+import { createCustomModelsClient } from './custom-models';
 import { createSkillsClient } from './skills';
 import type { McpClient } from './mcp';
 import type { PluginsClient } from './plugins';
 import type { CommandsClient } from './commands';
+import type { CustomModelsClient } from './custom-models';
 import type { SkillsClient } from './skills';
 import { probeDaemonIdentity } from './probe';
 import { createTerminalClient } from './terminal-client';
@@ -155,6 +157,8 @@ export interface DaemonConnection {
   readonly commands: CommandsClient;
   /** Plugin marketplaces and plugins on a scratch session owned by the client. */
   readonly plugins: PluginsClient;
+  /** Bring-your-own-key models; the daemon keeps the keys and reports only a mask. */
+  readonly customModels: CustomModelsClient;
 
   /** Asks the daemon whether a working directory exists and is a directory. */
   validateDirectory(path: string): Promise<DirectoryValidation>;
@@ -767,6 +771,11 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       run: mapSdkError,
     }),
     plugins: createPluginsClient({
+      droid: requireDroid,
+      generation: () => droidToken,
+      run: mapSdkError,
+    }),
+    customModels: createCustomModelsClient({
       droid: requireDroid,
       generation: () => droidToken,
       run: mapSdkError,

@@ -149,6 +149,10 @@
       "title": "Comenzi",
       "description": "Comenzi slash personalizate din folderele .factory/commands."
     },
+    "customModels": {
+      "title": "Modele personalizate",
+      "description": "Modele pe care le accesezi cu propria cheie API."
+    },
     "plugins": {
       "title": "Pluginuri",
       "description": "Pluginuri din piețele tale, împreună cu piețele însele."
@@ -324,6 +328,71 @@
     "scope": {
       "project": "Folder de proiect: {{folder}}",
       "none": "Niciun proiect deschis. Se afișează doar comenzile la nivel de utilizator."
+    }
+  },
+  "customModels": {
+    "add": "Adaugă model",
+    "edit": "Editează",
+    "editLabel": "Editează {{name}}",
+    "delete": "Șterge",
+    "deleteLabel": "Șterge {{name}}",
+    "loading": "Se încarcă modelele personalizate",
+    "loadFailedTitle": "Modelele personalizate nu au putut fi încărcate",
+    "loadFailed": "Daemonul nu a răspuns. Verifică conexiunea și încearcă din nou.",
+    "empty": {
+      "title": "Niciun model personalizat",
+      "message": "Adaugă un model pe care îl accesezi cu propria cheie API."
+    },
+    "working": "Se lucrează",
+    "invalid": "Incomplet",
+    "providers": {
+      "anthropic": "Anthropic",
+      "openai": "OpenAI",
+      "generic-chat-completion-api": "API generic chat-completion"
+    },
+    "key": {
+      "set": "Cheie API {{mask}}",
+      "none": "Fără cheie API"
+    },
+    "deleteConfirm": {
+      "title": "Ștergi {{name}}?",
+      "message": "{{name}} și cheia API stocată sunt șterse din daemon. Dispare din selectorul de modele."
+    },
+    "notices": {
+      "add": "{{name}} a fost adăugat.",
+      "edit": "{{name}} a fost salvat.",
+      "remove": "{{name}} a fost șters."
+    },
+    "errors": {
+      "save": "Modelul nu a putut fi salvat.",
+      "remove": "Nu am putut șterge {{name}}."
+    },
+    "form": {
+      "addTitle": "Adaugă model personalizat",
+      "editTitle": "Editează modelul personalizat",
+      "provider": "Furnizor",
+      "displayName": "Nume afișat",
+      "model": "ID model",
+      "baseUrl": "URL de bază",
+      "apiKey": "Cheie API",
+      "keyHint": "Este stocată de daemon. Nu mai este afișată niciodată.",
+      "keyKeepPlaceholder": "Lasă gol pentru a păstra cheia stocată",
+      "keyKeepHint": "Cheie stocată {{mask}}. Introdu o cheie nouă doar pentru a o înlocui.",
+      "save": "Salvează",
+      "saving": "Se salvează…",
+      "errors": {
+        "model": {
+          "required": "Introdu un ID de model.",
+          "duplicate": "Există deja un model personalizat cu acest ID."
+        },
+        "baseUrl": {
+          "required": "Introdu un URL de bază.",
+          "invalid": "Folosește un URL care începe cu http:// sau https://."
+        },
+        "apiKey": {
+          "required": "Introdu o cheie API."
+        }
+      }
     }
   },
   "mcp": {

@@ -124,6 +124,15 @@ export type {
 } from './plugins';
 export { createCommandsClient, toSlashCommand } from './commands';
 export type { CommandsClient, CommandsClientDeps, SlashCommand } from './commands';
+export { createCustomModelsClient, toCustomModel, CUSTOM_MODEL_PROVIDERS } from './custom-models';
+export type {
+  CustomModel,
+  CustomModelInput,
+  CustomModelProvider,
+  CustomModelTarget,
+  CustomModelsClient,
+  CustomModelsClientDeps,
+} from './custom-models';
 export { createSkillsClient, toSkill } from './skills';
 export type {
   SetSkillDisabledInput,

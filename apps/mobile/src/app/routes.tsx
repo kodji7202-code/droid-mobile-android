@@ -9,6 +9,7 @@ import { WorkspaceScreen } from '../features/workspace/WorkspaceScreen';
 import { CommandsLayout } from '../features/extensions/commands/CommandsLayout';
 import { CommandsScreen } from '../features/extensions/commands/CommandsScreen';
 import { ExtensionsScreen } from '../features/extensions/ExtensionsScreen';
+import { CustomModelsScreen } from '../features/extensions/models/CustomModelsScreen';
 import { McpDetailScreen } from '../features/extensions/mcp/McpDetailScreen';
 import { McpLayout } from '../features/extensions/mcp/McpLayout';
 import { McpScreen } from '../features/extensions/mcp/McpScreen';
@@ -64,6 +65,7 @@ export function createAppRoutes(): RouteObject[] {
           element: <CommandsLayout />,
           children: [{ index: true, element: <CommandsScreen /> }],
         },
+        { path: 'extensions/custom-models', element: <CustomModelsScreen /> },
         {
           path: 'extensions/plugins',
           element: <PluginsLayout />,

@@ -34,6 +34,12 @@ const SECTIONS: readonly ExtensionSection[] = [
     titleKey: 'extensions.commands.title',
     descriptionKey: 'extensions.commands.description',
   },
+  {
+    to: '/extensions/custom-models',
+    testId: 'extensions-custom-models',
+    titleKey: 'extensions.customModels.title',
+    descriptionKey: 'extensions.customModels.description',
+  },
 ];
 
 /** Extensions hub: one full-width entry per section (>= 48 dp touch targets). */
