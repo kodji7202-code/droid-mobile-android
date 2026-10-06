@@ -36,3 +36,6 @@ Thumbs.db
 
 # written by the daemon when a session runs with cwd in this repo
 .factory/settings.json
+
+# fcm-bridge default data dir (devices, pairing verifier)
+server/fcm-bridge/data/
