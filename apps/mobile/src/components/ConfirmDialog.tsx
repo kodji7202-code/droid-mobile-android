@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useBackDismiss } from './backDismiss';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ export function ConfirmDialog({
   testId = 'confirm-dialog',
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
+  useBackDismiss(open, onCancel);
 
   if (!open) {
     return null;

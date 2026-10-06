@@ -740,6 +740,35 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   height: 1.5rem;
 }
 
+.new-session__modes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.new-session__mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-height: 48px;
+  padding: 0.25rem 0;
+}
+
+.new-session__mode input {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+}
+
+.new-session__mode-title {
+  display: block;
+  font-weight: 600;
+}
+
 .session-row__worktree {
   display: block;
   font-size: 0.8125rem;

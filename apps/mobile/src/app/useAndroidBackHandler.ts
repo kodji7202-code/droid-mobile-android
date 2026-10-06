@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
+import { dismissTopOverlay } from '../components/backDismiss';
 import { isCameraScanActive } from '../platform/qrScanner';
 
 /**
@@ -27,6 +28,7 @@ export function useAndroidBackHandler(
     let listener: { remove(): void } | undefined;
     void App.addListener('backButton', () => {
       if (isCameraScanActive()) return;
+      if (dismissTopOverlay()) return;
       if (isAtRootRef.current) {
         void App.exitApp();
       } else {

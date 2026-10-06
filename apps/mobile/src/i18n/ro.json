@@ -93,6 +93,19 @@
     "newModelLoading": "se încarcă…",
     "newModelDaemonDefault": "implicit al daemonului",
     "newCreateFailed": "Nu am putut crea sesiunea. Încearcă din nou.",
+    "newMode": {
+      "label": "Mod",
+      "description": {
+        "auto": "O sesiune obișnuită cu un singur agent.",
+        "spec": "Agentul redactează un plan pe care îl aprobi înainte să modifice ceva.",
+        "mission": "Planifică un obiectiv mai mare și îl execută cu mai mulți lucrători. Poate consuma credite substanțiale."
+      },
+      "missionHint": "Misiunile funcționează cel mai bine cu autonomie ridicată (High). Nivelul curent de autonomie rămâne neschimbat; schimbă-l mai jos dacă dorești altul.",
+      "autonomyDefault": "Implicit al daemonului",
+      "confirmTitle": "Pornești o sesiune Misiune?",
+      "confirmMessage": "Misiunile folosesc mai mulți lucrători și pot fi costisitoare: pot consuma credite substanțiale. Continuă doar dacă vrei o sesiune Misiune.",
+      "confirmAction": "Creează sesiunea Misiune"
+    },
     "worktreeToggle": "Folosește worktree",
     "worktreeHelp": "Daemonul rulează sesiunea într-un checkout git separat, pe o ramură nouă (<ramură>-wt), plasat în ~/.factory/worktrees pe PC; locația nu poate fi schimbată. Folderele care nu sunt depozite git se deschid normal. Aplicația nu șterge worktree-uri: pe PC rulează `git worktree remove --force <cale>` și `git branch -D <ramură>-wt` în depozit când ai terminat.",
     "worktreeBadge": "Worktree",

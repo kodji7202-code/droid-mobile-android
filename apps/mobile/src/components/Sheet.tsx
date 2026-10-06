@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useBackDismiss } from './backDismiss';
 import { CloseIcon } from './icons';
 
 interface SheetProps {
@@ -19,6 +20,7 @@ interface SheetProps {
  */
 export function Sheet({ open, onClose, title, children, testId = 'sheet' }: SheetProps) {
   const { t } = useTranslation();
+  useBackDismiss(open, onClose);
 
   useEffect(() => {
     if (!open) {

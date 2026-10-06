@@ -37,7 +37,7 @@ import type { DaemonClientError, VersionMismatchWarning } from './errors';
 import { toPage } from './paging';
 import type { SessionMessagesPage } from './paging';
 import { toModelSummary } from './settings';
-import type { DefaultsPatch, ModelSummary } from './settings';
+import type { CreateSessionRequest, DefaultsPatch, ModelSummary } from './settings';
 import type {
   DaemonCheckoutGitBranchRequestParams,
   DaemonCheckoutGitBranchResult,
@@ -219,7 +219,7 @@ export interface DaemonConnection {
   updateDefaultSettings(patch: DefaultsPatch): Promise<void>;
   /** Every model the daemon offers (`models.list`). */
   listModels(): Promise<ModelSummary[]>;
-  createSession(options: CreateDaemonSessionOptions): Promise<SessionHandle>;
+  createSession(options: CreateSessionRequest): Promise<SessionHandle>;
   resumeSession(sessionId: string): Promise<SessionHandle>;
   getSession(sessionId: string): SessionHandle | undefined;
   listSessions(options?: ListDaemonSessionsOptions): Promise<DaemonSessionSummary[]>;
@@ -828,7 +828,11 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       const token = droidToken;
       let createdId: string | undefined = createOptions.sessionId;
       const session = await mapSdkError(() =>
-        droid.sessions.create({ ...createOptions, ...handlersFor(() => createdId, token) }),
+        droid.sessions.create({
+          // String literals and the SDK's string enums share runtime values.
+          ...(createOptions as CreateDaemonSessionOptions),
+          ...handlersFor(() => createdId, token),
+        }),
       );
       createdId = session.id;
       const handle = new SessionHandle(session.id, host);

@@ -93,6 +93,19 @@
     "newModelLoading": "loading…",
     "newModelDaemonDefault": "daemon default",
     "newCreateFailed": "Could not create the session. Try again.",
+    "newMode": {
+      "label": "Mode",
+      "description": {
+        "auto": "A regular session with a single agent.",
+        "spec": "The agent drafts a plan for your approval before it changes anything.",
+        "mission": "Plans a larger goal and runs it with multiple workers. May consume substantial credits."
+      },
+      "missionHint": "Missions work best with High autonomy. Your current autonomy level is kept; change it below if you want a different one.",
+      "autonomyDefault": "Daemon default",
+      "confirmTitle": "Start a Mission session?",
+      "confirmMessage": "Missions use multiple workers and can be expensive: they may consume substantial credits. Only continue if you want a Mission session.",
+      "confirmAction": "Create Mission session"
+    },
     "worktreeToggle": "Use worktree",
     "worktreeHelp": "The daemon runs the session in a separate git checkout on a new branch (<branch>-wt) and places it under ~/.factory/worktrees on the PC; the location cannot be changed. Folders that are not git repositories open normally. The app does not remove worktrees: on the PC run `git worktree remove --force <path>` and `git branch -D <branch>-wt` in the repository when you are done.",
     "worktreeBadge": "Worktree",

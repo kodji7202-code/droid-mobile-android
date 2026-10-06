@@ -5,6 +5,7 @@
  */
 import type {
   AutonomyLevel,
+  CreateDaemonSessionOptions,
   DroidInteractionMode,
   ModelInfo,
   ReasoningEffort,
@@ -52,6 +53,18 @@ export interface ModelSummary {
   /** Set when the daemon lists the model but refuses it (plan, region, ...). */
   disabledReason?: string;
 }
+
+/**
+ * Session creation options in the UI's vocabulary: the settings enums are plain
+ * string literals so callers never import the SDK.
+ */
+export type CreateSessionRequest = Omit<
+  CreateDaemonSessionOptions,
+  'interactionMode' | 'autonomyLevel'
+> & {
+  interactionMode?: InteractionModeValue;
+  autonomyLevel?: AutonomyValue;
+};
 
 export function snapshotOf(settings: Readonly<SessionSettings>): SessionSettingsSnapshot {
   return {

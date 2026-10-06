@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DaemonConnection, SessionHandle } from '@droidmobile/daemon-client';
+import type {
+  AutonomyValue,
+  DaemonConnection,
+  InteractionModeValue,
+  SessionHandle,
+} from '@droidmobile/daemon-client';
+import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { Sheet } from '../../../components/Sheet';
+import { ModeAutonomyFields } from './ModeAutonomyFields';
 import { useDirectoryCheck } from './useDirectoryCheck';
 
 interface NewSessionSheetProps {
@@ -26,15 +33,22 @@ export function NewSessionSheet({
   const [busy, setBusy] = useState(false);
   const [createFailed, setCreateFailed] = useState(false);
   const [defaultModel, setDefaultModel] = useState<string | null>(null);
+  const [defaultAutonomy, setDefaultAutonomy] = useState<AutonomyValue | ''>('');
+  const [mode, setMode] = useState<InteractionModeValue>('auto');
+  const [autonomyChoice, setAutonomyChoice] = useState<AutonomyValue | ''>('');
+  const [confirmingMission, setConfirmingMission] = useState(false);
   const check = useDirectoryCheck(connection, directory, revision);
+  const autonomy = autonomyChoice || defaultAutonomy;
 
   useEffect(() => {
     let cancelled = false;
     void connection
       ?.getDefaultSettings()
       .then((settings) => {
+        if (cancelled) return;
         // An absent modelId means the daemon applies its own configured default.
-        if (!cancelled) setDefaultModel(settings.modelId ?? '');
+        setDefaultModel(settings.modelId ?? '');
+        setDefaultAutonomy((settings.autonomyLevel as AutonomyValue | undefined) ?? '');
       })
       .catch(() => undefined);
     return () => {
@@ -59,21 +73,34 @@ export function NewSessionSheet({
   const valid = check.state === 'valid' ? check : null;
   const canCreate = valid !== null && !busy;
 
-  const create = async (event: FormEvent) => {
+  const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!valid || !connection || busy) {
       return;
     }
+    // Missions are expensive, so every Mission creation is confirmed first.
+    if (mode === 'mission') {
+      setConfirmingMission(true);
+      return;
+    }
+    void create(valid, connection);
+  };
+
+  const create = async (target: NonNullable<typeof valid>, daemon: DaemonConnection) => {
+    setConfirmingMission(false);
     setBusy(true);
     setCreateFailed(false);
     try {
-      if (valid.trustRequired) {
-        await connection.trustFolder(valid.path);
+      if (target.trustRequired) {
+        await daemon.trustFolder(target.path);
       }
       if (dismissed.current) return;
-      const handle = await connection.createSession(
-        useWorktree ? { cwd: valid.path, worktree: true } : { cwd: valid.path },
-      );
+      const handle = await daemon.createSession({
+        cwd: target.path,
+        ...(useWorktree ? { worktree: true } : {}),
+        ...(mode === 'auto' ? {} : { interactionMode: mode }),
+        ...(autonomy === '' ? {} : { autonomyLevel: autonomy }),
+      });
       if (dismissed.current) {
         void handle.close().catch(() => undefined);
         return;
@@ -96,99 +123,118 @@ export function NewSessionSheet({
         : null;
 
   return (
-    <Sheet open onClose={dismiss} title={t('sessions.newTitle')} testId="session-new-sheet">
-      <form className="field new-session" onSubmit={(event) => void create(event)}>
-        <label className="field__label" htmlFor="session-new-cwd">
-          {t('sessions.newDirectoryLabel')}
-        </label>
-        <input
-          id="session-new-cwd"
-          className="field__control"
-          data-testid="session-new-cwd"
-          value={directory}
-          onChange={(event) => setDirectory(event.target.value)}
-          placeholder={t('sessions.newDirectoryPlaceholder')}
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          aria-invalid={fieldError !== null}
-          aria-describedby={fieldError ? 'session-new-error' : undefined}
-          autoFocus
-        />
-        {fieldError ? (
-          <p
-            className="field__error"
-            id="session-new-error"
-            role="alert"
-            data-testid="session-new-error"
-          >
-            {fieldError}
-          </p>
-        ) : null}
-        {check.state === 'checking' ? (
-          <p className="field__description" role="status" data-testid="session-new-checking">
-            {t('sessions.newChecking')}
-          </p>
-        ) : null}
-        {suggestions.length > 0 ? (
-          <ul className="new-session__suggestions" aria-label={t('sessions.newRecent')}>
-            {suggestions.map((path, index) => (
-              <li key={path}>
-                <button
-                  type="button"
-                  className="btn btn--secondary new-session__suggestion"
-                  data-testid={`session-new-suggestion-${index}`}
-                  onClick={() => setDirectory(path)}
-                >
-                  {path}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {valid?.trustRequired ? (
-          <div className="new-session__trust" role="group" data-testid="session-new-trust">
-            <p className="new-session__trust-title">{t('sessions.trustTitle')}</p>
-            <p>{t('sessions.trustMessage', { path: valid.trustRoot })}</p>
-          </div>
-        ) : null}
-        <label className="new-session__toggle" htmlFor="session-new-worktree">
+    <>
+      <Sheet open onClose={dismiss} title={t('sessions.newTitle')} testId="session-new-sheet">
+        <form className="field new-session" onSubmit={submit}>
+          <label className="field__label" htmlFor="session-new-cwd">
+            {t('sessions.newDirectoryLabel')}
+          </label>
           <input
-            id="session-new-worktree"
-            type="checkbox"
-            data-testid="session-new-worktree"
-            checked={useWorktree}
-            onChange={(event) => setUseWorktree(event.target.checked)}
+            id="session-new-cwd"
+            className="field__control"
+            data-testid="session-new-cwd"
+            value={directory}
+            onChange={(event) => setDirectory(event.target.value)}
+            placeholder={t('sessions.newDirectoryPlaceholder')}
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-invalid={fieldError !== null}
+            aria-describedby={fieldError ? 'session-new-error' : undefined}
+            autoFocus
           />
-          <span>{t('sessions.worktreeToggle')}</span>
-        </label>
-        {useWorktree ? (
-          <p className="field__description" data-testid="session-new-worktree-help">
-            {t('sessions.worktreeHelp')}
+          {fieldError ? (
+            <p
+              className="field__error"
+              id="session-new-error"
+              role="alert"
+              data-testid="session-new-error"
+            >
+              {fieldError}
+            </p>
+          ) : null}
+          {check.state === 'checking' ? (
+            <p className="field__description" role="status" data-testid="session-new-checking">
+              {t('sessions.newChecking')}
+            </p>
+          ) : null}
+          {suggestions.length > 0 ? (
+            <ul className="new-session__suggestions" aria-label={t('sessions.newRecent')}>
+              {suggestions.map((path, index) => (
+                <li key={path}>
+                  <button
+                    type="button"
+                    className="btn btn--secondary new-session__suggestion"
+                    data-testid={`session-new-suggestion-${index}`}
+                    onClick={() => setDirectory(path)}
+                  >
+                    {path}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {valid?.trustRequired ? (
+            <div className="new-session__trust" role="group" data-testid="session-new-trust">
+              <p className="new-session__trust-title">{t('sessions.trustTitle')}</p>
+              <p>{t('sessions.trustMessage', { path: valid.trustRoot })}</p>
+            </div>
+          ) : null}
+          <label className="new-session__toggle" htmlFor="session-new-worktree">
+            <input
+              id="session-new-worktree"
+              type="checkbox"
+              data-testid="session-new-worktree"
+              checked={useWorktree}
+              onChange={(event) => setUseWorktree(event.target.checked)}
+            />
+            <span>{t('sessions.worktreeToggle')}</span>
+          </label>
+          {useWorktree ? (
+            <p className="field__description" data-testid="session-new-worktree-help">
+              {t('sessions.worktreeHelp')}
+            </p>
+          ) : null}
+          <ModeAutonomyFields
+            mode={mode}
+            onModeChange={setMode}
+            autonomy={autonomy}
+            onAutonomyChange={setAutonomyChoice}
+          />
+          <p className="field__description" data-testid="session-new-model">
+            {t('sessions.newModel', {
+              model:
+                defaultModel === null
+                  ? t('sessions.newModelLoading')
+                  : defaultModel || t('sessions.newModelDaemonDefault'),
+            })}
           </p>
-        ) : null}
-        <p className="field__description" data-testid="session-new-model">
-          {t('sessions.newModel', {
-            model:
-              defaultModel === null
-                ? t('sessions.newModelLoading')
-                : defaultModel || t('sessions.newModelDaemonDefault'),
-          })}
-        </p>
-        {createFailed ? (
-          <p className="field__error" role="alert" data-testid="session-new-create-error">
-            {t('sessions.newCreateFailed')}
-          </p>
-        ) : null}
-        <button
-          type="submit"
-          className="btn btn--primary"
-          data-testid="session-new-create"
-          disabled={!canCreate}
-        >
-          {valid?.trustRequired ? t('sessions.trustAndCreate') : t('sessions.create')}
-        </button>
-      </form>
-    </Sheet>
+          {createFailed ? (
+            <p className="field__error" role="alert" data-testid="session-new-create-error">
+              {t('sessions.newCreateFailed')}
+            </p>
+          ) : null}
+          <button
+            type="submit"
+            className="btn btn--primary"
+            data-testid="session-new-create"
+            disabled={!canCreate}
+          >
+            {valid?.trustRequired ? t('sessions.trustAndCreate') : t('sessions.create')}
+          </button>
+        </form>
+      </Sheet>
+      <ConfirmDialog
+        open={confirmingMission}
+        title={t('sessions.newMode.confirmTitle')}
+        message={t('sessions.newMode.confirmMessage')}
+        confirmLabel={t('sessions.newMode.confirmAction')}
+        onConfirm={() => {
+          if (valid && connection) void create(valid, connection);
+        }}
+        onCancel={() => setConfirmingMission(false)}
+        testId="mission-start-confirm"
+      />
+    </>
   );
 }

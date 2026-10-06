@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider, useNavigate } from 'react-router';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { useBackDismiss } from '../components/backDismiss';
 import { useAndroidBackHandler } from './useAndroidBackHandler';
 
 const backButtonHandlers: Array<() => void> = [];
@@ -62,6 +63,26 @@ describe('useAndroidBackHandler', () => {
     expect(navigateCalls).toHaveLength(1);
     expect(exitApp).not.toHaveBeenCalled();
     expect(router.state.location.pathname).toBe('/sessions');
+  });
+
+  it('closes the innermost open overlay before navigating or exiting', () => {
+    function Overlay({ onClose }: { onClose: () => void }) {
+      useBackDismiss(true, onClose);
+      return null;
+    }
+    const onClose = vi.fn();
+    const router = renderProbe(true);
+    const { unmount } = render(<Overlay onClose={onClose} />);
+
+    backButtonHandlers[0]();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(exitApp).not.toHaveBeenCalled();
+    expect(navigateCalls).toHaveLength(0);
+    expect(router.state.location.pathname).toBe('/sessions/abc');
+
+    unmount();
+    backButtonHandlers[0]();
+    expect(exitApp).toHaveBeenCalledTimes(1);
   });
 
   it('exits the app instead when already at a root destination', () => {
