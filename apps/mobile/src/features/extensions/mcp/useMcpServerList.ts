@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DaemonConnection, McpServer } from '@droidmobile/daemon-client';
 import { useConnectionStore } from '../../../stores/connection';
+import { useLinkLoss } from '../useLinkLoss';
 
 export type McpListState =
   { status: 'loading' } | { status: 'error' } | { status: 'ready'; servers: McpServer[] };
@@ -11,7 +12,7 @@ export type McpListState =
  * Nothing is cached outside React state.
  */
 export function useMcpServerList(connection: DaemonConnection | null, intervalMs: number) {
-  const linkReady = useConnectionStore((state) => state.status === 'ready');
+  const readyEpoch = useConnectionStore((state) => state.readyEpoch);
   const [state, setState] = useState<McpListState>({ status: 'loading' });
   const latest = useRef(0);
 
@@ -34,12 +35,17 @@ export function useMcpServerList(connection: DaemonConnection | null, intervalMs
     [connection],
   );
 
+  useLinkLoss(() => {
+    latest.current += 1;
+    setState({ status: 'error' });
+  });
+
   useEffect(() => {
     void read(true);
     return () => {
       latest.current += 1;
     };
-  }, [read, linkReady]);
+  }, [read, readyEpoch]);
 
   useEffect(() => {
     const timer = setInterval(() => {

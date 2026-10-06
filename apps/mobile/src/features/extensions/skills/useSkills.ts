@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DaemonConnection, Skill, SkillLevel } from '@droidmobile/daemon-client';
 import { useConnectionStore } from '../../../stores/connection';
 import { useSessionViewStore } from '../../../stores/sessionView';
+import { useLinkLoss } from '../useLinkLoss';
 import { disabledLevels } from './skillLogic';
 
 export type SkillsState =
@@ -55,6 +56,11 @@ export function useSkills(connection: DaemonConnection | null, cwd: string | und
     },
     [connection, cwd],
   );
+
+  useLinkLoss(() => {
+    latest.current += 1;
+    setState({ status: 'error' });
+  });
 
   useEffect(() => {
     void read(true);

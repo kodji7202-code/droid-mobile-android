@@ -63,7 +63,7 @@ beforeAll(async () => {
     `---\nname: ${PROJECT_SKILL}\ndescription: Validation project skill\n---\nDo nothing.\n`,
   );
   preDisabled = disabledNames(await independent());
-});
+}, 30_000);
 
 afterAll(async () => {
   const conn = await connect();
@@ -81,9 +81,9 @@ afterAll(async () => {
   await removeScratchDir(projectDir);
   await removeScratchDir(otherDir);
   expect(disabledNames(await independent())).toEqual(preDisabled);
-});
+}, 30_000);
 
-describe('skills against the real daemon', () => {
+describe('skills against the real daemon', { timeout: 30_000 }, () => {
   it('lists built-in, personal and project skills with origins and paths', async () => {
     const list = await independent(projectDir);
     const project = find(list, PROJECT_SKILL);

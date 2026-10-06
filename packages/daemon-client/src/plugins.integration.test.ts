@@ -51,6 +51,30 @@ async function independent() {
   }
 }
 
+/** Re-reads until the condition holds: the daemon applies an uninstall slightly after it acknowledges it. */
+async function eventually<T>(
+  read: () => Promise<T>,
+  accept: (value: T) => boolean,
+  timeoutMs = 10_000,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  let value = await read();
+  while (!accept(value) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    value = await read();
+  }
+  return value;
+}
+
+/** A GitHub clone can fail transiently; a missing repository fails again and still surfaces. */
+async function addMarketplaceOnce(repo: string): Promise<string> {
+  try {
+    return await conn.plugins.addMarketplace(repo);
+  } catch {
+    return conn.plugins.addMarketplace(repo);
+  }
+}
+
 const names = (list: { name: string }[]) => list.map((item) => item.name).sort();
 const ids = (list: { id: string }[]) => list.map((item) => item.id).sort();
 
@@ -88,7 +112,7 @@ describe('marketplaces and plugins against the real daemon', () => {
     'adds the marketplace, lists its plugins and updates it',
     async () => {
       if (!preMarketplaces.includes(MARKETPLACE)) {
-        await expect(conn.plugins.addMarketplace(MARKETPLACE_REPO)).resolves.toBe(MARKETPLACE);
+        await expect(addMarketplaceOnce(MARKETPLACE_REPO)).resolves.toBe(MARKETPLACE);
       }
       const state = await independent();
       const added = state.marketplaces.find((item) => item.name === MARKETPLACE);
@@ -125,9 +149,11 @@ describe('marketplaces and plugins against the real daemon', () => {
       expect(ids((await independent()).installed)).toContain(PLUGIN_ID);
 
       await conn.plugins.uninstall(PLUGIN_ID, 'user');
-      expect(ids((await independent()).installed)).toEqual(
-        preInstalled.filter((id) => id !== PLUGIN_ID),
+      const afterUninstall = await eventually(
+        async () => ids((await independent()).installed),
+        (installedIds) => !installedIds.includes(PLUGIN_ID),
       );
+      expect(afterUninstall).toEqual(preInstalled.filter((id) => id !== PLUGIN_ID));
     },
     NETWORK_TIMEOUT_MS,
   );

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DaemonConnection, SlashCommand } from '@droidmobile/daemon-client';
 import { useConnectionStore } from '../../../stores/connection';
+import { useLinkLoss } from '../useLinkLoss';
 
 export type CommandsState =
   { status: 'loading' } | { status: 'error' } | { status: 'ready'; commands: SlashCommand[] };
@@ -25,6 +26,11 @@ export function useCommands(connection: DaemonConnection | null, cwd: string | u
       if (ticket === latest.current) setState({ status: 'error' });
     }
   }, [connection, cwd]);
+
+  useLinkLoss(() => {
+    latest.current += 1;
+    setState({ status: 'error' });
+  });
 
   useEffect(() => {
     void read();

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DaemonConnection } from '@droidmobile/daemon-client';
 import { useConnectionStore } from '../../../stores/connection';
+import { useLinkLoss } from '../useLinkLoss';
 
 export type ReadState<T> =
   { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: T };
@@ -35,6 +36,11 @@ export function useDaemonRead<T>(
     },
     [connection, load],
   );
+
+  useLinkLoss(() => {
+    latest.current += 1;
+    setState({ status: 'error' });
+  });
 
   useEffect(() => {
     void read(true);
