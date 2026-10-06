@@ -4,6 +4,17 @@ apply plugin: 'org.jetbrains.kotlin.android'
 // One source of truth: the web layer shows the same apps/mobile/package.json version.
 def appPackageVersion = new groovy.json.JsonSlurper().parse(file('../../package.json')).version
 
+// Release signing material lives outside the tree that is committed: secrets/ is git-ignored.
+// DROID_KEYSTORE_PROPERTIES overrides the location. Relative storeFile values resolve against
+// the properties file. Created by tools/dev/new-release-keystore.ps1.
+def keystorePropsFile = System.getenv('DROID_KEYSTORE_PROPERTIES')
+        ? new File(System.getenv('DROID_KEYSTORE_PROPERTIES'))
+        : rootProject.file('../../../secrets/keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.isFile()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
 android {
     namespace = "com.droidmobile.client"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -20,11 +31,37 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystorePropsFile.isFile()) {
+                storeFile new File(keystorePropsFile.parentFile, keystoreProps['storeFile'] as String)
+                storePassword keystoreProps['storePassword'] as String
+                keyAlias keystoreProps['keyAlias'] as String
+                keyPassword keystoreProps['keyPassword'] as String
+                // v1 is dropped automatically at minSdk 24; v3 is opt-in in AGP.
+                enableV2Signing true
+                enableV3Signing true
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
+    }
+}
+
+// A release artifact must never silently come out unsigned or debug-signed.
+gradle.taskGraph.whenReady { graph ->
+    def packagesRelease = graph.allTasks.any {
+        it.project == project && it.name =~ /^(assemble|bundle|package)Release$/
+    }
+    if (packagesRelease && !keystorePropsFile.isFile()) {
+        throw new GradleException(
+            "Release signing config not found: ${keystorePropsFile}. " +
+            "Run tools/dev/new-release-keystore.ps1 once (see docs/release.md).")
     }
 }
 

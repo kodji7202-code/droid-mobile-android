@@ -26,6 +26,26 @@ $ErrorActionPreference = 'Stop'
 
 Set-Location (Resolve-Path "$PSScriptRoot\..\..")
 
+# google-services.json is git-ignored; the Gradle google-services plugin applies only when the
+# copy next to build.gradle exists. Its source is secrets/ (or GOOGLE_SERVICES_JSON_PATH in .env.local).
+$googleServicesTarget = 'apps\mobile\android\app\google-services.json'
+$googleServicesSource = 'secrets\google-services.json'
+if (-not (Test-Path $googleServicesSource) -and (Test-Path '.env.local')) {
+    $pathLine = Get-Content '.env.local' | Where-Object { $_ -match '^GOOGLE_SERVICES_JSON_PATH=.+' } | Select-Object -First 1
+    if ($pathLine) { $googleServicesSource = ($pathLine -replace '^GOOGLE_SERVICES_JSON_PATH=', '').Trim().Trim('"') }
+}
+if (Test-Path $googleServicesSource) {
+    Copy-Item $googleServicesSource $googleServicesTarget -Force
+} else {
+    Write-Host 'WARN: no google-services.json in secrets/; building without Firebase (push will not work)'
+    Remove-Item $googleServicesTarget -ErrorAction SilentlyContinue
+}
+
+if ($Variant -eq 'release') {
+    # Creates the local release key on first use; a no-op afterwards.
+    & "$PSScriptRoot\new-release-keystore.ps1"
+}
+
 if (-not $SkipWebBuild) {
     $env:VITE_DROID_BUILD = $Variant
     npm run build -w @droidmobile/mobile
@@ -56,3 +76,8 @@ try {
 
 $apk = "apps\mobile\android\app\build\outputs\apk\$Variant\app-$Variant.apk"
 Write-Host "android $Variant build OK: $apk"
+if ($Variant -eq 'release' -and $Bundle) {
+    Write-Host 'bundle: apps\mobile\android\app\build\outputs\bundle\release\app-release.aab'
+    & "$PSScriptRoot\verify-release.ps1"
+    if ($LASTEXITCODE -ne 0) { throw 'release verification failed' }
+}

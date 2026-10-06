@@ -231,6 +231,17 @@ describe('ConnectScreen pairing paste', () => {
     expect(screen.getByTestId('connect-submit')).toBeEnabled();
   });
 
+  it('release build explains that wss:// is required as soon as a ws:// pairing code is pasted', () => {
+    vi.stubEnv('VITE_DROID_BUILD', 'release');
+    renderConnect();
+    const code = `droidmobile://pair?v=1&url=ws%3A%2F%2F127.0.0.1%3A3101&key=${PROBE_KEY}`;
+    fireEvent.change(screen.getByTestId('connect-paste-pairing'), { target: { value: code } });
+    expect(screen.getByTestId('connect-error')).toHaveTextContent(/wss:\/\//);
+    expect(screen.queryByTestId('connect-insecure-banner')).not.toBeInTheDocument();
+    expect(createDaemonConnection).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
   it.each([
     'hello',
     'https://example.com',

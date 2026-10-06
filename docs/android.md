@@ -37,9 +37,7 @@ npm run android:check    # merges both variants' manifests and runs the automate
 npm run android:icons    # regenerate the placeholder launcher/adaptive/splash art
 ```
 
-APK/AAB outputs land in `apps/mobile/android/app/build/outputs/`. `google-services.json`
-is applied only when present in `android/app/` (see architecture.md section 3.3; it is
-copied from `secrets/` in a later milestone — release signing likewise).
+APK/AAB outputs land in `apps/mobile/android/app/build/outputs/`. `google-services.json` is copied from `secrets/` by `build-android.ps1` before each build. Release signing and the verified release pipeline are described in [release.md](release.md).
 
 ## Emulator workflow (AVD `droid-api36`, AVD home on D:)
 

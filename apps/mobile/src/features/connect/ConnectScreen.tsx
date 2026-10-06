@@ -74,7 +74,8 @@ export function ConnectScreen() {
     }
     setPairing('');
     setPairingError(false);
-    setErrorKey(null);
+    const urlCheck = checkDaemonUrl(payload.url, isDebugBuild());
+    setErrorKey(!urlCheck.ok && urlCheck.reason === 'insecure' ? 'connect.errorInsecure' : null);
   };
 
   const onPairingChange = (event: ChangeEvent<HTMLInputElement>) => {
