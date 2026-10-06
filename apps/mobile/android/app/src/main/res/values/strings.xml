@@ -4,4 +4,8 @@
     <string name="title_activity_main">Droid Mobile</string>
     <string name="package_name">com.droidmobile.client</string>
     <string name="custom_url_scheme">com.droidmobile.client</string>
+    <string name="channel_service_name">Background connection</string>
+    <string name="service_notification_title">Droid Mobile is connected</string>
+    <string name="service_notification_text">Keeping your daemon connection alive</string>
+    <string name="service_notification_stop">Stop</string>
 </resources>

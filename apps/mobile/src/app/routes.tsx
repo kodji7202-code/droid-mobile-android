@@ -24,6 +24,7 @@ import { SkillsLayout } from '../features/extensions/skills/SkillsLayout';
 import { SkillsScreen } from '../features/extensions/skills/SkillsScreen';
 import { NotificationsScreen } from '../features/settings/NotificationsScreen';
 import { SettingsDetailPlaceholder, SettingsLayout } from '../features/settings/SettingsLayout';
+import { BatteryGuidanceScreen } from '../features/settings/BatteryGuidanceScreen';
 import { AppearanceScreen } from '../features/settings/AppearanceScreen';
 import { LanguageScreen } from '../features/settings/LanguageScreen';
 import { ConnectionScreen } from '../features/settings/ConnectionScreen';
@@ -104,6 +105,7 @@ export function createAppRoutes(): RouteObject[] {
             { path: 'connection', element: <ConnectionScreen /> },
             { path: 'security', element: <SecurityScreen /> },
             { path: 'notifications', element: <NotificationsScreen /> },
+            { path: 'notifications/battery', element: <BatteryGuidanceScreen /> },
             { path: 'appearance', element: <AppearanceScreen /> },
             { path: 'language', element: <LanguageScreen /> },
             { path: 'defaults', element: <DefaultsScreen /> },

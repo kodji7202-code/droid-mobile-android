@@ -599,7 +599,11 @@
   },
   "notifications": {
     "title": "Notifications",
-    "unavailable": "Notification settings are available when notifications are enabled."
+    "unavailable": "Notification settings are available when notifications are enabled.",
+    "stayConnected": "Stay connected",
+    "stayConnectedDescription": "Keeps the connection to your daemon alive while the app is in the background. A low-priority notification with a Stop button stays visible while this is on.",
+    "stayConnectedUnavailable": "Stay connected is only available in the Android app.",
+    "batteryGuidance": "Battery optimisation"
   },
   "language": {
     "english": "English",
@@ -1142,5 +1146,27 @@
       "pending_one": "{{count}} commit to push",
       "pending_other": "{{count}} commits to push"
     }
+  },
+  "service": {
+    "notificationTitle": "Droid Mobile is connected",
+    "notificationText": "Keeping the connection to your daemon alive",
+    "stopLabel": "Stop"
+  },
+  "battery": {
+    "title": "Battery optimisation",
+    "why": "Android can pause apps in the background to save battery. A paused app loses its connection to your daemon, so a running turn can stall and notifications can arrive late or not at all. Setting Droid Mobile to unrestricted prevents this.",
+    "stepsTitle": "How to set the app to unrestricted",
+    "step1": "Tap \"Open battery settings\" below.",
+    "step2": "Find Droid Mobile in the list of apps.",
+    "step3": "Choose \"Unrestricted\" or \"Don't optimise\" (on Samsung: Battery > Background usage limits > Never sleeping apps > add Droid Mobile).",
+    "step4": "Come back to this screen: the status below updates by itself.",
+    "stateLabel": "Status",
+    "state": {
+      "exempt": "Exempt from battery optimisation",
+      "notExempt": "Not exempt from battery optimisation",
+      "unknown": "Unknown"
+    },
+    "openSettings": "Open battery settings",
+    "openFailed": "The system settings could not be opened. Open Settings > Apps > Droid Mobile > Battery manually."
   }
 }

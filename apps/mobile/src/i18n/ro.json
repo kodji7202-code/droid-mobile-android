@@ -601,7 +601,11 @@
   },
   "notifications": {
     "title": "Notificări",
-    "unavailable": "Setările de notificări sunt disponibile când notificările sunt activate."
+    "unavailable": "Setările de notificări sunt disponibile când notificările sunt activate.",
+    "stayConnected": "Rămâi conectat",
+    "stayConnectedDescription": "Menține conexiunea cu daemonul activă cât timp aplicația rulează în fundal. Cât este pornită, rămâne vizibilă o notificare cu prioritate redusă și un buton Oprește.",
+    "stayConnectedUnavailable": "Opțiunea „Rămâi conectat” este disponibilă doar în aplicația Android.",
+    "batteryGuidance": "Optimizarea bateriei"
   },
   "language": {
     "english": "English",
@@ -1151,5 +1155,27 @@
       "pending_few": "{{count}} commit-uri de trimis",
       "pending_other": "{{count}} de commit-uri de trimis"
     }
+  },
+  "service": {
+    "notificationTitle": "Droid Mobile este conectat",
+    "notificationText": "Conexiunea cu daemonul este menținută activă",
+    "stopLabel": "Oprește"
+  },
+  "battery": {
+    "title": "Optimizarea bateriei",
+    "why": "Android poate pune aplicațiile în pauză în fundal pentru a economisi bateria. O aplicație în pauză pierde conexiunea cu daemonul, deci un tur în desfășurare se poate bloca, iar notificările pot veni cu întârziere sau deloc. Setarea Droid Mobile ca nerestricționată previne acest lucru.",
+    "stepsTitle": "Cum setezi aplicația ca nerestricționată",
+    "step1": "Atinge „Deschide setările bateriei” de mai jos.",
+    "step2": "Găsește Droid Mobile în lista de aplicații.",
+    "step3": "Alege „Nerestricționat” sau „Nu optimiza” (pe Samsung: Baterie > Limite de utilizare în fundal > Aplicații care nu adorm niciodată > adaugă Droid Mobile).",
+    "step4": "Revino la acest ecran: starea de mai jos se actualizează singură.",
+    "stateLabel": "Stare",
+    "state": {
+      "exempt": "Exclusă de la optimizarea bateriei",
+      "notExempt": "Neexclusă de la optimizarea bateriei",
+      "unknown": "Necunoscută"
+    },
+    "openSettings": "Deschide setările bateriei",
+    "openFailed": "Setările sistemului nu s-au putut deschide. Deschide manual Setări > Aplicații > Droid Mobile > Baterie."
   }
 }

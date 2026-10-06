@@ -8,6 +8,7 @@ import { ToastProvider } from '../components/Toast';
 import { LockGate } from '../features/lock/LockGate';
 import { Skeleton } from '../components/Skeleton';
 import { useAppResume } from './useAppResume';
+import { useDaemonService } from './useDaemonService';
 
 /**
  * App root: global error boundary, theme and toast providers, and the router
@@ -16,6 +17,7 @@ import { useAppResume } from './useAppResume';
  */
 export default function App() {
   useAppResume();
+  useDaemonService();
   const router = useMemo(() => {
     const routes = createAppRoutes();
     return Capacitor.isNativePlatform()

@@ -2646,3 +2646,11 @@ html[data-soft-keyboard='open'] .app-nav-bar {
 .screen:has(.mission-control) {
   max-width: 1100px;
 }
+
+.guidance-steps {
+  margin: 0 0 1rem;
+  padding-left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}

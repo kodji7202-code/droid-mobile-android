@@ -6,8 +6,15 @@ import { useMediaQuery } from '../../app/useMediaQuery';
 /**
  * Header for a settings sub-page: back control + title. The back control is
  * omitted in the tablet master-detail layout, where the list is always visible.
+ * backTo is the page the control returns to (the landing list by default).
  */
-export function SettingsSubHeader({ title }: { title: string }) {
+export function SettingsSubHeader({
+  title,
+  backTo = '/settings',
+}: {
+  title: string;
+  backTo?: string;
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const wide = useMediaQuery('(min-width: 840px)');
@@ -19,7 +26,7 @@ export function SettingsSubHeader({ title }: { title: string }) {
           className="btn btn--ghost sub-header__back"
           data-testid="settings-back"
           aria-label={t('common.back')}
-          onClick={() => navigate('/settings')}
+          onClick={() => navigate(backTo)}
         >
           <BackIcon />
         </button>

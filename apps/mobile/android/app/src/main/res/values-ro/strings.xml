@@ -1,0 +1,7 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="channel_service_name">Conexiune în fundal</string>
+    <string name="service_notification_title">Droid Mobile este conectat</string>
+    <string name="service_notification_text">Conexiunea cu daemonul este menținută activă</string>
+    <string name="service_notification_stop">Oprește</string>
+</resources>

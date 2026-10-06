@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 // One source of truth: the web layer shows the same apps/mobile/package.json version.
 def appPackageVersion = new groovy.json.JsonSlurper().parse(file('../../package.json')).version
