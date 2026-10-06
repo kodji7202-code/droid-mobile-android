@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Capacitor } from '@capacitor/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConnectionError, DaemonClientError } from '@droidmobile/daemon-client';
 import type { DaemonConnection, McpServer, McpTool } from '@droidmobile/daemon-client';
 import { renderAppAt } from '../../../test/render-app';
 import { useConnectionStore } from '../../../stores/connection';
@@ -416,6 +417,104 @@ describe('McpScreen OAuth', () => {
       'Authentication required',
     );
     expect(screen.getByTestId('mcp-auth-val-oauth-dummy')).toBeEnabled();
+  });
+
+  describe('after the daemon socket dropped while the browser was in front', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    function interruptible() {
+      const control = { drop: () => {} };
+      const mcp = {
+        authenticateServer: vi.fn(
+          () =>
+            new Promise<void>((_, reject) => {
+              control.drop = () => reject(new ConnectionError('Client destroyed'));
+            }),
+        ),
+      };
+      return { control, mcp };
+    }
+
+    async function startAndDrop(control: { drop: () => void }, state: { servers: McpServer[] }) {
+      await userEvent.click(await screen.findByTestId('mcp-auth-val-oauth-dummy'));
+      withPendingUrl(state);
+      await screen.findByTestId('mcp-auth-host-val-oauth-dummy', undefined, { timeout: 3000 });
+      await act(async () => control.drop());
+    }
+
+    it('keeps the pending panel without a sign-in error and cancels through the same client', async () => {
+      vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true);
+      const { control, mcp: overrides } = interruptible();
+      const { mcp, state } = setup([OAUTH], overrides);
+      await startAndDrop(control, state);
+      await waitFor(() => expect(browserOpen).toHaveBeenCalledTimes(1));
+
+      expect(screen.queryByTestId('mcp-action-error')).toBeNull();
+      expect(screen.getByTestId('mcp-auth-host-val-oauth-dummy')).toHaveTextContent(
+        'mcp.linear.app',
+      );
+      expect(screen.getByTestId('mcp-auth-open-val-oauth-dummy')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByTestId('mcp-auth-cancel-val-oauth-dummy'));
+      expect(mcp.cancelAuth).toHaveBeenCalledWith('val-oauth-dummy');
+      await waitFor(() =>
+        expect(screen.queryByTestId('mcp-auth-panel-val-oauth-dummy')).toBeNull(),
+      );
+      delete state.servers[0]?.pendingAuthUrl;
+      expect(screen.queryByTestId('mcp-action-error')).toBeNull();
+      expect(screen.getByTestId('mcp-status-val-oauth-dummy')).toHaveTextContent(
+        'Authentication required',
+      );
+      expect(screen.getByTestId('mcp-auth-val-oauth-dummy')).toBeEnabled();
+    }, 10000);
+
+    it('restores the panel after the reconnect reload without opening the browser again', async () => {
+      vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true);
+      const { control, mcp: overrides } = interruptible();
+      const { state } = setup([OAUTH], overrides);
+      await startAndDrop(control, state);
+      await waitFor(() => expect(browserOpen).toHaveBeenCalledTimes(1));
+
+      act(() => {
+        useConnectionStore.setState({ readyEpoch: useConnectionStore.getState().readyEpoch + 1 });
+      });
+      expect(
+        await screen.findByTestId('mcp-auth-host-val-oauth-dummy', undefined, { timeout: 3000 }),
+      ).toHaveTextContent('mcp.linear.app');
+      expect(screen.getByTestId('mcp-auth-cancel-val-oauth-dummy')).toBeInTheDocument();
+      expect(screen.queryByTestId('mcp-action-error')).toBeNull();
+      expect(browserOpen).toHaveBeenCalledTimes(1);
+    }, 10000);
+
+    it('drops the panel quietly once the daemon no longer holds the sign-in', async () => {
+      const { control, mcp: overrides } = interruptible();
+      const { state } = setup([OAUTH], overrides);
+      await startAndDrop(control, state);
+      expect(screen.getByTestId('mcp-auth-panel-val-oauth-dummy')).toBeInTheDocument();
+
+      delete state.servers[0]?.pendingAuthUrl;
+      await waitFor(
+        () => expect(screen.queryByTestId('mcp-auth-panel-val-oauth-dummy')).toBeNull(),
+        {
+          timeout: 3000,
+        },
+      );
+      expect(screen.queryByTestId('mcp-action-error')).toBeNull();
+      expect(screen.getByTestId('mcp-auth-val-oauth-dummy')).toBeEnabled();
+    }, 10000);
+
+    it('still reports a daemon-side sign-in failure', async () => {
+      setup([OAUTH], {
+        authenticateServer: vi.fn(async () => {
+          throw new DaemonClientError('unknown', 'Authorization was cancelled');
+        }),
+      });
+      await userEvent.click(await screen.findByTestId('mcp-auth-val-oauth-dummy'));
+      expect(await screen.findByTestId('mcp-action-error')).toBeInTheDocument();
+      expect(screen.queryByTestId('mcp-auth-panel-val-oauth-dummy')).toBeNull();
+    });
   });
 
   it('surfaces a failed sign-in start without a panel', async () => {

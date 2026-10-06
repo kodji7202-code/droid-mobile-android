@@ -91,6 +91,8 @@ export function McpScreen() {
               server={server}
               busy={mcp.busy.has(server.name)}
               authPending={mcp.authPending.has(server.name)}
+              authAutoOpen={!mcp.isAuthOpened(server.name)}
+              onAuthAutoOpened={() => mcp.markAuthOpened(server.name)}
               onToggle={(enabled) => void mcp.toggle(server.name, enabled)}
               onRemove={() =>
                 setRemoving({

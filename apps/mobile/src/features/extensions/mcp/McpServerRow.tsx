@@ -10,6 +10,8 @@ interface McpServerRowProps {
   server: McpServer;
   busy: boolean;
   authPending: boolean;
+  authAutoOpen: boolean;
+  onAuthAutoOpened: () => void;
   onToggle: (enabled: boolean) => void;
   onRemove: () => void;
   onAuthenticate: () => void;
@@ -25,6 +27,8 @@ export function McpServerRow({
   server,
   busy,
   authPending,
+  authAutoOpen,
+  onAuthAutoOpened,
   onToggle,
   onRemove,
   onAuthenticate,
@@ -112,7 +116,13 @@ export function McpServerRow({
         </button>
       </div>
       {authPending ? (
-        <McpAuthPanel name={name} url={server.pendingAuthUrl} onCancel={onCancelAuth} />
+        <McpAuthPanel
+          name={name}
+          url={server.pendingAuthUrl}
+          autoOpen={authAutoOpen}
+          onAutoOpened={onAuthAutoOpened}
+          onCancel={onCancelAuth}
+        />
       ) : null}
     </li>
   );

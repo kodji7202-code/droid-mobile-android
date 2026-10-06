@@ -99,7 +99,26 @@ function addParams(sessionId: string, input: AddMcpServerInput) {
 }
 
 export function createMcpClient(deps: McpClientDeps): McpClient {
-  const scratch = createHomeScratchSession(deps);
+  /**
+   * Sign-ins the daemon holds for the scratch session. The daemon cancels one
+   * only through the session that started it and keeps it across a dropped
+   * socket, so while any is open a replaced socket resumes the same session.
+   * `seen` flips once the authorization page was reported: its later absence
+   * means the sign-in ended.
+   */
+  const flows = new Map<string, { seen: boolean }>();
+  const scratch = createHomeScratchSession(deps, {
+    keep: () => flows.size > 0,
+    onLost: () => flows.clear(),
+  });
+
+  function trackFlows(servers: readonly McpServer[]): void {
+    for (const [name, flow] of flows) {
+      const server = servers.find((candidate) => candidate.name === name);
+      if (server?.pendingAuthUrl) flow.seen = true;
+      else if (!server || server.status === 'connected' || flow.seen) flows.delete(name);
+    }
+  }
 
   async function withSession<T>(op: (id: string, mcp: ConnectedDroid['mcp']) => Promise<T>) {
     const id = await scratch.id();
@@ -127,13 +146,15 @@ export function createMcpClient(deps: McpClientDeps): McpClient {
         const counts = new Map<string, number>();
         for (const tool of tools)
           counts.set(tool.serverName, (counts.get(tool.serverName) ?? 0) + 1);
-        return servers.map((info) => {
+        const listed = servers.map((info) => {
           const server = toMcpServer(info);
           const counted = counts.get(server.name);
           return server.toolCount === undefined && counted !== undefined
             ? { ...server, toolCount: counted }
             : server;
         });
+        trackFlows(listed);
+        return listed;
       }),
     listTools: (serverName) =>
       withSession(async (id, mcp) => {
@@ -158,28 +179,48 @@ export function createMcpClient(deps: McpClientDeps): McpClient {
           'switch the server',
         ),
       ),
-    authenticateServer: (serverName) =>
-      withSession(async (id, mcp) =>
-        expectSuccess(
-          await mcp.authenticateServer({ sessionId: id, serverName }),
-          'finish signing in',
-        ),
-      ),
-    cancelAuth: (serverName) =>
-      withSession(async (id, mcp) =>
+    authenticateServer: async (serverName) => {
+      flows.set(serverName, { seen: false });
+      try {
+        await withSession(async (id, mcp) =>
+          expectSuccess(
+            await mcp.authenticateServer({ sessionId: id, serverName }),
+            'finish signing in',
+          ),
+        );
+        flows.delete(serverName);
+      } catch (err) {
+        // A lost socket interrupts the call, not the sign-in the daemon still holds.
+        if (!(err instanceof DaemonClientError && err.kind === 'connection')) {
+          flows.delete(serverName);
+        }
+        throw err;
+      }
+    },
+    cancelAuth: async (serverName) => {
+      await withSession(async (id, mcp) =>
         expectSuccess(await mcp.cancelAuth({ sessionId: id, serverName }), 'cancel signing in'),
-      ),
-    clearAuth: (serverName) =>
-      withSession(async (id, mcp) =>
+      );
+      flows.delete(serverName);
+    },
+    clearAuth: async (serverName) => {
+      await withSession(async (id, mcp) =>
         expectSuccess(await mcp.clearAuth({ sessionId: id, serverName }), 'clear the sign-in'),
-      ),
-    removeServer: (serverName) =>
-      withSession(async (id, mcp) =>
+      );
+      flows.delete(serverName);
+    },
+    removeServer: async (serverName) => {
+      await withSession(async (id, mcp) =>
         expectSuccess(
           await mcp.removeServer({ sessionId: id, serverName, settingsLevel: USER_LEVEL }),
           'remove the server',
         ),
-      ),
-    release: () => scratch.release(),
+      );
+      flows.delete(serverName);
+    },
+    release: () => {
+      flows.clear();
+      return scratch.release();
+    },
   };
 }

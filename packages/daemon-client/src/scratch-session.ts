@@ -5,6 +5,7 @@
  * first use, replaced after a reconnect, closed by release().
  */
 import type { ConnectedDroid, ConnectedDroidSession } from '@factory/droid-sdk';
+import { isNonTransportFailure } from './classify';
 import { DaemonClientError } from './errors';
 
 export interface ScratchSessionDeps {
@@ -28,8 +29,35 @@ interface ScratchSession {
   session: ConnectedDroidSession;
 }
 
-export function createHomeScratchSession(deps: ScratchSessionDeps): HomeScratchSession {
+export interface HomeScratchSessionOptions {
+  /**
+   * True while daemon state is bound to the scratch session (an OAuth sign-in
+   * the daemon cancels only through the session that started it). A replaced
+   * socket then resumes the same session id instead of opening a new one.
+   */
+  keep?: () => boolean;
+  /** Called when a kept session could not be resumed and was replaced. */
+  onLost?: () => void;
+}
+
+export function createHomeScratchSession(
+  deps: ScratchSessionDeps,
+  options: HomeScratchSessionOptions = {},
+): HomeScratchSession {
   let scratch: Promise<ScratchSession> | null = null;
+
+  async function resume(previous: ScratchSession): Promise<ScratchSession> {
+    const droid = deps.droid();
+    const generation = deps.generation();
+    try {
+      const session = await droid.sessions.resume(previous.id);
+      return { id: previous.id, generation, session };
+    } catch (err) {
+      if (!isNonTransportFailure(err)) throw err;
+      options.onLost?.();
+      return open();
+    }
+  }
 
   async function open(): Promise<ScratchSession> {
     const droid = deps.droid();
@@ -46,18 +74,24 @@ export function createHomeScratchSession(deps: ScratchSessionDeps): HomeScratchS
     id: () =>
       deps.run(async () => {
         let current = scratch;
+        let stale: ScratchSession | null = null;
         if (current) {
           const known = await current.catch(() => null);
           if (!known || known.generation !== deps.generation()) {
+            stale = known;
             scratch = null;
             current = null;
           }
         }
         if (!current) {
-          current = open();
-          scratch = current;
-          current.catch(() => {
-            if (scratch === current) scratch = null;
+          const kept = stale !== null && options.keep?.() === true ? stale : null;
+          const opening: Promise<ScratchSession> = kept ? resume(kept) : open();
+          current = opening;
+          scratch = opening;
+          opening.catch(() => {
+            // A resume that failed because the socket is down again must not forget the
+            // session: the daemon still holds the sign-in bound to it.
+            if (scratch === opening) scratch = kept ? Promise.resolve(kept) : null;
           });
         }
         return (await current).id;

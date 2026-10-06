@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ConnectionError } from '@droidmobile/daemon-client';
 import type { AddMcpServerInput, DaemonConnection } from '@droidmobile/daemon-client';
 import { useMcpServerList } from './useMcpServerList';
 
@@ -21,6 +22,10 @@ export function useMcp(connection: DaemonConnection | null) {
   const [authPending, setAuthPending] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<McpActionError | null>(null);
   const cancelled = useRef(new Set<string>());
+  /** Sign-ins whose call was cut by a dropped socket but that the daemon may still hold. */
+  const detached = useRef(new Set<string>());
+  /** Sign-ins whose authorization page was already opened, so a remount never reopens it. */
+  const opened = useRef(new Set<string>());
   const authRef = useRef(authPending);
   authRef.current = authPending;
 
@@ -89,39 +94,60 @@ export function useMcp(connection: DaemonConnection | null) {
     [track],
   );
 
+  const endAuth = useCallback((name: string) => {
+    cancelled.current.delete(name);
+    detached.current.delete(name);
+    opened.current.delete(name);
+    setAuthPending((previous) => {
+      const next = new Set(previous);
+      next.delete(name);
+      return next;
+    });
+  }, []);
+
   const startAuth = useCallback(
     (name: string) => {
       if (!connection || authRef.current.has(name)) return;
       setError(null);
+      opened.current.delete(name);
       setAuthPending((previous) => new Set(previous).add(name));
       // The call settles only when the sign-in ends (success, failure or cancel).
-      connection.mcp
-        .authenticateServer(name)
-        .catch(() => {
-          if (!cancelled.current.has(name)) setError({ action: 'auth', name });
-        })
-        .finally(() => {
-          cancelled.current.delete(name);
-          setAuthPending((previous) => {
-            const next = new Set(previous);
-            next.delete(name);
-            return next;
-          });
-          void refresh();
-        });
+      void (async () => {
+        try {
+          await connection.mcp.authenticateServer(name);
+        } catch (err) {
+          if (!cancelled.current.has(name)) {
+            if (err instanceof ConnectionError) {
+              // A dropped socket (the app was in the background) ends the call, not the
+              // sign-in: the daemon keeps it and the list reports it again once reconnected.
+              detached.current.add(name);
+              void refresh();
+              return;
+            }
+            setError({ action: 'auth', name });
+          }
+        }
+        endAuth(name);
+        void refresh();
+      })();
     },
-    [connection, refresh],
+    [connection, refresh, endAuth],
   );
 
   const cancelAuth = useCallback(
     async (name: string) => {
       if (!connection) return;
-      cancelled.current.add(name);
-      setAuthPending((previous) => {
-        const next = new Set(previous);
-        next.delete(name);
-        return next;
-      });
+      // A live sign-in's pending call rejects after the cancel and endAuth() then clears
+      // the marker; a detached one has no such call.
+      if (detached.current.has(name)) endAuth(name);
+      else {
+        cancelled.current.add(name);
+        setAuthPending((previous) => {
+          const next = new Set(previous);
+          next.delete(name);
+          return next;
+        });
+      }
       try {
         await connection.mcp.cancelAuth(name);
       } catch {
@@ -129,8 +155,19 @@ export function useMcp(connection: DaemonConnection | null) {
       }
       await refresh();
     },
-    [connection, refresh],
+    [connection, refresh, endAuth],
   );
+
+  useEffect(() => {
+    if (list.state.status !== 'ready' || detached.current.size === 0) return;
+    const { servers } = list.state;
+    for (const name of [...detached.current]) {
+      if (!servers.find((server) => server.name === name)?.pendingAuthUrl) endAuth(name);
+    }
+  }, [list.state, endAuth]);
+
+  const isAuthOpened = useCallback((name: string) => opened.current.has(name), []);
+  const markAuthOpened = useCallback((name: string) => void opened.current.add(name), []);
 
   useEffect(
     () => () => {
@@ -152,5 +189,7 @@ export function useMcp(connection: DaemonConnection | null) {
     remove,
     startAuth,
     cancelAuth,
+    isAuthOpened,
+    markAuthOpened,
   };
 }

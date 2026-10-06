@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ConnectedDroid, McpServerStatusInfo } from '@factory/droid-sdk';
-import { DaemonClientError } from './errors';
+import { classifyConnectFailure } from './classify';
+import { ConnectionError, DaemonClientError } from './errors';
 import { createMcpClient, toMcpServer } from './mcp';
+
+const FAILED = 'failed' as McpServerStatusInfo['status'];
 
 function info(overrides: Partial<McpServerStatusInfo> = {}): McpServerStatusInfo {
   return {
@@ -18,6 +21,7 @@ function harness() {
   const closes: string[] = [];
   let next = 0;
   const generation = { value: 1 };
+  const link = { down: false };
   const mcp = {
     listServers: vi.fn(async () => ({ servers: [info(), info({ name: 'val-b' })] })),
     listTools: vi.fn(async () => [
@@ -35,19 +39,41 @@ function harness() {
     const id = `scratch-${++next}`;
     return { id, close: vi.fn(async () => void closes.push(id)) };
   });
+  const resume = vi.fn(async (id: string) => ({
+    id,
+    close: vi.fn(async () => void closes.push(id)),
+  }));
   const droid = {
     workspace: {
       validateDirectory: vi.fn(async () => ({ isValid: true, resolvedPath: '/home/user' })),
     },
-    sessions: { create },
+    sessions: { create, resume },
     mcp,
   } as unknown as ConnectedDroid;
   const client = createMcpClient({
-    droid: () => droid,
+    droid: () => {
+      if (link.down) throw new ConnectionError('The daemon connection is not ready.');
+      return droid;
+    },
     generation: () => generation.value,
-    run: (op) => op(),
+    run: async (op) => {
+      try {
+        return await op();
+      } catch (err) {
+        throw classifyConnectFailure(err);
+      }
+    },
   });
-  return { client, mcp, create, closes, generation, droid };
+  return { client, mcp, create, resume, closes, generation, droid, link };
+}
+
+/** Starts a sign-in whose call the lost socket interrupts, as the daemon reports it. */
+async function interruptedSignIn(h: ReturnType<typeof harness>, name = 'val-a') {
+  h.mcp.authenticateServer.mockRejectedValueOnce(new Error('Client destroyed'));
+  await h.client.listServers();
+  const run = h.client.authenticateServer(name);
+  await run.catch(() => undefined);
+  return run;
 }
 
 describe('toMcpServer', () => {
@@ -55,7 +81,7 @@ describe('toMcpServer', () => {
     expect(
       toMcpServer(
         info({
-          status: 'failed' as McpServerStatusInfo['status'],
+          status: FAILED as McpServerStatusInfo['status'],
           error: 'Authentication required',
           requiresAuth: true,
           pendingAuthUrl: 'https://auth.example/authorize?state=secret',
@@ -65,7 +91,7 @@ describe('toMcpServer', () => {
       ),
     ).toEqual({
       name: 'val-a',
-      status: 'failed',
+      status: FAILED,
       serverType: 'stdio',
       source: 'user',
       isManaged: false,
@@ -113,6 +139,117 @@ describe('createMcpClient', () => {
     expect(mcp.listServers).toHaveBeenLastCalledWith('scratch-2');
   });
 
+  describe('an open sign-in', () => {
+    it('resumes the same scratch session after the socket was replaced mid sign-in', async () => {
+      const h = harness();
+      await expect(interruptedSignIn(h)).rejects.toMatchObject({ kind: 'connection' });
+      h.generation.value = 2;
+      await h.client.listServers();
+      expect(h.resume).toHaveBeenCalledWith('scratch-1');
+      expect(h.create).toHaveBeenCalledTimes(1);
+      expect(h.mcp.listServers).toHaveBeenLastCalledWith('scratch-1');
+      await h.client.cancelAuth('val-a');
+      expect(h.mcp.cancelAuth).toHaveBeenCalledWith({
+        sessionId: 'scratch-1',
+        serverName: 'val-a',
+      });
+    });
+
+    it('keeps resuming across several replaced sockets until the sign-in ends', async () => {
+      const h = harness();
+      await expect(interruptedSignIn(h)).rejects.toBeDefined();
+      h.mcp.listServers.mockResolvedValue({ servers: [info({ status: FAILED })] });
+      h.generation.value = 2;
+      await h.client.listServers();
+      h.generation.value = 3;
+      await h.client.listServers();
+      expect(h.resume).toHaveBeenCalledTimes(2);
+      expect(h.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens a new session once cancelAuth ended the sign-in', async () => {
+      const h = harness();
+      await expect(interruptedSignIn(h)).rejects.toBeDefined();
+      await h.client.cancelAuth('val-a');
+      h.generation.value = 2;
+      await h.client.listServers();
+      expect(h.resume).not.toHaveBeenCalled();
+      expect(h.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not keep the session when the sign-in failed for a daemon reason', async () => {
+      const h = harness();
+      h.mcp.authenticateServer.mockRejectedValueOnce(
+        Object.assign(new Error('Authorization was cancelled'), { error: { code: -32000 } }),
+      );
+      await h.client.authenticateServer('val-a').catch(() => undefined);
+      h.generation.value = 2;
+      await h.client.listServers();
+      expect(h.resume).not.toHaveBeenCalled();
+      expect(h.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('forgets the sign-in after the daemon stopped reporting its page', async () => {
+      const h = harness();
+      await expect(interruptedSignIn(h)).rejects.toBeDefined();
+      h.mcp.listServers.mockResolvedValueOnce({
+        servers: [info({ status: FAILED, pendingAuthUrl: 'https://auth.example/a' })],
+      });
+      await h.client.listServers();
+      h.mcp.listServers.mockResolvedValueOnce({ servers: [info({ status: FAILED })] });
+      await h.client.listServers();
+      h.generation.value = 2;
+      await h.client.listServers();
+      expect(h.resume).not.toHaveBeenCalled();
+      expect(h.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('replaces the session when the daemon no longer knows it', async () => {
+      const h = harness();
+      await expect(interruptedSignIn(h)).rejects.toBeDefined();
+      h.generation.value = 2;
+      h.resume.mockRejectedValueOnce(
+        Object.assign(new Error('Session not found'), { name: 'SessionNotFoundError' }),
+      );
+      await h.client.listServers();
+      expect(h.create).toHaveBeenCalledTimes(2);
+      expect(h.mcp.listServers).toHaveBeenLastCalledWith('scratch-2');
+      h.generation.value = 3;
+      await h.client.listServers();
+      expect(h.resume).toHaveBeenCalledTimes(1);
+      expect(h.create).toHaveBeenCalledTimes(3);
+    });
+
+    it('retries the resume when the socket failed again, without replacing the session', async () => {
+      const h = harness();
+      await expect(interruptedSignIn(h)).rejects.toBeDefined();
+      h.generation.value = 2;
+      h.resume.mockRejectedValueOnce(new Error('socket closed'));
+      await expect(h.client.listServers()).rejects.toThrow('socket closed');
+      await h.client.listServers();
+      expect(h.resume).toHaveBeenCalledTimes(2);
+      expect(h.create).toHaveBeenCalledTimes(1);
+      expect(h.mcp.listServers).toHaveBeenLastCalledWith('scratch-1');
+    });
+
+    it('survives calls made while the socket is still down', async () => {
+      const h = harness();
+      await expect(interruptedSignIn(h)).rejects.toBeDefined();
+      h.generation.value = 2;
+      h.link.down = true;
+      await expect(h.client.listServers()).rejects.toBeInstanceOf(ConnectionError);
+      await expect(h.client.cancelAuth('val-a')).rejects.toBeInstanceOf(ConnectionError);
+      h.link.down = false;
+      await h.client.cancelAuth('val-a');
+      expect(h.resume).toHaveBeenCalledWith('scratch-1');
+      expect(h.create).toHaveBeenCalledTimes(1);
+      expect(h.mcp.cancelAuth).toHaveBeenCalledWith({
+        sessionId: 'scratch-1',
+        serverName: 'val-a',
+      });
+    });
+  });
+
   it('closes the scratch session on release and opens a fresh one afterwards', async () => {
     const { client, create, closes } = harness();
     await client.listServers();
@@ -151,7 +288,7 @@ describe('createMcpClient', () => {
   it('does not read the tool list when no connected server lacks a count', async () => {
     const { client, mcp } = harness();
     mcp.listServers.mockResolvedValueOnce({
-      servers: [info({ toolCount: 2 }), info({ name: 'val-b', status: 'failed' as never })],
+      servers: [info({ toolCount: 2 }), info({ name: 'val-b', status: FAILED as never })],
     });
     await client.listServers();
     expect(mcp.listTools).not.toHaveBeenCalled();

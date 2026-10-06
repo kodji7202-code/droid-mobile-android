@@ -10,6 +10,9 @@ interface McpAuthPanelProps {
   name: string;
   /** Authorization page once the daemon has produced it. */
   url: string | undefined;
+  /** False once this sign-in's page was opened; the owner keeps that across remounts. */
+  autoOpen: boolean;
+  onAutoOpened: () => void;
   onCancel: () => void;
 }
 
@@ -18,19 +21,20 @@ interface McpAuthPanelProps {
  * its query holds one-time values (state, code_challenge) that stay out of
  * the UI and are only handed to the browser or the clipboard on request.
  */
-export function McpAuthPanel({ name, url, onCancel }: McpAuthPanelProps) {
+export function McpAuthPanel({ name, url, autoOpen, onAutoOpened, onCancel }: McpAuthPanelProps) {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const host = url ? authHost(url) : null;
-  // The panel lives exactly as long as one Authenticate tap, so a ref makes the
-  // automatic open once-per-sign-in however often polling re-renders it.
+  // The list can unmount the panel while the daemon link is down, so the
+  // once-per-sign-in guard lives with the owner, not in this component.
   const autoOpened = useRef(false);
 
   useEffect(() => {
-    if (!url || autoOpened.current) return;
+    if (!url || !autoOpen || autoOpened.current) return;
     autoOpened.current = true;
+    onAutoOpened();
     void openAuthPage(url);
-  }, [url]);
+  }, [url, autoOpen, onAutoOpened]);
 
   const copy = async () => {
     if (!url) return;
