@@ -762,6 +762,98 @@
       "noMatch": "Nicio comandă potrivită"
     }
   },
+  "missions": {
+    "title": "Control misiune",
+    "stateLabel": "Starea misiunii",
+    "state": {
+      "planning": "Planificare",
+      "awaiting_input": "Așteaptă răspunsul tău",
+      "initializing": "Inițializare",
+      "running": "În desfășurare",
+      "paused": "În pauză",
+      "orchestrator_turn": "Rândul orchestratorului",
+      "completed": "Finalizată",
+      "unknown": "Necunoscută"
+    },
+    "empty": {
+      "title": "Nicio activitate de misiune încă",
+      "message": "Descrie obiectivul orchestratorului mai jos. După ce propune o misiune și o aprobi, funcționalitățile, etapele și lucrătorii apar aici."
+    },
+    "tabs": {
+      "label": "Secțiunile misiunii",
+      "thread": "Conversație",
+      "features": "Funcționalități",
+      "workers": "Lucrători"
+    },
+    "thread": {
+      "title": "Orchestrator",
+      "empty": "Orchestratorul nu a spus nimic încă."
+    },
+    "features": {
+      "title": "Funcționalități",
+      "empty": "Nicio funcționalitate încă.",
+      "milestone": "Etapă: {{name}}"
+    },
+    "featureStatus": {
+      "pending": "În așteptare",
+      "in_progress": "În lucru",
+      "completed": "Finalizată",
+      "cancelled": "Anulată",
+      "unknown": "Necunoscută"
+    },
+    "milestones": {
+      "title": "Etape",
+      "ungrouped": "Fără etapă",
+      "progress": "{{completed}} din {{total}} finalizate"
+    },
+    "workers": {
+      "title": "Lucrători",
+      "empty": "Niciun lucrător nu a pornit.",
+      "worker": "Lucrător {{id}}",
+      "exitCode": "Cod de ieșire {{code}}"
+    },
+    "workerStatus": {
+      "running": "În desfășurare",
+      "completed": "Finalizat",
+      "failed": "Eșuat"
+    },
+    "progress": {
+      "title": "Jurnal de progres",
+      "empty": "Nimic înregistrat încă.",
+      "worker": "Lucrător {{id}}",
+      "feature": "Funcționalitate {{id}}",
+      "milestone": "Etapă {{name}}"
+    },
+    "logEntry": {
+      "mission_accepted": "Misiune acceptată",
+      "mission_paused": "Misiune pusă în pauză",
+      "mission_resumed": "Misiune reluată",
+      "mission_run_started": "Rulare pornită",
+      "worker_started": "Lucrător pornit",
+      "worker_selected_feature": "Lucrătorul a ales o funcționalitate",
+      "worker_completed": "Lucrător finalizat",
+      "worker_failed": "Lucrător eșuat",
+      "worker_paused": "Lucrător în pauză",
+      "handoff_items_dismissed": "Elemente de predare respinse",
+      "milestone_validation_triggered": "Validarea etapei a pornit"
+    },
+    "lastActivity": {
+      "label": "Ultima activitate",
+      "none": "Nicio activitate încă"
+    },
+    "permission": {
+      "proposeTitle": "Propunere de misiune",
+      "proposeIntro": "Orchestratorul propune această misiune. Aprobarea îi permite să planifice lucrul.",
+      "proposalTitle": "Titlu",
+      "proposal": "Propunere",
+      "startTitle": "Pornește rularea misiunii",
+      "startIntro": "Aprobarea pornește lucrătorii. O misiune poate consuma credite considerabile.",
+      "runningCount_one": "{{count}} altă misiune rulează.",
+      "runningCount_few": "{{count}} alte misiuni rulează.",
+      "runningCount_other": "{{count}} de alte misiuni rulează.",
+      "runningSessions": "Sesiuni de misiune în rulare"
+    }
+  },
   "session": {
     "title": "Sesiune",
     "model": "Model",

@@ -63,6 +63,8 @@ import type { CommandsClient } from './commands';
 import type { CustomModelsClient } from './custom-models';
 import type { SkillsClient } from './skills';
 import { probeDaemonIdentity } from './probe';
+import { createMissionSource } from './mission-source';
+import type { MissionSource } from './mission-source';
 import { createTerminalClient } from './terminal-client';
 import type { TerminalClient } from './terminal-client';
 import type { DaemonIdentity } from './probe';
@@ -163,6 +165,8 @@ export interface DaemonConnection {
   readonly customModels: CustomModelsClient;
   /** Scheduled automations: list, run descriptor, pause/resume and run history. */
   readonly automations: AutomationsClient;
+  /** Mission snapshots and notifications of the sessions opened through this connection. */
+  readonly missions: Pick<MissionSource, 'snapshot' | 'subscribe'>;
 
   /** Asks the daemon whether a working directory exists and is a directory. */
   validateDirectory(path: string): Promise<DirectoryValidation>;
@@ -266,6 +270,8 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
   const listeners = new Set<(status: ConnectionStatus) => void>();
   const warningListeners = new Set<(warning: VersionMismatchWarning) => void>();
   const handles = new Map<string, SessionHandle>();
+  /** Outlives facades: a reconnect resumes sessions into the same mission stores. */
+  const missions = createMissionSource();
 
   let machine: ConnectionMachineState = { ...INITIAL_CONNECTION_STATE };
   let currentDroid: ConnectedDroid | null = null;
@@ -370,6 +376,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
           void handlePossibleDisconnect(err);
         },
       });
+      missions.attach(droid);
       if (token !== droidToken) {
         // A newer attempt or a disconnect superseded this one.
         try {
@@ -789,6 +796,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
       generation: () => droidToken,
       run: mapSdkError,
     }),
+    missions: { snapshot: missions.snapshot, subscribe: missions.subscribe },
 
     validateDirectory: (path) =>
       mapSdkError(() => requireDroid().workspace.validateDirectory(path)),

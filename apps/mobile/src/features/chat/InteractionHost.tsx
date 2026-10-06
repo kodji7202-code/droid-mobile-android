@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { exitSpecPlan } from '@droidmobile/daemon-client';
-import type { PermissionRequest } from '@droidmobile/daemon-client';
+import { exitSpecPlan, missionPermission } from '@droidmobile/daemon-client';
+import type { PermissionDecision, PermissionRequest } from '@droidmobile/daemon-client';
 import { useConnectionStore } from '../../stores/connection';
 import { useInteractionStore } from '../../stores/interactions';
 import { useSessionViewStore } from '../../stores/sessionView';
+import { MissionPermissionDialog } from '../missions/MissionPermissionDialog';
 import { ExitSpecDialog } from './ExitSpecDialog';
 import { AskUserDialog, PermissionDialog } from './InteractionDialogs';
 import { expectedAutonomy, knownSessionIds, waitForNewSession } from './newSessionWatch';
@@ -36,6 +37,27 @@ export function InteractionHost({ sessionId }: { sessionId: string }) {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const entry = pending.find((item) => item.sessionId === sessionId);
+
+  const mission = entry?.kind === 'permission' ? missionPermission(entry.request) : undefined;
+
+  const decidePermission = (
+    id: string,
+    request: PermissionRequest,
+    decision: PermissionDecision,
+  ) => {
+    if (decision === 'deny') {
+      markDenied(
+        sessionId,
+        describePermission(request).map(({ toolUseId, toolName, input }) => ({
+          id: toolUseId,
+          name: toolName,
+          input,
+        })),
+      );
+    }
+    answerPermission(id, decision);
+    void follow(sessionId);
+  };
 
   const chooseSpecOption = async (id: string, value: string, request: PermissionRequest) => {
     if (value === 'cancel') {
@@ -132,25 +154,20 @@ export function InteractionHost({ sessionId }: { sessionId: string }) {
           onChoose={(value) => void chooseSpecOption(entry.id, value, entry.request)}
         />
       ) : null}
-      {entry?.kind === 'permission' && !exitSpecPlan(entry.request) ? (
+      {entry?.kind === 'permission' && mission ? (
+        <MissionPermissionDialog
+          key={entry.id}
+          mission={mission}
+          onStop={() => void interrupt(sessionId)}
+          onDecide={(decision) => decidePermission(entry.id, entry.request, decision)}
+        />
+      ) : null}
+      {entry?.kind === 'permission' && !exitSpecPlan(entry.request) && !mission ? (
         <PermissionDialog
           key={entry.id}
           entry={entry}
           onStop={() => void interrupt(sessionId)}
-          onDecide={(decision) => {
-            if (decision === 'deny') {
-              markDenied(
-                sessionId,
-                describePermission(entry.request).map(({ toolUseId, toolName, input }) => ({
-                  id: toolUseId,
-                  name: toolName,
-                  input,
-                })),
-              );
-            }
-            answerPermission(entry.id, decision);
-            void follow(sessionId);
-          }}
+          onDecide={(decision) => decidePermission(entry.id, entry.request, decision)}
         />
       ) : null}
       {entry?.kind === 'askuser' ? (

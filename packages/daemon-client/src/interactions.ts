@@ -79,6 +79,38 @@ export function exitSpecPlan(request: PermissionRequest): ExitSpecPlan | undefin
   return undefined;
 }
 
+export type MissionPermission =
+  | { kind: 'propose_mission'; proposal: string; title?: string }
+  | {
+      kind: 'start_mission_run';
+      runningMissionCount: number;
+      runningMissionSessionIds: string[];
+    };
+
+/** The mission request behind a permission request (`propose_mission` / `start_mission_run`), if it is one. */
+export function missionPermission(request: PermissionRequest): MissionPermission | undefined {
+  for (const { details } of request.toolUses) {
+    const type = details.type as string;
+    if (type === 'propose_mission') {
+      const proposal = details as { proposal?: string; title?: string };
+      return {
+        kind: 'propose_mission',
+        proposal: proposal.proposal ?? '',
+        ...(proposal.title ? { title: proposal.title } : {}),
+      };
+    }
+    if (type === 'start_mission_run') {
+      const run = details as { runningMissionCount?: number; runningMissionSessionIds?: string[] };
+      return {
+        kind: 'start_mission_run',
+        runningMissionCount: run.runningMissionCount ?? 0,
+        runningMissionSessionIds: run.runningMissionSessionIds ?? [],
+      };
+    }
+  }
+  return undefined;
+}
+
 /** Option values the daemon offered, in its order. */
 export function permissionOptionValues(request: PermissionRequest): string[] {
   return optionValues(request);

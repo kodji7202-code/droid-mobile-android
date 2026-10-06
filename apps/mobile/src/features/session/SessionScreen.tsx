@@ -13,6 +13,8 @@ import { ChatComposer, WAITING_STATE } from '../chat/ChatComposer';
 import { InteractionHost } from '../chat/InteractionHost';
 import { useChatScroll } from '../chat/useChatScroll';
 import { Transcript } from '../chat/Transcript';
+import { MissionControl } from '../missions/MissionControl';
+import { useMissionView } from '../missions/useMissionView';
 import { UsageChip } from '../chat/UsageChip';
 import type { SessionHandle } from '@droidmobile/daemon-client';
 import { CompactSheet } from './actions/CompactSheet';
@@ -61,6 +63,8 @@ export function SessionScreen() {
   );
   const { showToast } = useToast();
   const { snapshot } = useSettingsSnapshot(view?.handle, HEADER_FOLLOW_INTERVAL_MS);
+  const isMission = snapshot?.interactionMode === 'mission';
+  const missionView = useMissionView(id, isMission);
 
   useEffect(() => {
     if (id !== '') {
@@ -215,11 +219,25 @@ export function SessionScreen() {
           </div>
         ) : null}
 
-        {view?.status === 'ready' && itemCount === 0 ? (
+        {view?.status === 'ready' && itemCount === 0 && !isMission ? (
           <EmptyState title={t('session.emptyTitle')} message={t('session.emptyMessage')} />
         ) : null}
 
-        {items && itemCount > 0 ? (
+        {view?.status === 'ready' && isMission ? (
+          <MissionControl
+            view={missionView}
+            threadEmpty={itemCount === 0}
+            thread={
+              <Transcript
+                items={items ?? []}
+                retryDisabled={view.status !== 'ready'}
+                onRetry={(itemId) => void retry(id, itemId)}
+              />
+            }
+          />
+        ) : null}
+
+        {items && itemCount > 0 && !isMission ? (
           <Transcript
             items={items}
             retryDisabled={view?.status !== 'ready'}

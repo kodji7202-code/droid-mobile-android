@@ -4,6 +4,7 @@ import {
   addPendingUser,
   applyStreamEvent,
   failPendingUser,
+  isMissionEvent,
   itemsFromMessages,
   reconcileLocalItems,
   markStopped,
@@ -26,6 +27,7 @@ import { toStreamOptions } from '../features/chat/attachments';
 import { runTurn } from '../features/chat/runTurn';
 import { useConnectionStore } from './connection';
 import { useInteractionStore } from './interactions';
+import { useMissionStore } from './missions';
 
 /** Messages requested per getMessages page (the daemon returns them newest first). */
 export const HISTORY_PAGE_SIZE = 50;
@@ -203,6 +205,8 @@ export const useSessionViewStore = create<SessionViewStore>((set, get) => {
             update(id, () => ({ usage: event.usage }));
           } else if (event.type === 'session_working_directory_changed') {
             update(id, () => ({ cwd: event.cwd }));
+          } else if (isMissionEvent(event)) {
+            useMissionStore.getState().apply(id, event);
           } else {
             if (event.type === 'user') dequeue(id, event.message.id);
             if (event.type === 'result' && event.interrupted) stoppedByDaemon = true;

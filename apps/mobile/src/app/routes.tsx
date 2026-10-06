@@ -31,6 +31,21 @@ import { SecurityScreen } from '../features/settings/SecurityScreen';
 import { DefaultsScreen } from '../features/settings/DefaultsScreen';
 
 /**
+ * Pages that exist only in the dev server. The literal `import.meta.env.DEV` guard
+ * is what lets the production build drop the route, its path and the fixtures.
+ */
+function devRoutes(): RouteObject[] {
+  if (!import.meta.env.DEV) return [];
+  return [
+    {
+      path: 'dev/mission-fixture',
+      lazy: () => import('../features/missions/__fixtures__/MissionFixtureRoute'),
+      errorElement: <RouteErrorBoundary />,
+    },
+  ];
+}
+
+/**
  * Route table shared by the production app (hash on web, memory on native)
  * and the component tests (memory). The connect screen is a placeholder for
  * the onboarding feature; the tab screens are placeholders until their
@@ -91,5 +106,6 @@ export function createAppRoutes(): RouteObject[] {
       ],
     },
     { path: 'connect', element: <ConnectScreen />, errorElement: <RouteErrorBoundary /> },
+    ...devRoutes(),
   ];
 }

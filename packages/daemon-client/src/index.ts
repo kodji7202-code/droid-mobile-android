@@ -42,11 +42,12 @@ export {
   canApproveAlways,
   cancelledAskUser,
   exitSpecPlan,
+  missionPermission,
   permissionAnswer,
   permissionOptionAnswer,
   permissionOptionValues,
 } from './interactions';
-export type { ExitSpecPlan } from './interactions';
+export type { ExitSpecPlan, MissionPermission } from './interactions';
 export type {
   AskUserAnswer,
   AskUserHandler,
@@ -163,3 +164,23 @@ export type {
   TerminalLinkStatus,
   TerminalState,
 } from './terminal-client';
+export {
+  EMPTY_MISSION,
+  MISSION_STATES,
+  applyMissionEvent,
+  groupFeatures,
+  isKnownMissionState,
+  isMissionEvent,
+  isMissionIdle,
+  missionFromSnapshot,
+} from './mission';
+export type {
+  MissionEvent,
+  MissionGroup,
+  MissionStateValue,
+  MissionView,
+  MissionWorker,
+  MissionWorkerStatus,
+} from './mission';
+export type { MissionSource } from './mission-source';
+export type { MissionFeature, MissionSnapshot, ProgressLogEntry } from '@factory/droid-sdk';

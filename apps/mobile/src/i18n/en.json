@@ -760,6 +760,97 @@
       "noMatch": "No matching commands"
     }
   },
+  "missions": {
+    "title": "Mission Control",
+    "stateLabel": "Mission state",
+    "state": {
+      "planning": "Planning",
+      "awaiting_input": "Awaiting input",
+      "initializing": "Initializing",
+      "running": "Running",
+      "paused": "Paused",
+      "orchestrator_turn": "Orchestrator turn",
+      "completed": "Completed",
+      "unknown": "Unknown"
+    },
+    "empty": {
+      "title": "No mission activity yet",
+      "message": "Describe your goal to the orchestrator below. Once it proposes a mission and you approve it, features, milestones and workers appear here."
+    },
+    "tabs": {
+      "label": "Mission sections",
+      "thread": "Thread",
+      "features": "Features",
+      "workers": "Workers"
+    },
+    "thread": {
+      "title": "Orchestrator",
+      "empty": "The orchestrator has not said anything yet."
+    },
+    "features": {
+      "title": "Features",
+      "empty": "No features yet.",
+      "milestone": "Milestone: {{name}}"
+    },
+    "featureStatus": {
+      "pending": "Pending",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "unknown": "Unknown"
+    },
+    "milestones": {
+      "title": "Milestones",
+      "ungrouped": "Ungrouped",
+      "progress": "{{completed}} of {{total}} completed"
+    },
+    "workers": {
+      "title": "Workers",
+      "empty": "No workers have started.",
+      "worker": "Worker {{id}}",
+      "exitCode": "Exit code {{code}}"
+    },
+    "workerStatus": {
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "progress": {
+      "title": "Progress log",
+      "empty": "Nothing logged yet.",
+      "worker": "Worker {{id}}",
+      "feature": "Feature {{id}}",
+      "milestone": "Milestone {{name}}"
+    },
+    "logEntry": {
+      "mission_accepted": "Mission accepted",
+      "mission_paused": "Mission paused",
+      "mission_resumed": "Mission resumed",
+      "mission_run_started": "Run started",
+      "worker_started": "Worker started",
+      "worker_selected_feature": "Worker picked a feature",
+      "worker_completed": "Worker completed",
+      "worker_failed": "Worker failed",
+      "worker_paused": "Worker paused",
+      "handoff_items_dismissed": "Handoff items dismissed",
+      "milestone_validation_triggered": "Milestone validation started"
+    },
+    "lastActivity": {
+      "label": "Last activity",
+      "none": "No activity yet"
+    },
+    "permission": {
+      "proposeTitle": "Mission proposal",
+      "proposeIntro": "The orchestrator proposes this mission. Approving lets it plan the work.",
+      "proposalTitle": "Title",
+      "proposal": "Proposal",
+      "startTitle": "Start the mission run",
+      "startIntro": "Approving starts the workers. A mission can use substantial credits.",
+      "runningCount_one": "{{count}} other mission is running.",
+      "runningCount_other": "{{count}} other missions are running.",
+      "runningSessions": "Running mission sessions"
+    }
+  },
   "session": {
     "title": "Session",
     "model": "Model",
