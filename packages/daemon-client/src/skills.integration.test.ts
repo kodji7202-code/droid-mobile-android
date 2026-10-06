@@ -1,8 +1,8 @@
 /**
  * Integration tests for skill listing and enablement against the REAL daemon on
- * 127.0.0.1:3101. Every change is undone in `afterAll`, and the final
- * disabled-skill set is compared with the recorded pre-state. No model prompt
- * is sent.
+ * 127.0.0.1:3101. The disable levels of only the two skills the tests toggle
+ * are recorded first and restored in `afterAll`; every other skill, disabled or
+ * not, is left as the user has it. No model prompt is sent.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
@@ -10,8 +10,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDaemonConnection } from './connection';
 import type { DaemonConnection } from './connection';
-import type { Skill } from './skills';
+import type { Skill, SkillLevel } from './skills';
 import { removeScratchDir } from './integration-cleanup';
+import { pickEnabledSkill, planSkillRestore, snapshotSkillLevels } from './integration-restore';
 
 const DAEMON_URL = process.env.DC_TEST_DAEMON_URL ?? 'ws://127.0.0.1:3101';
 const API_KEY = process.env.FACTORY_API_KEY;
@@ -27,6 +28,9 @@ const open: DaemonConnection[] = [];
 let projectDir = '';
 let otherDir = '';
 let preDisabled: string[] = [];
+/** A real skill the user has not disabled at any level, chosen in `beforeAll`. */
+let TARGET = '';
+let preLevels = new Map<string, SkillLevel[]>();
 
 async function connect(): Promise<DaemonConnection> {
   const conn = createDaemonConnection({ url: DAEMON_URL, apiKey: API_KEY!, keepAliveMs: 0 });
@@ -62,19 +66,19 @@ beforeAll(async () => {
     join(dir, 'SKILL.md'),
     `---\nname: ${PROJECT_SKILL}\ndescription: Validation project skill\n---\nDo nothing.\n`,
   );
+  const before = await independent(projectDir);
+  const target = pickEnabledSkill(before, 'tuistory');
+  if (!target) throw new Error('No skill that is enabled at every level is available to toggle.');
+  TARGET = target;
+  preLevels = snapshotSkillLevels(before, [TARGET, PROJECT_SKILL]);
   preDisabled = disabledNames(await independent());
 }, 30_000);
 
 afterAll(async () => {
   const conn = await connect();
   const current = (await conn.skills.list(projectDir)).skills;
-  for (const skill of current) {
-    if (skill.enabled || skill.disabledBy?.kind !== 'ledger') continue;
-    for (const level of skill.disabledBy.levels) {
-      if (level === 'user' || level === 'project') {
-        await conn.skills.setDisabled({ name: skill.name, disabled: false, level }, projectDir);
-      }
-    }
+  for (const step of planSkillRestore(preLevels, current)) {
+    await conn.skills.setDisabled(step, projectDir);
   }
   await conn.skills.release().catch(() => undefined);
   for (const item of open) item.disconnect();
@@ -107,12 +111,12 @@ describe('skills against the real daemon', { timeout: 30_000 }, () => {
 
   it('disables at user level for every folder and re-enables', async () => {
     const conn = await connect();
-    await conn.skills.setDisabled({ name: 'tuistory', disabled: true, level: 'user' }, projectDir);
-    const other = find(await independent(otherDir), 'tuistory');
+    await conn.skills.setDisabled({ name: TARGET, disabled: true, level: 'user' }, projectDir);
+    const other = find(await independent(otherDir), TARGET);
     expect(other).toMatchObject({ enabled: false, disabledBy: { kind: 'ledger' } });
     expect(other?.disabledBy).toEqual({ kind: 'ledger', levels: ['user'] });
-    await conn.skills.setDisabled({ name: 'tuistory', disabled: false, level: 'user' }, projectDir);
-    const after = find(await independent(otherDir), 'tuistory');
+    await conn.skills.setDisabled({ name: TARGET, disabled: false, level: 'user' }, projectDir);
+    const after = find(await independent(otherDir), TARGET);
     expect(after?.enabled).toBe(true);
     expect(after?.disabledBy).toBeUndefined();
     await conn.skills.release();
@@ -128,30 +132,24 @@ describe('skills against the real daemon', { timeout: 30_000 }, () => {
       kind: 'ledger',
       levels: ['project'],
     });
-    await conn.skills.setDisabled(
-      { name: 'tuistory', disabled: true, level: 'project' },
-      projectDir,
-    );
-    expect(find(await independent(otherDir), 'tuistory')?.enabled).toBe(true);
-    expect(find(await independent(projectDir), 'tuistory')?.enabled).toBe(false);
-    await conn.skills.setDisabled(
-      { name: 'tuistory', disabled: false, level: 'project' },
-      projectDir,
-    );
+    await conn.skills.setDisabled({ name: TARGET, disabled: true, level: 'project' }, projectDir);
+    expect(find(await independent(otherDir), TARGET)?.enabled).toBe(true);
+    expect(find(await independent(projectDir), TARGET)?.enabled).toBe(false);
+    await conn.skills.setDisabled({ name: TARGET, disabled: false, level: 'project' }, projectDir);
     await conn.skills.setDisabled(
       { name: PROJECT_SKILL, disabled: false, level: 'project' },
       projectDir,
     );
     const after = await independent(projectDir);
     expect(find(after, PROJECT_SKILL)?.enabled).toBe(true);
-    expect(find(after, 'tuistory')?.enabled).toBe(true);
+    expect(find(after, TARGET)?.enabled).toBe(true);
     await conn.skills.release();
   });
 
   it('refuses a project-level change in a folder that cannot hold one', async () => {
     const conn = await connect();
     await expect(
-      conn.skills.setDisabled({ name: 'tuistory', disabled: true, level: 'project' }),
+      conn.skills.setDisabled({ name: TARGET, disabled: true, level: 'project' }),
     ).rejects.toThrow();
     await conn.skills.release();
   });

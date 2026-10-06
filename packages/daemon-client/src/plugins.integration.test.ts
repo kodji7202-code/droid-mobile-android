@@ -1,12 +1,15 @@
 /**
  * Integration tests for marketplaces and plugins against the REAL daemon on
- * 127.0.0.1:3101. The marketplace and plugin lists are recorded first and
- * restored in `afterAll`; the plugin installed here is `typescript` from the
- * public `Factory-AI/factory-plugins` marketplace. No model prompt is sent.
+ * 127.0.0.1:3101. The marketplace and plugin lists are recorded first. The
+ * plugin lifecycle (`typescript` from the public `Factory-AI/factory-plugins`
+ * marketplace) is skipped when the user already has that plugin, and
+ * `afterAll` removes only the plugin and marketplace this run introduced.
+ * No model prompt is sent.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDaemonConnection } from './connection';
 import type { DaemonConnection } from './connection';
+import { ownsPluginLifecycle, planPluginCleanup } from './integration-restore';
 
 const DAEMON_URL = process.env.DC_TEST_DAEMON_URL ?? 'ws://127.0.0.1:3101';
 const API_KEY = process.env.FACTORY_API_KEY;
@@ -87,10 +90,16 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const current = await independent();
-  if (current.installed.some((plugin) => plugin.id === PLUGIN_ID)) {
-    await conn.plugins.uninstall(PLUGIN_ID, 'user').catch(() => undefined);
-  }
-  if (!preMarketplaces.includes(MARKETPLACE) && names(current.marketplaces).includes(MARKETPLACE)) {
+  const cleanup = planPluginCleanup({
+    preInstalled,
+    preMarketplaces,
+    currentInstalled: ids(current.installed),
+    currentMarketplaces: names(current.marketplaces),
+    pluginId: PLUGIN_ID,
+    marketplace: MARKETPLACE,
+  });
+  if (cleanup.uninstall) await conn.plugins.uninstall(PLUGIN_ID, 'user').catch(() => undefined);
+  if (cleanup.removeMarketplace) {
     await conn.plugins.removeMarketplace(MARKETPLACE).catch(() => undefined);
   }
   await conn.plugins.release().catch(() => undefined);
@@ -130,7 +139,9 @@ describe('marketplaces and plugins against the real daemon', () => {
 
   it(
     'installs, switches, updates and uninstalls the plugin',
-    async () => {
+    async ({ skip }) => {
+      // The user already has this plugin: toggling or removing it would change their install.
+      if (!ownsPluginLifecycle(preInstalled, PLUGIN_ID)) skip();
       await expect(conn.plugins.install({ marketplace: MARKETPLACE, name: PLUGIN })).resolves.toBe(
         PLUGIN_ID,
       );
