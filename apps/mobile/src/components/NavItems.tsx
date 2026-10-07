@@ -55,9 +55,11 @@ export function NavigationRail() {
   const { t } = useTranslation();
   return (
     <nav className="app-nav-rail" data-testid="nav-rail" aria-label={t('nav.label')}>
-      {NAV_ITEMS.map((item) => (
-        <NavItem key={item.to} item={item} />
-      ))}
+      <div className="app-nav-rail__items">
+        {NAV_ITEMS.map((item) => (
+          <NavItem key={item.to} item={item} />
+        ))}
+      </div>
     </nav>
   );
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { useMediaQuery } from '../../app/useMediaQuery';
 import { BackIcon, ContextIcon, SettingsIcon } from '../../components/icons';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
@@ -39,6 +40,8 @@ export function SessionScreen() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id = '' } = useParams();
+  // The list stays visible beside the chat from 840 px, so there is nothing to go back to.
+  const wide = useMediaQuery('(min-width: 840px)');
   const connection = useConnectionStore((state) => state.connection);
   const status = useConnectionStore((state) => state.status);
   const readyEpoch = useConnectionStore((state) => state.readyEpoch);
@@ -132,15 +135,17 @@ export function SessionScreen() {
         data-testid="session-background"
       >
         <div className="sub-header">
-          <button
-            type="button"
-            className="btn btn--ghost sub-header__back"
-            data-testid="session-back"
-            aria-label={t('common.back')}
-            onClick={() => navigate('/sessions')}
-          >
-            <BackIcon />
-          </button>
+          {wide ? null : (
+            <button
+              type="button"
+              className="btn btn--ghost sub-header__back"
+              data-testid="session-back"
+              aria-label={t('common.back')}
+              onClick={() => navigate('/sessions')}
+            >
+              <BackIcon />
+            </button>
+          )}
           <h2 className="sub-header__title" id="session-title" data-testid="session-title">
             {title}
           </h2>

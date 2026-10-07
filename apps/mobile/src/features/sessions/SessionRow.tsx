@@ -5,6 +5,8 @@ import type { SessionRowData } from './sessionsPaging';
 
 interface SessionRowProps {
   row: SessionRowData;
+  /** The session shown in the detail pane (tablet layout). */
+  selected?: boolean;
   now: number;
   menuOpen: boolean;
   onOpen(row: SessionRowData): void;
@@ -16,6 +18,7 @@ interface SessionRowProps {
 
 export function SessionRow({
   row,
+  selected = false,
   now,
   menuOpen,
   onOpen,
@@ -28,10 +31,14 @@ export function SessionRow({
   const title = row.title === '' ? t('sessions.untitled') : row.title;
 
   return (
-    <li className="session-row" data-testid={`session-item-${row.id}`}>
+    <li
+      className={`session-row${selected ? ' session-row--selected' : ''}`}
+      data-testid={`session-item-${row.id}`}
+    >
       <button
         type="button"
         className="session-row__main"
+        aria-current={selected ? 'true' : undefined}
         data-testid={`session-open-${row.id}`}
         onClick={() => onOpen(row)}
       >

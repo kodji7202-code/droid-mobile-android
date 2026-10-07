@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useMatch, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { SessionHandle } from '@droidmobile/daemon-client';
 import { EmptyState } from '../../components/EmptyState';
@@ -47,6 +47,7 @@ export function SessionsScreen() {
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<SessionRowData | null>(null);
   const navigate = useNavigate();
+  const openId = useMatch('/sessions/:id')?.params.id;
   // Set by the session screen when it was opened for a session the daemon does not have.
   const notFound = (useLocation().state as { sessionNotFound?: boolean } | null)?.sessionNotFound;
   const [notFoundDismissed, setNotFoundDismissed] = useState(false);
@@ -275,6 +276,7 @@ export function SessionsScreen() {
               <SessionRow
                 key={row.id}
                 row={row}
+                selected={row.id === openId}
                 now={list.loadedAt}
                 menuOpen={menuId === row.id}
                 onOpen={(target) => navigate(`/sessions/${target.id}`)}

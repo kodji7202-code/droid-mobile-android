@@ -69,14 +69,23 @@ p {
 }
 
 .app-nav-rail {
+  flex: none;
   width: 96px;
+  padding: 0.5rem 0.375rem;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+/* The page scrolls (chat, long lists), so the destinations stay in view while the rail itself spans the body. */
+.app-nav-rail__items {
+  position: sticky;
+  top: 0.5rem;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0.25rem;
-  padding: 0.5rem 0.375rem;
-  border-right: 1px solid var(--color-border);
-  background: var(--color-surface);
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
 }
 
 /* ---- Navigation items (phone bar + rail share them) -------------------- */
@@ -216,6 +225,12 @@ p {
   max-width: 720px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* Screens rendered outside .app-main (connect, lock) pad themselves like the shell screens do. */
+.screen--standalone {
+  padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
+    max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
 }
 
 .screen__title {
@@ -690,6 +705,36 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
 
 .sessions-notice--offline {
   color: var(--color-danger);
+}
+
+/* Tablet two-pane: the list stays in view (sticky, own scroll) while the chat scrolls with the page. */
+.sessions-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.sessions-layout > .sessions-screen {
+  position: sticky;
+  top: 1.5rem;
+  max-height: calc(100dvh - 56px - 3rem);
+  overflow-y: auto;
+  max-width: none;
+  margin: 0;
+}
+
+.sessions-detail {
+  min-width: 0;
+}
+
+.sessions-detail > .screen {
+  max-width: none;
+  margin: 0;
+}
+
+.session-row--selected {
+  background: var(--color-surface-variant);
 }
 
 .session-list {
@@ -2554,6 +2599,13 @@ html[data-soft-keyboard='open'] .app-nav-bar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start;
+}
+
+/* In the tablet two-pane the chat pane is narrower than the viewport (rail + list take 544 px). */
+@media (min-width: 840px) and (max-width: 1383px) {
+  .sessions-detail .mission-layout[data-wide] {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .mission-panel {

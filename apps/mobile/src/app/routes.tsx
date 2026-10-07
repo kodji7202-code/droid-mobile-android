@@ -6,7 +6,7 @@ import { ConnectScreen } from '../features/connect/ConnectScreen';
 import { AutomationDetailScreen } from '../features/automations/AutomationDetailScreen';
 import { AutomationHistoryScreen } from '../features/automations/AutomationHistoryScreen';
 import { AutomationsScreen } from '../features/automations/AutomationsScreen';
-import { SessionsScreen } from '../features/sessions/SessionsScreen';
+import { SessionsDetailPlaceholder, SessionsLayout } from '../features/sessions/SessionsLayout';
 import { SessionScreen } from '../features/session/SessionScreen';
 import { WorkspaceScreen } from '../features/workspace/WorkspaceScreen';
 import { CommandsLayout } from '../features/extensions/commands/CommandsLayout';
@@ -60,8 +60,14 @@ export function createAppRoutes(): RouteObject[] {
       errorElement: <RouteErrorBoundary />,
       children: [
         { index: true, element: <Navigate to="/sessions" replace /> },
-        { path: 'sessions', element: <SessionsScreen /> },
-        { path: 'sessions/:id', element: <SessionScreen /> },
+        {
+          path: 'sessions',
+          element: <SessionsLayout />,
+          children: [
+            { index: true, element: <SessionsDetailPlaceholder /> },
+            { path: ':id', element: <SessionScreen /> },
+          ],
+        },
         { path: 'workspace', element: <WorkspaceScreen /> },
         { path: 'extensions', element: <ExtensionsScreen /> },
         {

@@ -80,6 +80,7 @@
     "loadFailed": "Daemonul nu a returnat lista de sesiuni. Încearcă din nou.",
     "offlineEmptyTitle": "Neconectat",
     "offlineEmpty": "Sesiunile apar aici când daemonul este accesibil.",
+    "selectSession": "Alege o sesiune pentru a-i deschide conversația.",
     "loadMore": "Încarcă mai multe",
     "loadingMore": "Se încarcă…",
     "newTitle": "Sesiune nouă",

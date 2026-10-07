@@ -33,7 +33,10 @@ export function usePullToRefresh(onRefresh: () => void): PullToRefresh {
   }, []);
 
   const onTouchStart = useCallback((event: TouchEvent) => {
-    const atTop = (document.scrollingElement?.scrollTop ?? window.scrollY) <= 0;
+    // The tablet list pane scrolls on its own, so the touched element must be at its top too.
+    const atTop =
+      (document.scrollingElement?.scrollTop ?? window.scrollY) <= 0 &&
+      event.currentTarget.scrollTop <= 0;
     startY.current = atTop ? event.touches[0].clientY : null;
   }, []);
 

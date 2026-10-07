@@ -162,7 +162,7 @@ export function ConnectScreen() {
 
   return (
     <section
-      className="screen connect-screen"
+      className="screen screen--standalone connect-screen"
       data-testid="connect-screen"
       aria-labelledby="connect-title"
     >

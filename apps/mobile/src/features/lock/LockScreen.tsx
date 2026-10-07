@@ -46,7 +46,11 @@ export function LockScreen() {
   }, [run]);
 
   return (
-    <main className="screen lock-screen" data-testid="lock-screen" aria-labelledby="lock-title">
+    <main
+      className="screen screen--standalone lock-screen"
+      data-testid="lock-screen"
+      aria-labelledby="lock-title"
+    >
       <h1 className="screen__title" id="lock-title">
         {t('lock.title')}
       </h1>

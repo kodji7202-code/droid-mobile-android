@@ -80,6 +80,7 @@
     "loadFailed": "The daemon did not return the session list. Try again.",
     "offlineEmptyTitle": "Not connected",
     "offlineEmpty": "Sessions appear here once the daemon is reachable.",
+    "selectSession": "Choose a session to open its chat.",
     "loadMore": "Load more",
     "loadingMore": "Loading…",
     "newTitle": "New session",
