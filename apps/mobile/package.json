@@ -1,6 +1,7 @@
 {
   "name": "@droidmobile/mobile",
   "version": "1.0.0",
+  "androidVersionCode": 1,
   "private": true,
   "type": "module",
   "scripts": {

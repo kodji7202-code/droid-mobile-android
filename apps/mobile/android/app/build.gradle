@@ -2,7 +2,9 @@ apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 
 // One source of truth: the web layer shows the same apps/mobile/package.json version.
-def appPackageVersion = new groovy.json.JsonSlurper().parse(file('../../package.json')).version
+def appPackageJson = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+def appPackageVersion = appPackageJson.version
+def appPackageVersionCode = appPackageJson.androidVersionCode as int
 
 // Release signing material lives outside the tree that is committed: secrets/ is git-ignored.
 // DROID_KEYSTORE_PROPERTIES overrides the location. Relative storeFile values resolve against
@@ -22,7 +24,7 @@ android {
         applicationId "com.droidmobile.client"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        versionCode appPackageVersionCode
         versionName appPackageVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

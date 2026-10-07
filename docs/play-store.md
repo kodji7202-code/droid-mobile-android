@@ -101,5 +101,5 @@ key. English and Romanian listings can reuse the same images.
 1. `npm run test`, `npm run typecheck`, `npm run lint`, `npm run docs:check`.
 2. `npm run android:release` (runs the signing, manifest and secret checks).
 3. `npm run scan:secrets`.
-4. Raise `versionCode`, upload `app-release.aab`, attach the notes above, submit to a closed test
-   first.
+4. Raise `androidVersionCode` in `apps/mobile/package.json`, upload `app-release.aab`, attach the
+   notes above, submit to a closed test first.

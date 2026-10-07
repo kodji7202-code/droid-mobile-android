@@ -134,6 +134,20 @@ describe('android project source sets', () => {
     expect(appBuild).toMatch(/applicationId\s+"com\.droidmobile\.client"/);
   });
 
+  it('takes versionCode and versionName from apps/mobile/package.json so an upgrade only bumps that file', () => {
+    const pkg = JSON.parse(read(path.join(mobileRoot, 'package.json'))) as {
+      version: string;
+      androidVersionCode: number;
+    };
+    expect(Number.isInteger(pkg.androidVersionCode)).toBe(true);
+    expect(pkg.androidVersionCode).toBeGreaterThanOrEqual(1);
+    const appBuild = read(android('app', 'build.gradle'));
+    expect(appBuild).not.toMatch(/versionCode\s+\d/);
+    expect(appBuild).toMatch(/versionCode\s+appPackageVersionCode/);
+    expect(appBuild).toMatch(/versionName\s+appPackageVersion\b/);
+    expect(appBuild).toContain('androidVersionCode');
+  });
+
   it('ships an adaptive launcher icon with background, foreground and monochrome layers', () => {
     for (const file of ['ic_launcher.xml', 'ic_launcher_round.xml']) {
       const icon = read(android('app', 'src', 'main', 'res', 'mipmap-anydpi-v26', file));

@@ -22,9 +22,11 @@ Outputs (same release key):
 | AAB      | `apps/mobile/android/app/build/outputs/bundle/release/app-release.aab` |
 
 Prerequisites are the ones in [android.md](android.md) (JDK 21, Android SDK with build-tools)
-plus Node 24 and `npm install`. The version is `versionCode 1` and the app's package version
-(`apps/mobile/package.json`); raise `versionCode` in `apps/mobile/android/app/build.gradle` before
-every Play Store upload.
+plus Node 24 and `npm install`. Both version fields live in `apps/mobile/package.json`:
+`version` becomes `versionName` and `androidVersionCode` becomes `versionCode`. Raise
+`androidVersionCode` there before every Play Store upload; installing a build over an installed one
+with `adb install -r` keeps the saved connections as long as the keystore and the `versionCode`
+direction (equal or higher) allow it.
 
 ## Keystore creation
 
