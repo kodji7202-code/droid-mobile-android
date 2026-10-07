@@ -10,6 +10,7 @@ function fakeService() {
     isSupported: () => true,
     start: vi.fn(async (_texts: ServiceTexts) => true),
     stop: vi.fn(async () => undefined),
+    isRunning: vi.fn(async () => true as boolean | null),
     consumeStopRequest: vi.fn(async () => false),
     batteryState: vi.fn(async () => 'unknown' as const),
     openBatterySettings: vi.fn(async () => true),
@@ -128,6 +129,35 @@ describe('ServiceSync', () => {
     sync.resumed();
     vi.advanceTimersByTime(STOP_DELAY_MS * 2);
     expect(service.start).toHaveBeenCalledTimes(1);
+    expect(service.stop).not.toHaveBeenCalled();
+  });
+
+  it('restarts a wanted service that the system destroyed without telling the app', () => {
+    const service = fakeService();
+    const sync = new ServiceSync(service);
+    sync.update({ ...IDLE, stayConnected: true }, TEXTS);
+    sync.reconcile(true);
+    sync.reconcile(null);
+    expect(service.start).toHaveBeenCalledTimes(1);
+    sync.reconcile(false);
+    expect(service.start).toHaveBeenCalledTimes(2);
+    sync.reconcile(true);
+    expect(service.start).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not restart through reconcile after Stop or when nothing is wanted', () => {
+    const service = fakeService();
+    const sync = new ServiceSync(service);
+    sync.update({ ...IDLE, turnActive: true }, TEXTS);
+    sync.ended();
+    sync.reconcile(false);
+    expect(service.start).toHaveBeenCalledTimes(1);
+    sync.update(IDLE, TEXTS);
+    sync.update({ ...IDLE, turnActive: true }, TEXTS);
+    sync.update(IDLE, TEXTS);
+    sync.reconcile(false);
+    vi.advanceTimersByTime(STOP_DELAY_MS * 2);
+    expect(service.start).toHaveBeenCalledTimes(2);
     expect(service.stop).not.toHaveBeenCalled();
   });
 

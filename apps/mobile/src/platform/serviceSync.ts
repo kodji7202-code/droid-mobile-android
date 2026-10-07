@@ -77,6 +77,20 @@ export class ServiceSync {
     else this.awaitingForeground = true;
   }
 
+  /**
+   * The native service is gone although it is believed to run (its process died, or its end
+   * event was lost). Call it only while the app is in the foreground, where starting is legal.
+   */
+  reconcile(running: boolean | null): void {
+    if (running !== false || !this.running) return;
+    this.running = false;
+    this.cancelStop();
+    if (this.wanted && !this.suppressed && this.texts) {
+      this.awaitingForeground = false;
+      this.start(this.texts);
+    }
+  }
+
   /** The app came to the foreground: a service that had to wait for it may start now. */
   resumed(): void {
     if (!this.awaitingForeground) return;

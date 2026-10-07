@@ -28,6 +28,7 @@ function fakeService(stopRequested = false) {
     isSupported: () => true,
     start: vi.fn(async (_texts: ServiceTexts) => true),
     stop: vi.fn(async () => undefined),
+    isRunning: vi.fn(async () => true as boolean | null),
     consumeStopRequest: vi.fn(async () => {
       const value = requested;
       requested = false;
@@ -118,6 +119,16 @@ describe('useDaemonService', () => {
     act(() => resumeApp());
     await act(async () => undefined);
     expect(service.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('restarts on resume when the native service is gone without an event', async () => {
+    useStayConnectedStore.setState({ enabled: true });
+    const { service } = fakeService();
+    renderHook(() => useDaemonService(service));
+    await waitFor(() => expect(service.start).toHaveBeenCalledTimes(1));
+    service.isRunning.mockResolvedValueOnce(false);
+    act(() => resumeApp());
+    await waitFor(() => expect(service.start).toHaveBeenCalledTimes(2));
   });
 
   it('keeps stay connected on after the Android timeout and restarts when the app resumes', async () => {

@@ -27,6 +27,7 @@ describe('daemonService wrapper', () => {
     expect(await service.start(TEXTS)).toBe(false);
     await service.stop();
     expect(await service.consumeStopRequest()).toBe(false);
+    expect(await service.isRunning()).toBeNull();
     expect(await service.batteryState()).toBe('unknown');
     expect(await service.openBatterySettings()).toBe(false);
     expect(plugin.start).not.toHaveBeenCalled();
@@ -42,6 +43,16 @@ describe('daemonService wrapper', () => {
     await service.stop();
     expect(plugin.stop).toHaveBeenCalledTimes(1);
     expect(await service.consumeStopRequest()).toBe(true);
+  });
+
+  it('reads whether the native service is alive and null when that fails', async () => {
+    const plugin = fakePlugin();
+    const service = createDaemonService(plugin, () => true);
+    expect(await service.isRunning()).toBe(true);
+    plugin.isRunning.mockResolvedValueOnce({ running: false });
+    expect(await service.isRunning()).toBe(false);
+    plugin.isRunning.mockRejectedValueOnce(new Error('boom'));
+    expect(await service.isRunning()).toBeNull();
   });
 
   it('reports a refused start as false instead of throwing', async () => {

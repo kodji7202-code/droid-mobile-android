@@ -30,6 +30,8 @@ export interface DaemonServiceApi {
   /** Starts the service or refreshes its notification texts; false when Android refused. */
   start(texts: ServiceTexts): Promise<boolean>;
   stop(): Promise<void>;
+  /** Whether the native service is alive right now; null when it cannot be read. */
+  isRunning(): Promise<boolean | null>;
   /** True once if the user pressed Stop in the notification since the last call. */
   consumeStopRequest(): Promise<boolean>;
   batteryState(): Promise<BatteryState>;
@@ -64,6 +66,14 @@ export function createDaemonService(
         await plugin.stop();
       } catch {
         // Nothing to stop.
+      }
+    },
+    async isRunning() {
+      if (!isNative()) return null;
+      try {
+        return (await plugin.isRunning()).running;
+      } catch {
+        return null;
       }
     },
     async consumeStopRequest() {

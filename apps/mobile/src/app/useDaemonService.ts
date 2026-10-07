@@ -42,7 +42,12 @@ export function useDaemonService(service: DaemonServiceApi = daemonService): voi
     });
     const resume = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) return;
-      void applyStopRequest().then(() => syncRef.current?.resumed());
+      void applyStopRequest()
+        .then(() => service.isRunning())
+        .then((running) => {
+          syncRef.current?.reconcile(running);
+          syncRef.current?.resumed();
+        });
     });
     return () => {
       stopListening();
