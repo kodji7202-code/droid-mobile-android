@@ -3,8 +3,19 @@
  * (the `mission` field the daemon returns when a session is resumed) and from
  * the mission notifications (`mission_*` stream events). No React, no I/O.
  */
-import { FeatureStatus, ProgressLogEntryType } from '@factory/droid-sdk';
-import type { MissionFeature, MissionSnapshot, ProgressLogEntry } from '@factory/droid-sdk';
+import type {
+  FeatureStatus,
+  MissionFeature,
+  MissionSnapshot,
+  ProgressLogEntry,
+  ProgressLogEntryType,
+} from '@factory/droid-sdk';
+
+// The SDK enums are string-valued; their members are written out so this module never pulls the SDK chunk.
+const WORKER_STARTED = 'worker_started' as ProgressLogEntryType.WorkerStarted;
+const WORKER_COMPLETED = 'worker_completed' as ProgressLogEntryType.WorkerCompleted;
+const WORKER_FAILED = 'worker_failed' as ProgressLogEntryType.WorkerFailed;
+const FEATURE_COMPLETED = 'completed' as FeatureStatus.Completed;
 import type { NormalizedEvent } from './normalize';
 
 /** Wire values of the SDK `MissionState` enum (the app never imports the enum itself). */
@@ -96,15 +107,15 @@ function workersFromLog(
     });
   };
   for (const entry of log) {
-    if (entry.type === ProgressLogEntryType.WorkerStarted && !byId.has(entry.workerSessionId)) {
+    if (entry.type === WORKER_STARTED && !byId.has(entry.workerSessionId)) {
       byId.set(entry.workerSessionId, {
         sessionId: entry.workerSessionId,
         status: 'running',
         startedAt: entry.timestamp,
       });
-    } else if (entry.type === ProgressLogEntryType.WorkerCompleted) {
+    } else if (entry.type === WORKER_COMPLETED) {
       finish(entry.workerSessionId, entry.timestamp, entry.exitCode);
-    } else if (entry.type === ProgressLogEntryType.WorkerFailed && entry.workerSessionId) {
+    } else if (entry.type === WORKER_FAILED && entry.workerSessionId) {
       finish(entry.workerSessionId, entry.timestamp, entry.exitCode ?? 1);
     }
   }
@@ -214,7 +225,7 @@ export function groupFeatures(features: readonly MissionFeature[]): MissionGroup
   const summarize = (list: MissionFeature[], milestone?: string): MissionGroup => ({
     ...(milestone !== undefined ? { milestone } : {}),
     features: list,
-    completed: list.filter((feature) => feature.status === FeatureStatus.Completed).length,
+    completed: list.filter((feature) => feature.status === FEATURE_COMPLETED).length,
     total: list.length,
   });
   return [

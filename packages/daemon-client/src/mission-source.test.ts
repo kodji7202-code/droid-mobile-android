@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   MissionFeatureSchema,
   MissionHeartbeatNotificationSchema,
@@ -6,6 +6,7 @@ import {
   MissionStateChangedNotificationSchema,
 } from './mission-schemas';
 import { createMissionSource } from './mission-source';
+import { loadSdk } from './sdk';
 import { missionFromSnapshot } from './mission';
 import { missionPermission } from './interactions';
 import type { PermissionRequest } from './interactions';
@@ -24,6 +25,10 @@ function facade(): { droid: { controller: { config: Config } }; config: Config }
 }
 
 describe('createMissionSource', () => {
+  beforeAll(async () => {
+    await loadSdk();
+  });
+
   it('installs injectable stores on the facade controller', () => {
     const source = createMissionSource();
     const { droid, config } = facade();

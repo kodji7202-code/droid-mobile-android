@@ -9,8 +9,8 @@
  * notification the SDK store drops, so they are read off the controller's
  * notification events and merged into the snapshots.
  */
-import { MultiMissionStateManager } from '@factory/droid-sdk';
-import type { MissionSnapshot } from '@factory/droid-sdk';
+import type { MissionSnapshot, MultiMissionStateManager } from '@factory/droid-sdk';
+import { loadedSdk, loadSdk } from './sdk';
 
 type MissionStore = ReturnType<MultiMissionStateManager['getMissionStore']>;
 
@@ -57,8 +57,12 @@ const isLater = (candidate: string, than: string | undefined) =>
 
 export function createMissionSource(): MissionSource {
   let created: MultiMissionStateManager | undefined;
-  // Built on first use: a facade without an injectable controller never needs one.
-  const getManager = () => (created ??= new MultiMissionStateManager());
+  // Built on first use once the SDK is loaded: a facade without an injectable controller never needs one.
+  const getManager = (): MultiMissionStateManager | undefined => {
+    const sdk = loadedSdk();
+    if (!created && sdk) created = new sdk.MultiMissionStateManager();
+    return created;
+  };
   /**
    * SDK 0.9.1 drops `mission_heartbeat` (the controller ignores it and the store keeps
    * no timestamp), so the latest one per session is kept here and folded into the
@@ -78,6 +82,7 @@ export function createMissionSource(): MissionSource {
       const config = controllerConfig(droid);
       if (!config) return false;
       const manager = getManager();
+      if (!manager) return false;
       config.getMissionStore = (sessionId) => manager.getMissionStore(sessionId);
       config.getMissionStoreIfKnown = (sessionId) => manager.getMissionStoreIfKnown(sessionId);
       controllerOf(droid)?.on?.('sessionNotification', ({ sessionId, notification }) => {
@@ -97,30 +102,52 @@ export function createMissionSource(): MissionSource {
 
     subscribe(sessionId, listener) {
       const manager = getManager();
-      let store: MissionStore | null = null;
-      let unsubscribeStore = () => {};
-      const emit = () => {
-        if (store) listener(withHeartbeat(sessionId, store.getSnapshot()));
-      };
-      const onHeartbeat = (id: string) => {
-        if (id === sessionId) emit();
-      };
-      heartbeatListeners.add(onHeartbeat);
-      const follow = () => {
-        const next = manager.getMissionStoreIfKnown(sessionId);
-        if (next === store) return;
-        unsubscribeStore();
-        store = next;
-        unsubscribeStore = next ? next.subscribe(emit) : () => {};
-        emit();
-      };
-      const unsubscribeManager = manager.subscribe(follow);
-      follow();
+      if (manager) return follow(manager, sessionId, listener);
+      // Nothing can be known before the SDK is loaded; the subscription starts once it is.
+      let cancelled = false;
+      let stop = () => {};
+      void loadSdk().then(
+        () => {
+          const loadedManager = getManager();
+          if (!cancelled && loadedManager) stop = follow(loadedManager, sessionId, listener);
+        },
+        () => {},
+      );
       return () => {
-        heartbeatListeners.delete(onHeartbeat);
-        unsubscribeManager();
-        unsubscribeStore();
+        cancelled = true;
+        stop();
       };
     },
   };
+
+  function follow(
+    manager: MultiMissionStateManager,
+    sessionId: string,
+    listener: (snapshot: MissionSnapshot) => void,
+  ): () => void {
+    let store: MissionStore | null = null;
+    let unsubscribeStore = () => {};
+    const emit = () => {
+      if (store) listener(withHeartbeat(sessionId, store.getSnapshot()));
+    };
+    const onHeartbeat = (id: string) => {
+      if (id === sessionId) emit();
+    };
+    heartbeatListeners.add(onHeartbeat);
+    const track = () => {
+      const next = manager.getMissionStoreIfKnown(sessionId);
+      if (next === store) return;
+      unsubscribeStore();
+      store = next;
+      unsubscribeStore = next ? next.subscribe(emit) : () => {};
+      emit();
+    };
+    const unsubscribeManager = manager.subscribe(track);
+    track();
+    return () => {
+      heartbeatListeners.delete(onHeartbeat);
+      unsubscribeManager();
+      unsubscribeStore();
+    };
+  }
 }

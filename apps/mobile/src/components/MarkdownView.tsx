@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentProps } from 'react';
+import { memo, useEffect, useState, type ComponentProps } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -43,7 +43,7 @@ const REMARK_PLUGINS = [remarkGfm];
  * elements (react-markdown builds React nodes from the markdown tree and no
  * raw-HTML plugin is installed), and only http(s) and mailto links keep an href.
  */
-export function MarkdownView({ text }: { text: string }) {
+export const MarkdownView = memo(function MarkdownView({ text }: { text: string }) {
   const hasCode = text.includes('```') || text.includes('~~~');
   const [highlight, setHighlight] = useState<RehypePlugin>();
 
@@ -70,4 +70,4 @@ export function MarkdownView({ text }: { text: string }) {
       </Markdown>
     </div>
   );
-}
+});

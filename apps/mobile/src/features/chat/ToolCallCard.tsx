@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ToolItem } from '@droidmobile/daemon-client';
+import type { RowProps } from './Transcript';
 
 const SUMMARY_LIMIT = 80;
 
@@ -13,13 +14,14 @@ export function summarizeInput(input: Record<string, unknown>): string {
   return line.length > SUMMARY_LIMIT ? `${line.slice(0, SUMMARY_LIMIT)}�` : line;
 }
 
-export function ToolCallCard({ tool }: { tool: ToolItem }) {
+export function ToolCallCard({ tool, rowProps }: { tool: ToolItem; rowProps?: RowProps }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const bodyId = `tool-call-body-${tool.id}`;
   const statusLabel = t(`chat.tool.${tool.status}`);
   return (
     <li
+      {...rowProps}
       className={`tool-card tool-card--${tool.status}`}
       data-testid={`tool-call-${tool.id}`}
       data-state={tool.status}

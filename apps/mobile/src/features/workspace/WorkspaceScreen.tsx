@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { EyeIcon, EyeOffIcon, FolderIcon } from '../../components/icons';
+import { Skeleton } from '../../components/Skeleton';
 import { useConnectionStore } from '../../stores/connection';
 import { useSessionViewStore } from '../../stores/sessionView';
 import { useWorkspaceStore } from '../../stores/workspace';
@@ -11,7 +12,6 @@ import { FileViewer } from './FileViewer';
 import { FilesTree } from './FilesTree';
 import { GitActions } from './GitActions';
 import { GitChangesList } from './GitChangesList';
-import { GitDiffViewer } from './GitDiffViewer';
 import { TerminalView } from '../terminal/TerminalView';
 import { findFileDiff, splitUnifiedDiffByFile, unquoteGitPath } from './diffParser';
 import { buildTree, flattenTree } from './treeBuilder';
@@ -21,6 +21,11 @@ import type {
   DaemonResolvePullRequestStatusesRequestParams,
 } from '@droidmobile/daemon-client';
 import type { PullRequestStatusInfo } from './PullRequestChip';
+
+// Diffs are rare next to browsing; the viewer loads on first use.
+const GitDiffViewer = lazy(() =>
+  import('./GitDiffViewer').then((module) => ({ default: module.GitDiffViewer })),
+);
 
 const EMPTY_EXPANDED: string[] = [];
 const EMPTY_FILES: string[] = [];
@@ -362,13 +367,15 @@ export function WorkspaceScreen() {
         data-testid="workspace-screen"
         style={{ height: '100%', padding: 0 }}
       >
-        <GitDiffViewer
-          filePath={diffPath}
-          rawDiff={rawDiff}
-          additions={fileEntry?.additions}
-          deletions={fileEntry?.deletions}
-          onBack={handleBackFromDiffViewer}
-        />
+        <Suspense fallback={<Skeleton lines={4} />}>
+          <GitDiffViewer
+            filePath={diffPath}
+            rawDiff={rawDiff}
+            additions={fileEntry?.additions}
+            deletions={fileEntry?.deletions}
+            onBack={handleBackFromDiffViewer}
+          />
+        </Suspense>
       </section>
     );
   }

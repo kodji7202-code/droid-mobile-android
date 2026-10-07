@@ -14,11 +14,11 @@ export default defineConfig({
       output: {
         advancedChunks: {
           groups: [
-            // The SDK (+ the daemon-client adapter that wraps it) is ~1 MB;
-            // keep it in its own cacheable chunk (architecture.md 3.2).
+            // The SDK is ~1 MB and only loaded (dynamic import in daemon-client/sdk.ts)
+            // once the user connects; it must stay out of index.html's preload list.
             {
               name: 'daemon-sdk',
-              test: /[\\/]node_modules[\\/]@factory[\\/]droid-sdk|packages[\\/]daemon-client[\\/]/,
+              test: /[\\/]node_modules[\\/]@factory[\\/]droid-sdk/,
             },
           ],
         },

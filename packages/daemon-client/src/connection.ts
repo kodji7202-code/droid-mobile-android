@@ -14,7 +14,6 @@
  * - Typed errors (AuthError/ConnectionError/ProtocolError/
  *   MethodUnavailableError); every message is secret-redacted.
  */
-import { connectToDaemon } from '@factory/droid-sdk';
 import type {
   ArchiveSessionOptions,
   ConnectedDroid,
@@ -35,6 +34,7 @@ import type { AskUserHandler, PermissionHandler } from './interactions';
 import { AuthError, ConnectionError } from './errors';
 import type { DaemonClientError, VersionMismatchWarning } from './errors';
 import { toPage } from './paging';
+import { loadSdk } from './sdk';
 import type { SessionMessagesPage } from './paging';
 import { toModelSummary } from './settings';
 import type { CreateSessionRequest, DefaultsPatch, ModelSummary } from './settings';
@@ -364,6 +364,7 @@ export function createDaemonConnection(options: DaemonConnectionOptions): Daemon
     emitStatus({ type: 'auth-start' });
     lastFailure = null;
     try {
+      const { connectToDaemon } = await loadSdk();
       const droid = await connectToDaemon({
         url,
         auth: { apiKey },

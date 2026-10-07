@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useMediaQuery } from '../../app/useMediaQuery';
@@ -15,6 +15,7 @@ import { ChatComposer, WAITING_STATE } from '../chat/ChatComposer';
 import { InteractionHost } from '../chat/InteractionHost';
 import { useChatScroll } from '../chat/useChatScroll';
 import { Transcript } from '../chat/Transcript';
+import type { TranscriptHandle } from '../chat/Transcript';
 import { MissionControl } from '../missions/MissionControl';
 import { useMissionView } from '../missions/useMissionView';
 import { UsageChip } from '../chat/UsageChip';
@@ -106,8 +107,10 @@ export function SessionScreen() {
     () => ({ itemCount, lastText, interrupted: view?.interrupted }),
     [itemCount, lastText, view?.interrupted],
   );
+  const transcript = useRef<TranscriptHandle>(null);
   const { away, jumpToLatest } = useChatScroll({
     contentSignal,
+    transcript,
     hasMore: Boolean(view?.hasMore),
     loadingOlder: Boolean(view?.loadingOlder),
     active: view?.status === 'ready',
@@ -246,6 +249,7 @@ export function SessionScreen() {
             threadEmpty={itemCount === 0}
             thread={
               <Transcript
+                ref={transcript}
                 items={items ?? []}
                 retryDisabled={view.status !== 'ready'}
                 onRetry={(itemId) => void retry(id, itemId)}
@@ -256,6 +260,7 @@ export function SessionScreen() {
 
         {items && itemCount > 0 && !isMission ? (
           <Transcript
+            ref={transcript}
             items={items}
             retryDisabled={view?.status !== 'ready'}
             onRetry={(itemId) => void retry(id, itemId)}

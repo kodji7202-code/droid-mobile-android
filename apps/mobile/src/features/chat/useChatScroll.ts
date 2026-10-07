@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import type { TranscriptHandle } from './Transcript';
 
 /** Distance from the bottom within which the view counts as following the stream. */
 const FOLLOW_SLACK_PX = 160;
@@ -12,24 +13,34 @@ function scrollToBottom() {
 }
 
 interface ReadingAnchor {
-  element: Element;
+  key: string;
   top: number;
 }
 
-/** The first transcript row that reaches into the viewport, with its viewport offset. */
+const transcriptRows = () =>
+  Array.from(document.querySelectorAll<HTMLElement>('.session-messages > li'));
+
+/** The first mounted transcript row that reaches into the viewport, with its viewport offset. */
 function measureAnchor(): ReadingAnchor | null {
-  for (const element of document.querySelectorAll('.session-messages > li')) {
+  for (const element of transcriptRows()) {
     const { top, bottom } = element.getBoundingClientRect();
-    if (bottom > 0) return { element, top };
+    const key = element.dataset.rowKey;
+    if (bottom > 0 && key) return { key, top };
   }
   return null;
 }
 
-function restoreAnchor({ element, top }: ReadingAnchor) {
-  if (!element.isConnected) return;
+/** True once the anchor row is mounted and back at its offset. */
+function restoreAnchor({ key, top }: ReadingAnchor): boolean {
+  const element = transcriptRows().find((row) => row.dataset.rowKey === key);
+  if (!element) return false;
   const delta = element.getBoundingClientRect().top - top;
   if (Math.abs(delta) >= 1) window.scrollTo?.(0, window.scrollY + delta);
+  return true;
 }
+
+/** Frames spent waiting for a row outside the mounted window to be mounted after a jump. */
+const RESTORE_FRAMES = 4;
 
 interface ChatScrollOptions {
   /** Changes whenever the transcript grows or its last item changes. */
@@ -39,6 +50,8 @@ interface ChatScrollOptions {
   /** False while history is loading or the view is not usable. */
   active: boolean;
   loadOlder(): void;
+  /** Reaches rows that the virtualised transcript has not mounted. */
+  transcript?: RefObject<TranscriptHandle | null>;
 }
 
 /**
@@ -47,7 +60,7 @@ interface ChatScrollOptions {
  * next older page; the first visible message is kept at its viewport offset across the prepend.
  */
 export function useChatScroll(options: ChatScrollOptions) {
-  const { contentSignal, hasMore, loadingOlder, active, loadOlder } = options;
+  const { contentSignal, hasMore, loadingOlder, active, loadOlder, transcript } = options;
   const following = useRef(true);
   const [away, setAway] = useState(false);
   const latest = useRef({ hasMore, loadingOlder, active, loadOlder });
@@ -99,11 +112,20 @@ export function useChatScroll(options: ChatScrollOptions) {
     const held = anchor.current;
     anchor.current = null;
     if (loadingOlder || !held) return undefined;
-    restoreAnchor(held);
-    // Markdown, images and content-visibility rows settle a frame after the commit.
-    const frame = requestAnimationFrame(() => restoreAnchor(held));
+    // Older rows are prepended above a transcript that mounts only a window of rows, so
+    // the held row may be gone: jump to where it now starts, then fine-tune once it is mounted.
+    if (!restoreAnchor(held)) transcript?.current?.scrollToKey(held.key, held.top);
+    let frame = 0;
+    let left = RESTORE_FRAMES;
+    const settle = () => {
+      // Markdown, images and measured row heights settle a frame after the commit.
+      const placed = restoreAnchor(held);
+      left -= 1;
+      if (!placed && left > 0) frame = requestAnimationFrame(settle);
+    };
+    frame = requestAnimationFrame(settle);
     return () => cancelAnimationFrame(frame);
-  }, [loadingOlder]);
+  }, [loadingOlder, transcript]);
 
   useLayoutEffect(() => {
     if (following.current) {

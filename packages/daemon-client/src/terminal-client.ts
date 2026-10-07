@@ -8,7 +8,8 @@
  * with its serialized state. This client therefore reconnects on its own and
  * announces every `ready` so the owner can re-list.
  */
-import { createWebSocketDaemonClient } from '@factory/droid-sdk';
+import type { createWebSocketDaemonClient } from '@factory/droid-sdk';
+import { loadSdk } from './sdk';
 import { backoffDelay, DEFAULT_BACKOFF } from './backoff';
 import type { BackoffOptions } from './backoff';
 import { classifyConnectFailure } from './classify';
@@ -106,7 +107,7 @@ export interface TerminalClientOptions {
   apiKey: string;
   backoff?: Partial<BackoffOptions>;
   /** Test seam; defaults to the SDK's WebSocket client. */
-  createLowLevel?: () => LowLevelTerminalClient;
+  createLowLevel?: () => LowLevelTerminalClient | Promise<LowLevelTerminalClient>;
 }
 
 const CALLER = 'droid-mobile-terminals';
@@ -148,10 +149,12 @@ export function createTerminalClient(options: TerminalClientOptions): TerminalCl
   const eventListeners = new Set<(e: TerminalEvent) => void>();
   const makeLowLevel =
     options.createLowLevel ??
-    ((): LowLevelTerminalClient =>
-      createWebSocketDaemonClient({
+    (async (): Promise<LowLevelTerminalClient> => {
+      const { createWebSocketDaemonClient: create } = await loadSdk();
+      return create({
         machineType: 'local' as Parameters<typeof createWebSocketDaemonClient>[0]['machineType'],
-      }) as unknown as LowLevelTerminalClient);
+      }) as unknown as LowLevelTerminalClient;
+    });
 
   let status: TerminalLinkStatus = 'idle';
   let low: LowLevelTerminalClient | null = null;
@@ -187,7 +190,20 @@ export function createTerminalClient(options: TerminalClientOptions): TerminalCl
         // already closed
       }
     }
-    const client = makeLowLevel();
+    let client: LowLevelTerminalClient;
+    try {
+      client = await makeLowLevel();
+    } catch (err) {
+      throw classifyConnectFailure(err);
+    }
+    if (mine !== generation || disposed) {
+      try {
+        client.disconnect();
+      } catch {
+        // superseded attempt
+      }
+      throw new ConnectionError('The terminal connection was closed.');
+    }
     low = client;
     // The SDK retries a failing connect on its own and reports a close for every failed
     // try, so a close only means the link dropped once this dial has authenticated.
