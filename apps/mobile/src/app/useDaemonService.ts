@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { daemonService } from '../platform/daemonService';
 import type { DaemonServiceApi } from '../platform/daemonService';
 import { ServiceSync } from '../platform/serviceSync';
+import { useForegroundStore } from '../stores/foreground';
 import { useInteractionStore } from '../stores/interactions';
 import { useSessionViewStore } from '../stores/sessionView';
 import { useStayConnectedStore } from '../stores/stayConnected';
@@ -11,7 +12,8 @@ import { useStayConnectedStore } from '../stores/stayConnected';
 /**
  * Keeps the Android foreground service in step with the app: running while any turn is
  * pending or running, while a request waits for the user, or while "stay connected" is on.
- * A Stop tap in the notification switches "stay connected" off and is never undone.
+ * A Stop tap in the notification switches "stay connected" off and is never undone; the
+ * Android time limit of a dataSync service only pauses it until the app is in the foreground.
  */
 export function useDaemonService(service: DaemonServiceApi = daemonService): void {
   const { t } = useTranslation();
@@ -30,12 +32,17 @@ export function useDaemonService(service: DaemonServiceApi = daemonService): voi
       if (await service.consumeStopRequest()) useStayConnectedStore.getState().setEnabled(false);
     };
     void applyStopRequest().finally(() => setStopApplied(true));
-    const stopListening = service.onEnded(() => {
+    const stopListening = service.onEnded((reason) => {
+      if (reason === 'timeout') {
+        syncRef.current?.timedOut(useForegroundStore.getState().appActive);
+        return;
+      }
       syncRef.current?.ended();
       void applyStopRequest();
     });
     const resume = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-      if (isActive) void applyStopRequest();
+      if (!isActive) return;
+      void applyStopRequest().then(() => syncRef.current?.resumed());
     });
     return () => {
       stopListening();

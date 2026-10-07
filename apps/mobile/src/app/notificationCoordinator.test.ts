@@ -71,13 +71,13 @@ describe('NotificationCoordinator', () => {
     ctx = setup();
   });
 
-  it('posts one approvals notification per request while the app is in the background', () => {
+  it('posts one approvals notification per session while the app is in the background', () => {
     const pending = [permission('p1', 's1')];
     ctx.update({ pending, views: { s1: view(true) } });
     ctx.update({ pending, views: { s1: view(true) } });
     expect(ctx.post).toHaveBeenCalledTimes(1);
     expect(ctx.post).toHaveBeenCalledWith({
-      tag: 'request:p1',
+      tag: 'approvals:s1',
       channel: 'approvals',
       title: 'Approval needed',
       text: 'demo: touch hello.txt',
@@ -91,7 +91,7 @@ describe('NotificationCoordinator', () => {
     const pending = [permission('p1', 's1')];
     ctx.update({ pending, views: { s1: view(true) } });
     ctx.update({ pending: [], views: { s1: view(true) } });
-    expect(ctx.cancel).toHaveBeenCalledWith('request:p1');
+    expect(ctx.cancel).toHaveBeenCalledWith('approvals:s1');
   });
 
   it('stays silent for the session on screen and notifies for another one', () => {
@@ -109,7 +109,7 @@ describe('NotificationCoordinator', () => {
     const pending = [permission('p1', 'b')];
     ctx.update({ appActive: true, viewedSessionId: 'a', pending, views: { b: view(true) } });
     ctx.update({ appActive: true, viewedSessionId: 'b', pending, views: { b: view(true) } });
-    expect(ctx.cancel).toHaveBeenCalledWith('request:p1');
+    expect(ctx.cancel).toHaveBeenCalledWith('approvals:b');
   });
 
   it('notifies for a request that was already pending when the app went to the background', () => {
@@ -131,7 +131,7 @@ describe('NotificationCoordinator', () => {
     const pending = [permission('p1', 's1')];
     ctx.update({ pending, views: { s1: view(true) } });
     ctx.update({ approvals: false, pending, views: { s1: view(true) } });
-    expect(ctx.cancel).toHaveBeenCalledWith('request:p1');
+    expect(ctx.cancel).toHaveBeenCalledWith('approvals:s1');
   });
 
   it('offers Approve only for plain tool permissions', () => {
@@ -179,14 +179,82 @@ describe('NotificationCoordinator', () => {
     expect(ctx.post).not.toHaveBeenCalled();
   });
 
-  it('withdraws the pushed approvals notification once the last request of a session is answered', () => {
+  it('shares the pushed approvals tag so a later push replaces it instead of duplicating it', () => {
+    const both = [permission('p1', 's1'), permission('p2', 's1')];
+    ctx.update({ pending: both, views: { s1: view(true) } });
+    expect(ctx.post).toHaveBeenCalledTimes(1);
+    expect(ctx.post.mock.calls[0]?.[0].tag).toBe('approvals:s1');
+  });
+
+  it('shows the next request of a session under the same tag once the first is answered', () => {
     const both = [permission('p1', 's1'), permission('p2', 's1')];
     ctx.update({ pending: both, views: { s1: view(true) } });
     ctx.update({ pending: [both[1]!], views: { s1: view(true) } });
-    expect(ctx.cancel).toHaveBeenCalledWith('request:p1');
-    expect(ctx.cancel).not.toHaveBeenCalledWith('approvals:s1');
+    expect(ctx.cancel).not.toHaveBeenCalled();
+    expect(ctx.post).toHaveBeenCalledTimes(2);
+    expect(ctx.post.mock.calls[1]?.[0]).toMatchObject({
+      tag: 'approvals:s1',
+      approveRequestId: 'p2',
+    });
     ctx.update({ pending: [], views: { s1: view(true) } });
     expect(ctx.cancel).toHaveBeenCalledWith('approvals:s1');
+  });
+
+  it('posts a request again after the master switch comes back on', () => {
+    const pending = [permission('p1', 's1')];
+    ctx.update({ pending, views: { s1: view(true) } });
+    ctx.update({ enabled: false, pending, views: { s1: view(true) } });
+    expect(ctx.cancel).toHaveBeenCalledWith('approvals:s1');
+    ctx.update({ pending, views: { s1: view(true) } });
+    expect(ctx.post).toHaveBeenCalledTimes(2);
+  });
+
+  describe('when Android refuses a post', () => {
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it('does not remember a refused request alert as delivered', async () => {
+      const pending = [permission('p1', 's1')];
+      ctx.post.mockResolvedValueOnce(false);
+      ctx.update({ pending, views: { s1: view(true) } });
+      await flush();
+      ctx.update({ pending, views: { s1: view(true) } });
+      expect(ctx.post).toHaveBeenCalledTimes(1);
+      ctx.update({ appActive: true, viewedSessionId: 'other', pending, views: { s1: view(true) } });
+      expect(ctx.post).toHaveBeenCalledTimes(2);
+      await flush();
+      ctx.update({ appActive: true, viewedSessionId: 'other', pending, views: { s1: view(true) } });
+      expect(ctx.post).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries a refused request alert when the switches change', async () => {
+      const pending = [permission('p1', 's1')];
+      ctx.post.mockResolvedValueOnce(false);
+      ctx.update({ turns: false, pending, views: { s1: view(true) } });
+      await flush();
+      ctx.update({ turns: true, pending, views: { s1: view(true) } });
+      expect(ctx.post).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a refused finished-turn alert and delivers it when conditions change', async () => {
+      ctx.post.mockResolvedValueOnce(false);
+      ctx.update({ views: { s1: view(true) } });
+      ctx.update({ views: { s1: view(false) } });
+      await flush();
+      ctx.update({ views: { s1: view(false) } });
+      expect(ctx.post).toHaveBeenCalledTimes(1);
+      ctx.update({ appActive: true, viewedSessionId: 'x', views: { s1: view(false) } });
+      expect(ctx.post).toHaveBeenCalledTimes(2);
+    });
+
+    it('drops a refused finished-turn alert once the user has seen the session', async () => {
+      ctx.post.mockResolvedValueOnce(false);
+      ctx.update({ views: { s1: view(true) } });
+      ctx.update({ views: { s1: view(false) } });
+      await flush();
+      ctx.update({ appActive: true, viewedSessionId: 's1', views: { s1: view(false) } });
+      ctx.update({ appActive: true, viewedSessionId: 'x', views: { s1: view(false) } });
+      expect(ctx.post).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('clears the pushed notifications of the session that comes on screen, once', () => {

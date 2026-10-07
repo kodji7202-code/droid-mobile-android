@@ -41,9 +41,4 @@ class PushPayloadTest {
             assertNull(bad, PushPayload.sessionIdOf(extras("kind" to "stop", "sessionId" to bad)))
         }
     }
-
-    @Test
-    fun approvalsTagMatchesTheBridge() {
-        assertEquals("approvals:s1", PushPayload.approvalsTag("s1"))
-    }
 }

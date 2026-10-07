@@ -77,4 +77,18 @@ describe('daemonService wrapper', () => {
     await Promise.resolve();
     expect(remove).toHaveBeenCalledTimes(2);
   });
+
+  it('tells the Stop action apart from the Android timeout', () => {
+    const plugin = fakePlugin();
+    const listeners = new Map<string, () => void>();
+    plugin.addListener.mockImplementation(async (event: string, handler: () => void) => {
+      listeners.set(event, handler);
+      return { remove: vi.fn(async () => undefined) };
+    });
+    const listener = vi.fn();
+    createDaemonService(plugin, () => true).onEnded(listener);
+    listeners.get('serviceStopped')?.();
+    listeners.get('serviceTimedOut')?.();
+    expect(listener.mock.calls).toEqual([['stopped'], ['timeout']]);
+  });
 });

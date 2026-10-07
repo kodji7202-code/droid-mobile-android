@@ -26,6 +26,20 @@ function snapshot(): NotificationSnapshot {
   };
 }
 
+function pushConfig(api: AppNotificationsApi, t: Translate): Promise<void> {
+  const settings = useNotificationSettingsStore.getState();
+  return api.configure({
+    channelNames: {
+      approvals: t('notifications.channel.approvals'),
+      turns: t('notifications.channel.turns'),
+      service: t('notifications.channel.service'),
+    },
+    enabled: settings.enabled,
+    approvals: settings.approvals,
+    turns: settings.turns,
+  });
+}
+
 /**
  * Wires the Android notifications: channel names and switches follow the settings and the
  * app language, requests and finished turns are posted while the user is elsewhere, a tap
@@ -40,20 +54,35 @@ export function useLocalNotifications(
   translateRef.current = t as Translate;
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
-  const enabled = useNotificationSettingsStore((state) => state.enabled);
-  const approvals = useNotificationSettingsStore((state) => state.approvals);
-  const turns = useNotificationSettingsStore((state) => state.turns);
+  // The latest channel setup sent to the native side; a post waits for it so Android never
+  // judges a notification against switches or names that the user has already changed.
+  const configuredRef = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => {
+    if (!api.isSupported()) return;
+    configuredRef.current = pushConfig(api, translateRef.current);
+  }, [api, t]);
 
   useEffect(() => {
     if (!api.isSupported()) return undefined;
-    const coordinator = new NotificationCoordinator(api, () => translateRef.current);
+    const gated: Pick<AppNotificationsApi, 'post' | 'cancel'> = {
+      post: async (notification) => {
+        await configuredRef.current;
+        return api.post(notification);
+      },
+      cancel: (tag) => api.cancel(tag),
+    };
+    const coordinator = new NotificationCoordinator(gated, () => translateRef.current);
     const run = () => coordinator.update(snapshot());
     run();
     const stops = [
       useSessionViewStore.subscribe(run),
       useInteractionStore.subscribe(run),
       useForegroundStore.subscribe(run),
-      useNotificationSettingsStore.subscribe(run),
+      useNotificationSettingsStore.subscribe(() => {
+        configuredRef.current = pushConfig(api, translateRef.current);
+        run();
+      }),
       api.onTap((sessionId) => navigateRef.current(`/sessions/${sessionId}`)),
       api.onApprove((requestId, sessionId) => {
         const store = useInteractionStore.getState();
@@ -74,18 +103,4 @@ export function useLocalNotifications(
       void state.then((listener) => listener.remove());
     };
   }, [api]);
-
-  useEffect(() => {
-    if (!api.isSupported()) return;
-    void api.configure({
-      channelNames: {
-        approvals: t('notifications.channel.approvals'),
-        turns: t('notifications.channel.turns'),
-        service: t('notifications.channel.service'),
-      },
-      enabled,
-      approvals,
-      turns,
-    });
-  }, [api, t, enabled, approvals, turns]);
 }

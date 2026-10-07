@@ -17,12 +17,15 @@ export const serviceWanted = (demand: ServiceDemand): boolean =>
 /**
  * Drives the native service from the demand. It starts at once, stops
  * STOP_DELAY_MS after the demand ends, and never restarts a service the user
- * stopped from the notification until the demand has ended and returned.
+ * stopped from the notification until the demand has ended and returned. A service
+ * that Android ended at its time limit comes back as soon as starting one is legal
+ * again, which is when the app is in the foreground.
  */
 export class ServiceSync {
   private wanted = false;
   private running = false;
   private suppressed = false;
+  private awaitingForeground = false;
   private stopTimer: ReturnType<typeof setTimeout> | undefined;
   private texts: ServiceTexts | undefined;
 
@@ -34,13 +37,18 @@ export class ServiceSync {
     this.texts = texts;
     if (wanted) {
       this.cancelStop();
-      if (!this.wanted) this.suppressed = false;
+      if (!this.wanted) {
+        this.suppressed = false;
+        this.awaitingForeground = false;
+      }
       this.wanted = true;
-      if (!this.suppressed && (!this.running || textsChanged)) this.start(texts);
+      const blocked = this.suppressed || this.awaitingForeground;
+      if (!blocked && (!this.running || textsChanged)) this.start(texts);
       return;
     }
     this.wanted = false;
     this.suppressed = false;
+    this.awaitingForeground = false;
     if (this.running && this.stopTimer === undefined) {
       this.stopTimer = setTimeout(() => {
         this.stopTimer = undefined;
@@ -50,11 +58,30 @@ export class ServiceSync {
     }
   }
 
-  /** The service ended on its own (Stop action or Android timeout) while it was wanted. */
+  /** The user pressed Stop in the notification while the service was wanted. */
   ended(): void {
     this.running = false;
     this.cancelStop();
     this.suppressed = this.wanted;
+  }
+
+  /**
+   * Android ended the service at its time limit. The demand is unchanged, so the service
+   * restarts now if the app is in the foreground, otherwise on the next [resumed].
+   */
+  timedOut(appActive: boolean): void {
+    this.running = false;
+    this.cancelStop();
+    if (!this.wanted || this.suppressed || !this.texts) return;
+    if (appActive) this.start(this.texts);
+    else this.awaitingForeground = true;
+  }
+
+  /** The app came to the foreground: a service that had to wait for it may start now. */
+  resumed(): void {
+    if (!this.awaitingForeground) return;
+    this.awaitingForeground = false;
+    if (this.wanted && !this.suppressed && !this.running && this.texts) this.start(this.texts);
   }
 
   dispose(): void {

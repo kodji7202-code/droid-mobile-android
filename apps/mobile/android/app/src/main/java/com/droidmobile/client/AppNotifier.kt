@@ -6,8 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -30,12 +28,11 @@ object AppNotifier {
     const val ACTION_APPROVE = "com.droidmobile.client.action.APPROVE_REQUEST"
 
     /**
-     * The id Firebase gives the notifications it shows itself. Sharing it with the tag
-     * `turn:<sessionId>` that the bridge sets makes a local turn notification and the push for
-     * the same turn replace each other instead of piling up.
+     * The id Firebase gives the notifications it shows itself. Sharing it with the tags the
+     * bridge sets (`turn:<sessionId>`, `approvals:<sessionId>`) makes a local notification and
+     * the push for the same event replace each other, whichever arrives later, instead of piling up.
      */
     private const val NOTIFICATION_ID = 0
-    private val PUSH_WITHDRAW_DELAYS_MS = longArrayOf(0L, 4_000L, 12_000L)
 
     fun canPost(context: Context): Boolean {
         val permitted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
@@ -85,24 +82,9 @@ object AppNotifier {
         }
         return try {
             NotificationManagerCompat.from(context).notify(notification.tag, NOTIFICATION_ID, builder.build())
-            if (approvals) withdrawPushedApproval(context, notification.sessionId)
             true
         } catch (_: SecurityException) {
             false
-        }
-    }
-
-    /**
-     * The same prompt also reaches the phone as a push, a moment after this local notification,
-     * and the system shows it without asking the app. Withdrawing it by its tag keeps one
-     * notification per prompt; the late attempts catch a push that is slower than the first.
-     */
-    private fun withdrawPushedApproval(context: Context, sessionId: String) {
-        if (sessionId.isBlank()) return
-        val tag = PushPayload.approvalsTag(sessionId)
-        val handler = Handler(Looper.getMainLooper())
-        for (delayMs in PUSH_WITHDRAW_DELAYS_MS) {
-            handler.postDelayed({ cancel(context, tag) }, delayMs)
         }
     }
 

@@ -29,7 +29,4 @@ object PushPayload {
         if (channelOf(extra(EXTRA_KIND)) == null) return null
         return extra(EXTRA_SESSION_ID)?.takeIf { SESSION_ID.matches(it) }
     }
-
-    /** Tag the bridge gives the system notification of an approval push; the app cancels it by this tag. */
-    fun approvalsTag(sessionId: String) = "approvals:$sessionId"
 }

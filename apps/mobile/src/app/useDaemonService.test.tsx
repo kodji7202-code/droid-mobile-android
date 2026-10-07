@@ -1,14 +1,28 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DaemonServiceApi, ServiceTexts } from '../platform/daemonService';
+import type { DaemonServiceApi, ServiceEndReason, ServiceTexts } from '../platform/daemonService';
+import { useForegroundStore } from '../stores/foreground';
 import { STOP_DELAY_MS } from '../platform/serviceSync';
 import { useInteractionStore } from '../stores/interactions';
 import { useSessionViewStore } from '../stores/sessionView';
 import { STAY_CONNECTED_KEY, useStayConnectedStore } from '../stores/stayConnected';
 import { useDaemonService } from './useDaemonService';
 
+const appStateHandlers: Array<(state: { isActive: boolean }) => void> = [];
+
+vi.mock('@capacitor/app', () => ({
+  App: {
+    addListener: vi.fn((_event: string, handler: (state: { isActive: boolean }) => void) => {
+      appStateHandlers.push(handler);
+      return Promise.resolve({ remove: () => undefined });
+    }),
+  },
+}));
+
+const resumeApp = () => appStateHandlers.forEach((handler) => handler({ isActive: true }));
+
 function fakeService(stopRequested = false) {
-  let ended: (() => void) | undefined;
+  let ended: ((reason: ServiceEndReason) => void) | undefined;
   let requested = stopRequested;
   const service = {
     isSupported: () => true,
@@ -21,7 +35,7 @@ function fakeService(stopRequested = false) {
     }),
     batteryState: vi.fn(async () => 'unknown' as const),
     openBatterySettings: vi.fn(async () => true),
-    onEnded: vi.fn((listener: () => void) => {
+    onEnded: vi.fn((listener: (reason: ServiceEndReason) => void) => {
       ended = listener;
       return () => undefined;
     }),
@@ -30,8 +44,9 @@ function fakeService(stopRequested = false) {
     service,
     pressStop: () => {
       requested = true;
-      ended?.();
+      ended?.('stopped');
     },
+    androidTimeout: () => ended?.('timeout'),
   };
 }
 
@@ -46,6 +61,7 @@ describe('useDaemonService', () => {
     useStayConnectedStore.setState({ enabled: false });
     useSessionViewStore.setState({ views: {} });
     useInteractionStore.setState({ pending: [] });
+    appStateHandlers.length = 0;
   });
   afterEach(() => vi.useRealTimers());
 
@@ -99,5 +115,24 @@ describe('useDaemonService', () => {
     act(() => pressStop());
     await waitFor(() => expect(useStayConnectedStore.getState().enabled).toBe(false));
     expect(service.start).toHaveBeenCalledTimes(1);
+    act(() => resumeApp());
+    await act(async () => undefined);
+    expect(service.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps stay connected on after the Android timeout and restarts when the app resumes', async () => {
+    useStayConnectedStore.setState({ enabled: true });
+    useForegroundStore.setState({ appActive: false });
+    const { service, androidTimeout } = fakeService();
+    renderHook(() => useDaemonService(service));
+    await waitFor(() => expect(service.start).toHaveBeenCalledTimes(1));
+    act(() => androidTimeout());
+    await act(async () => undefined);
+    expect(useStayConnectedStore.getState().enabled).toBe(true);
+    expect(service.start).toHaveBeenCalledTimes(1);
+    act(() => resumeApp());
+    await waitFor(() => expect(service.start).toHaveBeenCalledTimes(2));
+    expect(useStayConnectedStore.getState().enabled).toBe(true);
+    useForegroundStore.setState({ appActive: true });
   });
 });

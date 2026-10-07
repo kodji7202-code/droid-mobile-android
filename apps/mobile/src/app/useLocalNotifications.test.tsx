@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AppNotificationsApi } from '../platform/appNotifications';
+import type { AppNotificationsApi, ChannelConfig } from '../platform/appNotifications';
 import { useForegroundStore } from '../stores/foreground';
 import { useInteractionStore } from '../stores/interactions';
 import { useNotificationSettingsStore } from '../stores/notificationSettings';
@@ -15,7 +15,7 @@ function fakeApi() {
     permissionGranted: vi.fn(async () => true),
     requestPermission: vi.fn(async () => true),
     openSettings: vi.fn(async () => true),
-    configure: vi.fn(async () => undefined),
+    configure: vi.fn(async (_config: ChannelConfig) => undefined),
     post: vi.fn(async () => true),
     cancel: vi.fn(async () => undefined),
     onTap: vi.fn((listener: (sessionId: string) => void) => {
@@ -91,6 +91,42 @@ describe('useLocalNotifications', () => {
     const id = useInteractionStore.getState().pending[0]?.id ?? '';
     approve(id, 's1');
     await expect(answer).resolves.toBe('proceed_once');
-    expect(api.cancel).toHaveBeenCalledWith(`request:${id}`);
+    expect(api.cancel).toHaveBeenCalledWith('approvals:s1');
+  });
+
+  it('applies the re-enabled switches natively before posting the pending request alert', async () => {
+    const { api } = fakeApi();
+    const order: string[] = [];
+    let release: () => void = () => undefined;
+    api.configure.mockImplementation(async (config) => {
+      order.push(`configure:${config.enabled}`);
+      if (config.enabled) await new Promise<void>((resolve) => (release = resolve));
+    });
+    api.post.mockImplementation(async () => {
+      order.push('post');
+      return true;
+    });
+    useNotificationSettingsStore.setState({ enabled: false, approvals: true, turns: false });
+    renderHook(() => useLocalNotifications(() => undefined, api));
+    void useInteractionStore.getState().requestPermission('s1', permissionRequest as never);
+    await waitFor(() => expect(order).toEqual(['configure:false']));
+
+    act(() => useNotificationSettingsStore.getState().setEnabled(true));
+    await waitFor(() => expect(order).toEqual(['configure:false', 'configure:true']));
+    expect(api.post).not.toHaveBeenCalled();
+    release();
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(order).toEqual(['configure:false', 'configure:true', 'post']);
+  });
+
+  it('posts a request alert that native refused once the switches change again', async () => {
+    const { api } = fakeApi();
+    api.post.mockResolvedValueOnce(false);
+    renderHook(() => useLocalNotifications(() => undefined, api));
+    void useInteractionStore.getState().requestPermission('s1', permissionRequest as never);
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    await act(async () => undefined);
+    act(() => useNotificationSettingsStore.getState().setChannel('turns', true));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
   });
 });

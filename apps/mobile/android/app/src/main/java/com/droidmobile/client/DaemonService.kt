@@ -30,7 +30,8 @@ class DaemonService : Service() {
         return START_NOT_STICKY
     }
 
-    // Android 15 limits dataSync foreground services to six hours; the WebView restarts it if still needed.
+    // Android 15 limits dataSync foreground services to six hours. This is not the user's Stop: no stop
+    // request is stored, and the WebView restarts the service once the app is in the foreground again.
     override fun onTimeout(startId: Int, fgsType: Int) {
         shutdown()
         DaemonServicePlugin.notifyTimedOut()
@@ -117,7 +118,11 @@ class DaemonService : Service() {
                     .putExtra(EXTRA_TEXT, texts.text)
                     .putExtra(EXTRA_STOP_LABEL, texts.stopLabel)
             }
-            context.startForegroundService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
 
         fun stop(context: Context) {

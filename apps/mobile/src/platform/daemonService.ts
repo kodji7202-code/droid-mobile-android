@@ -34,9 +34,14 @@ export interface DaemonServiceApi {
   consumeStopRequest(): Promise<boolean>;
   batteryState(): Promise<BatteryState>;
   openBatterySettings(): Promise<boolean>;
-  /** Calls back when the service ended without the app asking (Stop action, Android timeout). */
-  onEnded(listener: () => void): () => void;
+  /**
+   * Calls back when the service ended without the app asking: the user's Stop action, or the
+   * Android 15 time limit of a dataSync service, which is not a request to stay stopped.
+   */
+  onEnded(listener: (reason: ServiceEndReason) => void): () => void;
 }
+
+export type ServiceEndReason = 'stopped' | 'timeout';
 
 export function createDaemonService(
   plugin: DaemonServicePlugin = registerPlugin<DaemonServicePlugin>('DaemonService'),
@@ -89,8 +94,8 @@ export function createDaemonService(
     onEnded(listener) {
       if (!isNative()) return () => undefined;
       const handles = [
-        plugin.addListener('serviceStopped', listener),
-        plugin.addListener('serviceTimedOut', listener),
+        plugin.addListener('serviceStopped', () => listener('stopped')),
+        plugin.addListener('serviceTimedOut', () => listener('timeout')),
       ];
       return () => {
         for (const handle of handles) void handle.then((item) => item.remove());

@@ -96,6 +96,52 @@ describe('ServiceSync', () => {
     expect(service.start).toHaveBeenCalledTimes(2);
   });
 
+  it('restarts after an Android timeout once the app is back in the foreground', () => {
+    const service = fakeService();
+    const sync = new ServiceSync(service);
+    const stay = { ...IDLE, stayConnected: true };
+    sync.update(stay, TEXTS);
+    sync.timedOut(false);
+    sync.update({ ...stay, turnActive: true }, TEXTS);
+    expect(service.start).toHaveBeenCalledTimes(1);
+    sync.resumed();
+    expect(service.start).toHaveBeenCalledTimes(2);
+    expect(service.start).toHaveBeenLastCalledWith(TEXTS);
+    sync.resumed();
+    expect(service.start).toHaveBeenCalledTimes(2);
+  });
+
+  it('restarts at once when the timeout happens while the app is in the foreground', () => {
+    const service = fakeService();
+    const sync = new ServiceSync(service);
+    sync.update({ ...IDLE, stayConnected: true }, TEXTS);
+    sync.timedOut(true);
+    expect(service.start).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not restart after a timeout when nothing wants the service any more', () => {
+    const service = fakeService();
+    const sync = new ServiceSync(service);
+    sync.update({ ...IDLE, turnActive: true }, TEXTS);
+    sync.timedOut(false);
+    sync.update(IDLE, TEXTS);
+    sync.resumed();
+    vi.advanceTimersByTime(STOP_DELAY_MS * 2);
+    expect(service.start).toHaveBeenCalledTimes(1);
+    expect(service.stop).not.toHaveBeenCalled();
+  });
+
+  it('keeps a Stop press final even when a timeout wait is pending', () => {
+    const service = fakeService();
+    const sync = new ServiceSync(service);
+    const stay = { ...IDLE, stayConnected: true };
+    sync.update(stay, TEXTS);
+    sync.ended();
+    sync.timedOut(true);
+    sync.resumed();
+    expect(service.start).toHaveBeenCalledTimes(1);
+  });
+
   it('refreshes the notification texts of a running service when the language changes', () => {
     const service = fakeService();
     const sync = new ServiceSync(service);
