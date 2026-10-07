@@ -1,8 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { EyeIcon, EyeOffIcon, FolderIcon } from '../../components/icons';
 import { Skeleton } from '../../components/Skeleton';
+import { useMediaQuery } from '../../app/useMediaQuery';
 import { useConnectionStore } from '../../stores/connection';
 import { useSessionViewStore } from '../../stores/sessionView';
 import { useWorkspaceStore } from '../../stores/workspace';
@@ -38,6 +40,7 @@ export function WorkspaceScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const wide = useMediaQuery('(min-width: 840px)');
 
   const connection = useConnectionStore((s) => s.connection);
   const readyEpoch = useConnectionStore((s) => s.readyEpoch);
@@ -123,8 +126,10 @@ export function WorkspaceScreen() {
       setRawFiles(EMPTY_FILES);
       return;
     }
+    // Files appear while another tab is open (terminal commands, a Git checkout), so each visit reloads.
+    if (activeTab !== 'files') return;
     void loadFiles(activeSessionId, showHidden);
-  }, [activeSessionId, cwd, showHidden, loadFiles, readyEpoch]);
+  }, [activeSessionId, activeTab, cwd, showHidden, loadFiles, readyEpoch]);
 
   // Load Git diff and PR status
   const loadGitDiff = useCallback(
@@ -193,7 +198,17 @@ export function WorkspaceScreen() {
     if (!activeSessionId) return;
     void loadGitDiff(activeSessionId);
     void loadFiles(activeSessionId, showHidden);
-  }, [activeSessionId, loadGitDiff, loadFiles, showHidden]);
+    // A commit, checkout or stash changes what the diff pane was showing.
+    setSearchParams(
+      (prev) => {
+        if (!prev.has('diff')) return prev;
+        const next = new URLSearchParams(prev);
+        next.delete('diff');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [activeSessionId, loadGitDiff, loadFiles, showHidden, setSearchParams]);
 
   // `unstagedFiles` is the working tree against HEAD (staged, unstaged and untracked), i.e. what
   // the daemon's commit picks up; `files` also contains commits ahead of the base branch.
@@ -218,6 +233,19 @@ export function WorkspaceScreen() {
     [activeSessionId, setScrollTop],
   );
 
+  // With the viewer beside the tree, picking another entry swaps the pane in place so one close
+  // (a single history pop) still returns to the tree-only URL.
+  const overlayNavigation = useCallback(
+    (alreadyOpen: boolean) => {
+      const replace = wide && alreadyOpen;
+      const pushed = replace
+        ? ((location.state as { overlayPushed?: boolean } | null)?.overlayPushed ?? false)
+        : true;
+      return { replace, state: { overlayPushed: pushed } };
+    },
+    [wide, location.state],
+  );
+
   const handleOpenFile = useCallback(
     (filePath: string) => {
       setSearchParams(
@@ -226,10 +254,10 @@ export function WorkspaceScreen() {
           next.set('file', filePath);
           return next;
         },
-        { replace: false, state: { overlayPushed: true } },
+        overlayNavigation(viewingFile !== null),
       );
     },
-    [setSearchParams],
+    [setSearchParams, overlayNavigation, viewingFile],
   );
 
   // An overlay the app pushed is closed by popping its entry, so history never grows with
@@ -282,10 +310,10 @@ export function WorkspaceScreen() {
           next.set('diff', filePath);
           return next;
         },
-        { replace: false, state: { overlayPushed: true } },
+        overlayNavigation(viewingDiffFile !== null),
       );
     },
-    [setSearchParams],
+    [setSearchParams, overlayNavigation, viewingDiffFile],
   );
 
   const handleBackFromDiffViewer = useCallback(() => closeOverlay('diff'), [closeOverlay]);
@@ -337,59 +365,58 @@ export function WorkspaceScreen() {
     );
   }
 
-  // File Viewer view
+  let viewer: ReactNode = null;
+  let selectedDiffPath: string | undefined;
   if (viewingFile) {
-    return (
-      <section
-        className="screen workspace-screen"
-        data-testid="workspace-screen"
-        style={{ height: '100%', padding: 0 }}
-      >
-        <Suspense fallback={<Skeleton lines={4} />}>
-          <FileViewer
-            sessionId={activeSessionId}
-            filePath={viewingFile}
-            onBack={handleBackFromViewer}
-          />
-        </Suspense>
-      </section>
+    viewer = (
+      <Suspense fallback={<Skeleton lines={4} />}>
+        <FileViewer
+          sessionId={activeSessionId}
+          filePath={viewingFile}
+          onBack={handleBackFromViewer}
+          showBack={!wide}
+        />
+      </Suspense>
     );
-  }
-
-  // Diff Viewer view
-  if (viewingDiffFile) {
+  } else if (viewingDiffFile) {
     const diffText = gitDiffData?.success ? gitDiffData.data.diff : '';
     const fileDiffMap = splitUnifiedDiffByFile(diffText);
-    const diffPath = unquoteGitPath(viewingDiffFile);
+    selectedDiffPath = unquoteGitPath(viewingDiffFile);
     const rawDiff = findFileDiff(fileDiffMap, viewingDiffFile);
     const fileEntry = gitDiffData?.success
-      ? gitDiffData.data.files.find((f) => unquoteGitPath(f.path) === diffPath)
+      ? gitDiffData.data.files.find((f) => unquoteGitPath(f.path) === selectedDiffPath)
       : undefined;
+    viewer = (
+      <Suspense fallback={<Skeleton lines={4} />}>
+        <GitDiffViewer
+          filePath={selectedDiffPath}
+          rawDiff={rawDiff}
+          additions={fileEntry?.additions}
+          deletions={fileEntry?.deletions}
+          onBack={handleBackFromDiffViewer}
+          showBack={!wide}
+        />
+      </Suspense>
+    );
+  }
+
+  if (viewer && !wide) {
     return (
       <section
         className="screen workspace-screen"
         data-testid="workspace-screen"
         style={{ height: '100%', padding: 0 }}
       >
-        <Suspense fallback={<Skeleton lines={4} />}>
-          <GitDiffViewer
-            filePath={diffPath}
-            rawDiff={rawDiff}
-            additions={fileEntry?.additions}
-            deletions={fileEntry?.deletions}
-            onBack={handleBackFromDiffViewer}
-          />
-        </Suspense>
+        {viewer}
       </section>
     );
   }
 
-  return (
-    <section
-      className="screen workspace-screen"
-      data-testid="workspace-screen"
-      style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}
-    >
+  // The terminal needs the whole width, so only the Files and Changes tabs split into two panes.
+  const split = wide && activeTab !== 'terminal';
+
+  const listPane = (
+    <div className="workspace-pane">
       {/* Workspace Header */}
       <header className="workspace-header" data-testid="workspace-header">
         <div className="workspace-header__bar">
@@ -545,6 +572,7 @@ export function WorkspaceScreen() {
             }
             loading={loadingGit}
             error={gitError}
+            selectedPath={selectedDiffPath}
             onSelectFile={handleOpenDiffFile}
             onRefresh={() => void loadGitDiff(activeSessionId)}
           />
@@ -578,6 +606,7 @@ export function WorkspaceScreen() {
             expandedPaths={expandedPaths}
             onToggleFolder={handleToggleFolder}
             onOpenFile={handleOpenFile}
+            selectedPath={viewingFile ?? undefined}
             initialScrollTop={scrollTop}
             onScroll={handleScroll}
             emptyLabel={t('workspace.emptyFolder')}
@@ -599,6 +628,29 @@ export function WorkspaceScreen() {
           }
         }}
       />
+    </div>
+  );
+
+  return (
+    <section
+      className={`screen workspace-screen${split ? ' workspace-screen--split' : ''}`}
+      data-testid="workspace-screen"
+      style={{ height: '100%', overflow: 'hidden' }}
+    >
+      {split ? (
+        <div className="workspace-layout" data-testid="workspace-layout">
+          {listPane}
+          <div className="workspace-detail" data-testid="workspace-detail">
+            {viewer ?? (
+              <p className="screen__description" data-testid="workspace-select-file">
+                {t(activeTab === 'changes' ? 'workspace.selectChange' : 'workspace.selectFile')}
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        listPane
+      )}
     </section>
   );
 }

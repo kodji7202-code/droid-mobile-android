@@ -138,7 +138,9 @@ function Breakdown({ data }: { data: ContextBreakdown }) {
                     aria-hidden="true"
                     style={{ backgroundColor: categoryColor(category.colorKey) }}
                   />
-                  {category.name}
+                  {t(`session.context.category.${category.colorKey}`, {
+                    defaultValue: category.name,
+                  })}
                 </span>
                 <span>{format(category.tokens)}</span>
               </li>

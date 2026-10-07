@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  FileIcon,
-  FolderIcon,
-} from '../../components/icons';
+import { ChevronDownIcon, ChevronRightIcon, FileIcon, FolderIcon } from '../../components/icons';
 import type { FlatTreeItem } from './treeBuilder';
 
 export const TREE_ROW_HEIGHT = 48;
@@ -15,6 +10,8 @@ interface FilesTreeProps {
   expandedPaths: ReadonlySet<string>;
   onToggleFolder: (path: string) => void;
   onOpenFile: (path: string) => void;
+  /** Path of the file open in the viewer pane, marked with aria-current. */
+  selectedPath?: string;
   initialScrollTop?: number;
   onScroll?: (scrollTop: number) => void;
   emptyLabel?: string;
@@ -25,6 +22,7 @@ export function FilesTree({
   expandedPaths,
   onToggleFolder,
   onOpenFile,
+  selectedPath,
   initialScrollTop = 0,
   onScroll,
   emptyLabel = 'Empty folder',
@@ -139,7 +137,12 @@ export function FilesTree({
               >
                 <span
                   className="files-tree__chevron"
-                  style={{ display: 'inline-flex', marginRight: '6px', width: '18px', height: '18px' }}
+                  style={{
+                    display: 'inline-flex',
+                    marginRight: '6px',
+                    width: '18px',
+                    height: '18px',
+                  }}
                 >
                   {isExpanded ? (
                     <ChevronDownIcon width={18} height={18} />
@@ -165,6 +168,7 @@ export function FilesTree({
               className="files-tree__row files-tree__row--file"
               data-testid={`tree-file-${node.path}`}
               role="treeitem"
+              aria-current={node.path === selectedPath ? 'true' : undefined}
               style={{
                 position: 'absolute',
                 top: `${top}px`,

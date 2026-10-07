@@ -2723,3 +2723,39 @@ html[data-soft-keyboard='open'] .app-nav-bar {
   flex-direction: column;
   gap: 0.5rem;
 }
+
+/* Tablet two-pane: the tree (or changes list) stays visible beside the viewer. */
+.workspace-pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.workspace-screen--split {
+  max-width: none;
+  margin: 0;
+  gap: 0;
+}
+
+.workspace-layout {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.workspace-layout > .workspace-pane {
+  border-right: 1px solid var(--color-border);
+}
+
+.workspace-detail {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workspace-detail > .screen__description {
+  padding: 1rem;
+}

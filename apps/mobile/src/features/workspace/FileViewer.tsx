@@ -12,6 +12,8 @@ interface FileViewerProps {
   sessionId: string;
   filePath: string;
   onBack: () => void;
+  /** False when the tree stays visible beside the viewer; the close control remains. */
+  showBack?: boolean;
 }
 
 const EXTENSION_MAP: Record<string, string> = {
@@ -122,7 +124,7 @@ function getImageMimeType(path: string, mime?: string): string {
   return 'image/png';
 }
 
-export function FileViewer({ sessionId, filePath, onBack }: FileViewerProps) {
+export function FileViewer({ sessionId, filePath, onBack, showBack = true }: FileViewerProps) {
   const { t } = useTranslation();
   const connection = useConnectionStore((state) => state.connection);
   const [data, setData] = useState<WorkspaceFileContent | null>(null);
@@ -175,15 +177,17 @@ export function FileViewer({ sessionId, filePath, onBack }: FileViewerProps) {
   return (
     <div className="file-viewer" data-testid="file-viewer">
       <header className="file-viewer__header">
-        <button
-          type="button"
-          className="btn btn--icon file-viewer__back-btn"
-          data-testid="file-viewer-back"
-          aria-label={t('workspace.fileViewerBack')}
-          onClick={onBack}
-        >
-          <BackIcon width={20} height={20} />
-        </button>
+        {showBack ? (
+          <button
+            type="button"
+            className="btn btn--icon file-viewer__back-btn"
+            data-testid="file-viewer-back"
+            aria-label={t('workspace.fileViewerBack')}
+            onClick={onBack}
+          >
+            <BackIcon width={20} height={20} />
+          </button>
+        ) : null}
 
         <div className="file-viewer__title-wrapper">
           <h3 className="file-viewer__path" data-testid="file-viewer-path">

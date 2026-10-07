@@ -13,6 +13,8 @@ export interface GitDiffViewerProps {
   diffText?: string;
   rawDiff?: string;
   onBack: () => void;
+  /** False when the changes list stays visible beside the diff. */
+  showBack?: boolean;
   fileAdditions?: number;
   fileDeletions?: number;
   additions?: number;
@@ -24,6 +26,7 @@ export function GitDiffViewer({
   diffText,
   rawDiff,
   onBack,
+  showBack = true,
   fileAdditions,
   fileDeletions,
   additions: propAdditions,
@@ -120,16 +123,18 @@ export function GitDiffViewer({
           flexShrink: 0,
         }}
       >
-        <button
-          type="button"
-          className="btn btn--icon btn--sm"
-          data-testid="git-diff-back"
-          onClick={onBack}
-          aria-label={t('git.diff.back')}
-          title={t('git.diff.back')}
-        >
-          <BackIcon width={20} height={20} />
-        </button>
+        {showBack ? (
+          <button
+            type="button"
+            className="btn btn--icon btn--sm"
+            data-testid="git-diff-back"
+            onClick={onBack}
+            aria-label={t('git.diff.back')}
+            title={t('git.diff.back')}
+          >
+            <BackIcon width={20} height={20} />
+          </button>
+        ) : null}
 
         <span
           className="git-diff-header__path"

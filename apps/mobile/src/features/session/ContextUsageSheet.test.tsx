@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import i18next from 'i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ContextBreakdown, SessionHandle } from '@droidmobile/daemon-client';
 import { AppProviders } from '../../test/render-app';
@@ -52,6 +53,34 @@ describe('ContextUsageSheet', () => {
     expect(screen.getAllByTestId('context-usage-skills-item')).toHaveLength(1);
     expect(screen.getByTestId('context-usage-mcp-empty')).toBeInTheDocument();
     expect(screen.getByTestId('context-usage-droids-empty')).toBeInTheDocument();
+  });
+
+  it('translates the daemon category names and keeps unknown ones as reported', async () => {
+    await i18next.changeLanguage('ro');
+    try {
+      renderSheet(
+        handleOf(
+          async () =>
+            ({
+              ...BREAKDOWN,
+              categories: [
+                ...BREAKDOWN.categories,
+                { name: 'Skills', tokens: 10, colorKey: 'skills' },
+                { name: 'Future bucket', tokens: 1, colorKey: 'futureBucket' },
+              ],
+            }) as unknown as ContextBreakdown,
+        ),
+      );
+      const rows = await screen.findAllByTestId('context-usage-category');
+      expect(rows.map((row) => row.textContent)).toEqual([
+        'Prompt de sistem5,000',
+        'Mesaje20,000',
+        'Abilități10',
+        'Future bucket1',
+      ]);
+    } finally {
+      await i18next.changeLanguage('en');
+    }
   });
 
   it('renders an empty session without error', async () => {

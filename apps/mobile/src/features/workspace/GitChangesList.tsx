@@ -15,6 +15,8 @@ interface GitChangesListProps {
   notGitRepo?: boolean;
   loading?: boolean;
   error?: string | null;
+  /** Unquoted path of the file shown in the diff pane, marked with aria-current. */
+  selectedPath?: string;
   onSelectFile: (filePath: string) => void;
   onRefresh?: () => void;
 }
@@ -29,6 +31,7 @@ export function GitChangesList({
   notGitRepo = false,
   loading = false,
   error = null,
+  selectedPath,
   onSelectFile,
   onRefresh,
 }: GitChangesListProps) {
@@ -202,6 +205,7 @@ export function GitChangesList({
               type="button"
               className="git-change-row"
               data-testid={`git-change-${displayPath}`}
+              aria-current={displayPath === selectedPath ? 'true' : undefined}
               onClick={() => onSelectFile(file.path)}
               style={{
                 display: 'flex',
