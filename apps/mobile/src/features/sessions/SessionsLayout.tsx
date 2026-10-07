@@ -2,6 +2,7 @@ import { Outlet, useMatch } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { SessionsScreen } from './SessionsScreen';
 import { useMediaQuery } from '../../app/useMediaQuery';
+import { useRequestModal } from '../../app/useRequestModal';
 
 /**
  * Sessions shell. Phones show either the list or the open chat (pushed route,
@@ -11,13 +12,14 @@ import { useMediaQuery } from '../../app/useMediaQuery';
 export function SessionsLayout() {
   const wide = useMediaQuery('(min-width: 840px)');
   const atList = useMatch({ path: '/sessions', end: true }) !== null;
+  const modalOpen = useRequestModal();
 
   if (!wide) {
     return atList ? <SessionsScreen /> : <Outlet />;
   }
   return (
     <div className="sessions-layout" data-testid="sessions-layout">
-      <SessionsScreen />
+      <SessionsScreen inert={modalOpen} />
       <div className="sessions-detail" data-testid="sessions-detail">
         <Outlet />
       </div>

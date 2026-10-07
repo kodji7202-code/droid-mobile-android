@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import type { DaemonConnection, DaemonGetGitDiffResult } from '@droidmobile/daemon-client';
@@ -183,6 +183,61 @@ describe('WorkspaceScreen layout', () => {
         expect(screen.getByTestId('probe-location')).toHaveTextContent(/^\/workspace$/),
       );
       expect(screen.getByTestId('workspace-select-file')).toBeInTheDocument();
+    });
+
+    it('ends on the last selected file when the first response arrives late', async () => {
+      const pending = new Map<string, (value: unknown) => void>();
+      const connection = useConnectionStore.getState().connection as unknown as {
+        getFileContent: ReturnType<typeof vi.fn>;
+      };
+      connection.getFileContent.mockImplementation(
+        ({ filePath }: { filePath: string }) =>
+          new Promise((resolve) => {
+            pending.set(filePath, resolve);
+          }),
+      );
+      renderWorkspace('/workspace');
+      await waitFor(() => expect(screen.getByTestId('tree-file-src/index.ts')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('tree-file-src/index.ts'));
+      await waitFor(() => expect(pending.has('src/index.ts')).toBe(true));
+      fireEvent.click(screen.getByTestId('tree-file-src/util.ts'));
+      await waitFor(() => expect(pending.has('src/util.ts')).toBe(true));
+
+      pending.get('src/util.ts')?.({ content: 'util body', byteLength: 9, isBinary: false });
+      await waitFor(() =>
+        expect(screen.getByTestId('file-viewer-text')).toHaveTextContent('util body'),
+      );
+      pending.get('src/index.ts')?.({ content: 'index body', byteLength: 10, isBinary: false });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(screen.getByTestId('file-viewer-path')).toHaveTextContent('src/util.ts');
+      expect(screen.getByTestId('file-viewer-text')).toHaveTextContent('util body');
+    });
+
+    it('reloads the open file from the new directory when the workspace cwd changes', async () => {
+      const connection = useConnectionStore.getState().connection as unknown as {
+        getFileContent: ReturnType<typeof vi.fn>;
+      };
+      let directory = 'alpha';
+      connection.getFileContent.mockImplementation(async ({ filePath }: { filePath: string }) => ({
+        content: `${directory} copy of ${filePath}`,
+        byteLength: 20,
+        isBinary: false,
+      }));
+      renderWorkspace('/workspace?file=readme.md');
+      await waitFor(() =>
+        expect(screen.getByTestId('file-viewer-text')).toHaveTextContent('alpha copy of readme.md'),
+      );
+
+      directory = 'beta';
+      act(() => {
+        useSessionViewStore.setState((state) => ({
+          views: { ...state.views, s1: { ...state.views['s1']!, cwd: 'D:/beta' } },
+        }));
+      });
+      await waitFor(() =>
+        expect(screen.getByTestId('file-viewer-text')).toHaveTextContent('beta copy of readme.md'),
+      );
+      expect(screen.getByTestId('file-viewer-text')).not.toHaveTextContent('alpha copy');
     });
 
     it('shows the changes list beside the diff viewer', async () => {

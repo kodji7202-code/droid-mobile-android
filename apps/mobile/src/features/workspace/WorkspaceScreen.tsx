@@ -371,6 +371,7 @@ export function WorkspaceScreen() {
     viewer = (
       <Suspense fallback={<Skeleton lines={4} />}>
         <FileViewer
+          key={`${activeSessionId}\n${cwd}\n${viewingFile}`}
           sessionId={activeSessionId}
           filePath={viewingFile}
           onBack={handleBackFromViewer}
@@ -622,6 +623,17 @@ export function WorkspaceScreen() {
         onClose={() => setChangeDirOpen(false)}
         onChanged={(newCwd) => {
           updateCwd(activeSessionId, newCwd);
+          // The open file or diff belongs to the previous directory's tree.
+          setSearchParams(
+            (prev) => {
+              if (!prev.has('file') && !prev.has('diff')) return prev;
+              const next = new URLSearchParams(prev);
+              next.delete('file');
+              next.delete('diff');
+              return next;
+            },
+            { replace: true },
+          );
           void loadFiles(activeSessionId, showHidden);
           if (activeTab === 'changes') {
             void loadGitDiff(activeSessionId);

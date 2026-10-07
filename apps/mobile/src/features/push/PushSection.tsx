@@ -102,7 +102,9 @@ export function PushSection() {
       });
   };
 
-  const statusLabel = t(`push.status.${push.status}`);
+  const removalPending = push.removalPending && push.status === 'unregistered';
+  const statusKey = removalPending ? 'removalPending' : push.status;
+  const statusLabel = t(`push.status.${statusKey}`);
 
   return (
     <section className="field" data-testid="settings-push" aria-labelledby="settings-push-title">
@@ -113,11 +115,16 @@ export function PushSection() {
       <p
         className="field__description"
         data-testid="settings-push-status"
-        data-state={registered ? 'registered' : push.status}
+        data-state={registered ? 'registered' : statusKey}
         role="status"
       >
         {statusLabel}
       </p>
+      {push.removalPending && push.status !== 'unregistered' ? (
+        <p className="field__description" data-testid="settings-push-removal-pending">
+          {t('push.removalPendingNote')}
+        </p>
+      ) : null}
       {push.error ? (
         <p className="field__error" data-testid="settings-push-error" role="alert">
           {t(`push.error.${push.error}`)}

@@ -18,7 +18,8 @@ import { useSessionsList } from './useSessionsList';
 
 const SKELETON_ROWS = 5;
 
-export function SessionsScreen() {
+/** inert: a modal request dialog in the neighbouring pane is open, so nothing here may be operated. */
+export function SessionsScreen({ inert = false }: { inert?: boolean } = {}) {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const connection = useConnectionStore((state) => state.connection);
@@ -148,6 +149,7 @@ export function SessionsScreen() {
     <section
       className="screen sessions-screen"
       data-testid="sessions-screen"
+      inert={inert}
       aria-labelledby="sessions-title"
       {...pull.handlers}
     >

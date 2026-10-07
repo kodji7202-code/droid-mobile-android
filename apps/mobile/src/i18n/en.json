@@ -648,6 +648,7 @@
       "unregistered": "Not registered",
       "registering": "Registering…",
       "registered": "Registered",
+      "removalPending": "Turned off on this phone. The bridge still has to forget it; removal retries automatically.",
       "unregistering": "Turning off…"
     },
     "bridgeLabel": "Bridge",
@@ -655,7 +656,8 @@
     "deviceIdLabel": "Device ID",
     "disable": "Turn off push",
     "disableLocal": "Turn off on this phone only",
-    "disableLocalHint": "The bridge could not be reached, so the device may stay registered there. You can still turn push off on this phone.",
+    "disableLocalHint": "The bridge could not be reached, so the device may stay registered there. You can still turn push off on this phone: its push token is invalidated here, and the bridge removal is retried when it is reachable.",
+    "removalPendingNote": "The bridge still has to forget a device from this phone. Removal retries automatically when the bridge is reachable.",
     "pairingLabel": "Pairing code",
     "pairingHint": "Paste the pairing code from your PC. Registration starts right away and the code is not kept.",
     "replaceHint": "Paste or scan a new pairing code to switch to another bridge.",

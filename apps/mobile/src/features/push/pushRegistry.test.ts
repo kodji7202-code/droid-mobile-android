@@ -3,7 +3,12 @@ import { BridgeError } from '../../platform/bridgeClient';
 import type { BridgeClient } from '../../platform/bridgeClient';
 import { createMemorySecureStore } from '../../platform/secureStore';
 import { PENDING_BRIDGE_SECRET_ID } from '../connect/pairing';
-import { createLocalPushStorage, createPushRegistry, PUSH_SECRET_ID } from './pushRegistry';
+import {
+  createLocalPushStorage,
+  createPushRegistry,
+  PUSH_REMOVALS_SECRET_ID,
+  PUSH_SECRET_ID,
+} from './pushRegistry';
 import type { PushState } from './pushRegistry';
 
 const SECRET = 'pair-secret-probe-0123456789';
@@ -31,6 +36,7 @@ function setup(
     unregister?: () => Promise<boolean>;
     storage?: Storage;
     failSecretWrite?: boolean;
+    deleteToken?: () => Promise<boolean>;
   } = {},
 ) {
   const storage = options.storage ?? memoryStorage();
@@ -52,6 +58,9 @@ function setup(
   const messaging = {
     isSupported: () => true,
     getToken: vi.fn(() => Promise.resolve(token)),
+    deleteToken: vi.fn<() => Promise<boolean>>(
+      options.deleteToken ?? (() => Promise.resolve(true)),
+    ),
     onTokenRefresh: vi.fn((listener: (value: string) => void) => {
       refresh = listener;
       return stopListening;
@@ -172,6 +181,7 @@ describe('registration', () => {
       messaging: {
         isSupported: () => true,
         getToken: () => Promise.resolve('a:b'),
+        deleteToken: () => Promise.resolve(true),
         onTokenRefresh: () => () => undefined,
       },
       bridge,
@@ -336,17 +346,100 @@ describe('unregistering', () => {
   });
 
   it('stays registered with an error when the bridge is unreachable, and can be forced locally', async () => {
-    const { registry, bridge, secrets } = setup();
+    const { registry, bridge, secrets, messaging } = setup();
     await registry.register({ bridge: BRIDGE, secret: SECRET });
     bridge.unregister.mockRejectedValueOnce(new BridgeError('unreachable'));
     await expect(registry.unregister()).resolves.toBe(false);
     expect(registry.getState()).toMatchObject({ status: 'registered', error: 'unregisterFailed' });
     expect(await secrets.getSecret(PUSH_SECRET_ID)).toBe(SECRET);
 
+    bridge.unregister.mockRejectedValueOnce(new BridgeError('unreachable'));
     await expect(registry.unregister({ force: true })).resolves.toBe(true);
-    expect(bridge.unregister).toHaveBeenCalledTimes(1);
-    expect(registry.getState().status).toBe('unregistered');
+    expect(messaging.deleteToken).toHaveBeenCalledTimes(1);
+    expect(registry.getState()).toMatchObject({ status: 'unregistered', removalPending: true });
     expect(await secrets.getSecret(PUSH_SECRET_ID)).toBeNull();
+    expect(await secrets.getSecret(PUSH_REMOVALS_SECRET_ID)).toContain('droid-test0001');
+  });
+
+  it('turning off locally invalidates the token and retries the bridge removal when online', async () => {
+    const { registry, bridge, secrets, messaging } = setup();
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    bridge.unregister.mockRejectedValue(new BridgeError('unreachable'));
+    await registry.unregister({ force: true });
+    expect(messaging.deleteToken).toHaveBeenCalledTimes(1);
+    expect(registry.getState().removalPending).toBe(true);
+
+    bridge.unregister.mockReset();
+    bridge.unregister.mockResolvedValue(true);
+    const stop = registry.start();
+    await vi.waitFor(() => expect(registry.getState().removalPending).toBe(false));
+    expect(bridge.unregister).toHaveBeenCalledWith(
+      { bridge: BRIDGE, secret: SECRET },
+      'droid-test0001',
+    );
+    expect(await secrets.getSecret(PUSH_REMOVALS_SECRET_ID)).toBeNull();
+    expect(registry.getState().status).toBe('unregistered');
+    stop();
+  });
+
+  it('retries a queued removal when the browser reports the network is back', async () => {
+    const { registry, bridge } = setup();
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    bridge.unregister.mockRejectedValue(new BridgeError('unreachable'));
+    await registry.unregister({ force: true });
+    const stop = registry.start();
+    await vi.waitFor(() => expect(bridge.unregister).toHaveBeenCalledTimes(2));
+    bridge.unregister.mockResolvedValue(true);
+    window.dispatchEvent(new Event('online'));
+    await vi.waitFor(() => expect(registry.getState().removalPending).toBe(false));
+    stop();
+  });
+
+  it('stays registered with an error when the token cannot be invalidated', async () => {
+    const { registry, bridge, secrets } = setup({ deleteToken: () => Promise.resolve(false) });
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    await expect(registry.unregister({ force: true })).resolves.toBe(false);
+    expect(registry.getState()).toMatchObject({
+      status: 'registered',
+      error: 'unregisterFailed',
+      removalPending: false,
+    });
+    expect(await secrets.getSecret(PUSH_SECRET_ID)).toBe(SECRET);
+    expect(bridge.unregister).not.toHaveBeenCalled();
+  });
+
+  it('does not delete a device that registered again while its removal was queued', async () => {
+    const { registry, bridge } = setup();
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    bridge.unregister.mockRejectedValue(new BridgeError('unreachable'));
+    await registry.unregister({ force: true });
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    expect(registry.getState()).toMatchObject({ status: 'registered', removalPending: false });
+    bridge.unregister.mockClear();
+    bridge.unregister.mockResolvedValue(true);
+    const stop = registry.start();
+    await Promise.resolve();
+    expect(bridge.unregister).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it('queues the removal from the old bridge when replacing cannot reach it', async () => {
+    const { registry, bridge, secrets } = setup();
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    bridge.unregister.mockRejectedValue(new BridgeError('unreachable'));
+    const other = 'https://bridge.example.invalid';
+    await expect(registry.register({ bridge: other, secret: 'other-secret' })).resolves.toBe(true);
+    expect(registry.getState()).toMatchObject({ status: 'registered', removalPending: true });
+    expect(await secrets.getSecret(PUSH_REMOVALS_SECRET_ID)).toContain(BRIDGE);
+
+    bridge.unregister.mockResolvedValue(true);
+    const stop = registry.start();
+    await vi.waitFor(() => expect(registry.getState().removalPending).toBe(false));
+    expect(bridge.unregister).toHaveBeenLastCalledWith(
+      { bridge: BRIDGE, secret: SECRET },
+      'droid-test0001',
+    );
+    stop();
   });
 
   it('is a no-op when nothing is registered', async () => {
@@ -364,6 +457,23 @@ describe('unregistering', () => {
     expect(registry.getState()).toMatchObject({ status: 'unregistered', deviceId: null });
     expect(await secrets.getSecret(PUSH_SECRET_ID)).toBeNull();
     expect(storage.getItem('droid.push')).toBeNull();
+  });
+
+  it('release invalidates the token when the bridge could not be reached', async () => {
+    const { registry, bridge, messaging, secrets } = setup();
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    bridge.unregister.mockRejectedValue(new BridgeError('unreachable'));
+    await registry.release();
+    expect(messaging.deleteToken).toHaveBeenCalledTimes(1);
+    expect(await secrets.getSecret(PUSH_REMOVALS_SECRET_ID)).toBeNull();
+    expect(registry.getState().removalPending).toBe(false);
+  });
+
+  it('release keeps the token when the bridge confirmed the removal', async () => {
+    const { registry, messaging } = setup();
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    await registry.release();
+    expect(messaging.deleteToken).not.toHaveBeenCalled();
   });
 
   it('release without a registration only returns', async () => {

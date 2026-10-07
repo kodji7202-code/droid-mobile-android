@@ -18,6 +18,8 @@ export interface PushMessagingApi {
   isSupported(): boolean;
   /** The current token, or null when Firebase cannot produce one. */
   getToken(): Promise<string | null>;
+  /** Invalidates the current token so no push reaches this phone; false when that failed. */
+  deleteToken(): Promise<boolean>;
   /** Fires when FCM issues a new token (rotation, restore, deleteToken + getToken). */
   onTokenRefresh(listener: (token: string) => void): () => void;
 }
@@ -35,6 +37,15 @@ export function createPushMessaging(
         return typeof token === 'string' && token !== '' ? token : null;
       } catch {
         return null;
+      }
+    },
+    async deleteToken() {
+      if (!isNative()) return false;
+      try {
+        await plugin.deleteToken();
+        return true;
+      } catch {
+        return false;
       }
     },
     onTokenRefresh(listener) {

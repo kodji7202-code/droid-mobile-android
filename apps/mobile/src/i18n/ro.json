@@ -650,6 +650,7 @@
       "unregistered": "Neînregistrat",
       "registering": "Se înregistrează…",
       "registered": "Înregistrat",
+      "removalPending": "Oprit pe acest telefon. Bridge-ul trebuie încă să îl uite; eliminarea se reîncearcă automat.",
       "unregistering": "Se oprește…"
     },
     "bridgeLabel": "Bridge",
@@ -657,7 +658,8 @@
     "deviceIdLabel": "ID dispozitiv",
     "disable": "Oprește notificările push",
     "disableLocal": "Oprește doar pe acest telefon",
-    "disableLocalHint": "Bridge-ul nu a putut fi contactat, deci dispozitivul poate rămâne înregistrat acolo. Poți opri totuși notificările push pe acest telefon.",
+    "disableLocalHint": "Bridge-ul nu a putut fi contactat, deci dispozitivul poate rămâne înregistrat acolo. Poți opri totuși notificările push pe acest telefon: tokenul push este invalidat aici, iar eliminarea din bridge se reîncearcă la următoarea conexiune.",
+    "removalPendingNote": "Bridge-ul trebuie încă să uite un dispozitiv de pe acest telefon. Eliminarea se reîncearcă automat când bridge-ul este accesibil.",
     "pairingLabel": "Cod de asociere",
     "pairingHint": "Lipește codul de asociere de pe PC. Înregistrarea pornește imediat, iar codul nu este păstrat.",
     "replaceHint": "Lipește sau scanează un cod de asociere nou ca să treci la alt bridge.",

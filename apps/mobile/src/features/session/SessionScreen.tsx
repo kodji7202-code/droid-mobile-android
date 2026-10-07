@@ -37,7 +37,17 @@ function folderName(cwd: string | undefined): string | undefined {
   return name === '' ? undefined : name;
 }
 
+/**
+ * Remounts per session id: the tablet two-pane keeps this route mounted while the list changes the
+ * selection, and per-session UI state (composer draft, attachments, open sheets) must not carry
+ * over to another session.
+ */
 export function SessionScreen() {
+  const { id = '' } = useParams();
+  return <SessionScreenContent key={id} />;
+}
+
+function SessionScreenContent() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id = '' } = useParams();

@@ -373,4 +373,65 @@ describe('FileViewer', () => {
       expect(screen.getByTestId('file-viewer-text')).toHaveTextContent('restored content');
     });
   });
+
+  it('ignores a late response for the previous file (stale-response fence)', async () => {
+    const pending = new Map<string, (value: unknown) => void>();
+    const getFileContent = vi.fn(
+      ({ filePath }: { filePath: string }) =>
+        new Promise((resolve) => {
+          pending.set(filePath, resolve);
+        }),
+    );
+    useConnectionStore.setState({
+      connection: { getFileContent } as unknown as DaemonConnection,
+    });
+    const view = (filePath: string) => (
+      <AppProviders>
+        <FileViewer sessionId="s1" filePath={filePath} onBack={vi.fn()} />
+      </AppProviders>
+    );
+    const result = (text: string) => ({ content: text, byteLength: text.length, isBinary: false });
+
+    const { rerender } = render(view('one.txt'));
+    await waitFor(() => expect(pending.has('one.txt')).toBe(true));
+    rerender(view('two.txt'));
+    await waitFor(() => expect(pending.has('two.txt')).toBe(true));
+
+    pending.get('two.txt')?.(result('content two'));
+    await waitFor(() =>
+      expect(screen.getByTestId('file-viewer-text')).toHaveTextContent('content two'),
+    );
+    pending.get('one.txt')?.(result('content one'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.getByTestId('file-viewer-path')).toHaveTextContent('two.txt');
+    expect(screen.getByTestId('file-viewer-text')).toHaveTextContent('content two');
+    expect(screen.getByTestId('file-viewer-text')).not.toHaveTextContent('content one');
+  });
+
+  it('does not let a late response from the first file overwrite a pending newer request', async () => {
+    const pending = new Map<string, (value: unknown) => void>();
+    const getFileContent = vi.fn(
+      ({ filePath }: { filePath: string }) =>
+        new Promise((resolve) => {
+          pending.set(filePath, resolve);
+        }),
+    );
+    useConnectionStore.setState({
+      connection: { getFileContent } as unknown as DaemonConnection,
+    });
+    const view = (filePath: string) => (
+      <AppProviders>
+        <FileViewer sessionId="s1" filePath={filePath} onBack={vi.fn()} />
+      </AppProviders>
+    );
+    const { rerender } = render(view('one.txt'));
+    await waitFor(() => expect(pending.has('one.txt')).toBe(true));
+    rerender(view('two.txt'));
+    await waitFor(() => expect(pending.has('two.txt')).toBe(true));
+
+    pending.get('one.txt')?.({ content: 'content one', byteLength: 11, isBinary: false });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.getByTestId('file-viewer-loading')).toBeInTheDocument();
+    expect(screen.queryByTestId('file-viewer-text')).not.toBeInTheDocument();
+  });
 });

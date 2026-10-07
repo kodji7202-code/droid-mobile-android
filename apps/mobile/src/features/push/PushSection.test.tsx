@@ -6,7 +6,7 @@ import en from '../../i18n/en.json';
 import ro from '../../i18n/ro.json';
 import { BridgeError } from '../../platform/bridgeClient';
 import { getSecureStore } from '../../platform/secureStore';
-import { releasePushRegistration } from '../../stores/push';
+import { releasePushRegistration, startPushRegistry } from '../../stores/push';
 import { AppProviders } from '../../test/render-app';
 import { PENDING_BRIDGE_SECRET_ID } from '../connect/pairing';
 import { PushSection } from './PushSection';
@@ -19,12 +19,14 @@ const mocks = vi.hoisted(() => ({
   register: vi.fn(),
   unregister: vi.fn(),
   scanImage: vi.fn(),
+  deleteToken: vi.fn(),
 }));
 
 vi.mock('../../platform/pushMessaging', () => ({
   pushMessaging: {
     isSupported: () => true,
     getToken: vi.fn(() => Promise.resolve('aaaa:bbbb')),
+    deleteToken: () => mocks.deleteToken(),
     onTokenRefresh: vi.fn(() => () => undefined),
   },
 }));
@@ -55,6 +57,7 @@ describe('Settings > Notifications > push section', () => {
     mocks.register.mockReset().mockResolvedValue(undefined);
     mocks.unregister.mockReset().mockResolvedValue(true);
     mocks.scanImage.mockReset();
+    mocks.deleteToken.mockReset().mockResolvedValue(true);
     await releasePushRegistration();
     await getSecureStore().deleteSecret(PENDING_BRIDGE_SECRET_ID);
     window.localStorage.clear();
@@ -230,8 +233,30 @@ describe('Settings > Notifications > push section', () => {
       en.push.error.unregisterFailed,
     );
     expect(status()).toHaveAttribute('data-state', 'registered');
+    mocks.unregister.mockRejectedValue(new BridgeError('unreachable'));
     await user.click(screen.getByTestId('settings-push-disable-local'));
+    await waitFor(() => expect(status()).toHaveAttribute('data-state', 'removalPending'));
+    expect(status()).toHaveTextContent(en.push.status.removalPending);
+    expect(mocks.deleteToken).toHaveBeenCalledTimes(1);
+
+    mocks.unregister.mockReset().mockResolvedValue(true);
+    const stop = startPushRegistry();
     await waitFor(() => expect(status()).toHaveAttribute('data-state', 'unregistered'));
-    expect(mocks.unregister).toHaveBeenCalledTimes(1);
+    expect(status()).toHaveTextContent(en.push.status.unregistered);
+    stop();
+  });
+
+  it('keeps a registered, truthful state when the token cannot be invalidated offline', async () => {
+    const user = userEvent.setup();
+    renderSection();
+    fireEvent.change(screen.getByTestId('settings-push-pairing'), { target: { value: CODE } });
+    await waitFor(() => expect(status()).toHaveAttribute('data-state', 'registered'));
+    mocks.unregister.mockRejectedValue(new BridgeError('unreachable'));
+    mocks.deleteToken.mockResolvedValue(false);
+    await user.click(screen.getByTestId('settings-push-disable'));
+    await user.click(await screen.findByTestId('settings-push-disable-local'));
+    await waitFor(() => expect(screen.getByTestId('settings-push-error')).toBeInTheDocument());
+    expect(status()).toHaveAttribute('data-state', 'registered');
+    expect(screen.getByTestId('settings-push-disable')).toBeInTheDocument();
   });
 });

@@ -1,21 +1,14 @@
 import { useRef } from 'react';
-import {
-  matchPath,
-  Navigate,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useNavigationType,
-} from 'react-router';
+import { Navigate, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ConnectionBanner } from '../components/ConnectionBanner';
 import { ConnectionNotices } from '../components/ConnectionNotices';
 import { ConnectionStatusIndicator } from '../components/ConnectionStatusIndicator';
 import { NavigationBar, NavigationRail } from '../components/NavItems';
 import { useConnectionStore } from '../stores/connection';
-import { useInteractionStore } from '../stores/interactions';
 import { useAndroidBackHandler } from './useAndroidBackHandler';
 import { useMediaQuery } from './useMediaQuery';
+import { useRequestModal } from './useRequestModal';
 
 /** Route paths that are roots of the primary destinations where back exits the app. */
 export const ROOT_DESTINATIONS = ['/sessions'] as const;
@@ -53,11 +46,7 @@ export function AppShell() {
   };
   useAndroidBackHandler(handleAndroidBack, isRootDestination(location.pathname));
   const hasConnection = useConnectionStore((state) => state.connection !== null);
-  const openSessionId = matchPath('/sessions/:id', location.pathname)?.params.id;
-  // The request dialog of the open session is modal: only it (and Stop inside it) stays operable.
-  const modalOpen = useInteractionStore((state) =>
-    state.pending.some((item) => item.sessionId === openSessionId),
-  );
+  const modalOpen = useRequestModal();
 
   if (!hasConnection) {
     return <Navigate to="/connect" replace />;

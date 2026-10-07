@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useTranslation } from 'react-i18next';
 import hljs from 'highlight.js/lib/common';
 import { BackIcon, CloseIcon } from '../../components/icons';
@@ -131,24 +131,31 @@ export function FileViewer({ sessionId, filePath, onBack, showBack = true }: Fil
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  // Only the newest request may write: an older response would show another file under this path.
+  const requestSeq = useRef(0);
 
   const isImg = isImageExtension(filePath);
 
   const fetchContent = useCallback(async () => {
     if (!connection) return;
+    const seq = ++requestSeq.current;
     setLoading(true);
     setError(null);
+    setData(null);
     try {
       const res = await connection.getFileContent({
         sessionId,
         filePath,
         encoding: isImg ? 'base64' : 'utf8',
       });
+      if (seq !== requestSeq.current) return;
       startTransition(() => {
+        if (seq !== requestSeq.current) return;
         setData(res);
         setLoading(false);
       });
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       setError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
@@ -156,6 +163,10 @@ export function FileViewer({ sessionId, filePath, onBack, showBack = true }: Fil
 
   useEffect(() => {
     void fetchContent();
+    const seq = requestSeq;
+    return () => {
+      seq.current += 1;
+    };
   }, [fetchContent]);
 
   const byteLength = data?.byteLength ?? 0;

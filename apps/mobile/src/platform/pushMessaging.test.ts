@@ -40,6 +40,17 @@ describe('push messaging wrapper', () => {
     expect(plugin.addListener).not.toHaveBeenCalled();
   });
 
+  it('reports whether the token could be invalidated', async () => {
+    const { plugin } = fakePlugin();
+    const api = createPushMessaging(plugin, () => true);
+    expect(await api.deleteToken()).toBe(true);
+    plugin.deleteToken.mockRejectedValueOnce(new Error('SERVICE_NOT_AVAILABLE'));
+    expect(await api.deleteToken()).toBe(false);
+    const web = createPushMessaging(plugin, () => false);
+    expect(await web.deleteToken()).toBe(false);
+    expect(plugin.deleteToken).toHaveBeenCalledTimes(2);
+  });
+
   it('forwards token refreshes and removes the listener on dispose', async () => {
     const { plugin, emit, remove } = fakePlugin();
     const api = createPushMessaging(plugin, () => true);

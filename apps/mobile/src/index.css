@@ -1025,6 +1025,10 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
   opacity: 0.75;
 }
 
+.session-message--notice .session-message__role {
+  opacity: 1;
+}
+
 .session-message--notice {
   align-self: flex-end;
   max-width: 90%;
@@ -2046,7 +2050,7 @@ body.barcode-scanner-active .qr-scan-overlay__cancel {
 .terminal-key--active {
   border-color: var(--color-accent);
   background: var(--color-accent);
-  color: var(--color-on-accent, #fff);
+  color: var(--color-accent-fg);
 }
 
 html[data-soft-keyboard='open'] .app-nav-bar {

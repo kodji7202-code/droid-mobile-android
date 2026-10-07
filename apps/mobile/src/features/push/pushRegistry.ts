@@ -16,6 +16,8 @@ import { parsePairingCode, PENDING_BRIDGE_SECRET_ID } from '../connect/pairing';
 
 export const PUSH_SECRET_ID = 'push.bridgeSecret';
 export const PUSH_STORAGE_KEY = 'droid.push';
+/** Secure-store JSON list of devices a bridge may still hold; the secret is needed to retry. */
+export const PUSH_REMOVALS_SECRET_ID = 'push.pendingRemovals';
 
 export type PushStatus = 'unregistered' | 'registering' | 'registered' | 'unregistering';
 
@@ -43,6 +45,8 @@ export interface PushState {
   /** Normalised bridge URL of the registration (not secret). */
   bridge: string | null;
   error: PushErrorKind | null;
+  /** True while a bridge may still hold a device this phone stopped using; removal is retried. */
+  removalPending: boolean;
   /** Bridge URL of a pairing code waiting from the Connect screen; its secret is never exposed. */
   pendingBridge: string | null;
 }
@@ -81,7 +85,11 @@ export interface PushRegistry {
   /** `secret` omitted: the pending pairing secret is used when its bridge URL matches. */
   register(input: { bridge: string; secret?: string }): Promise<boolean>;
   registerFromPairingCode(text: string): Promise<boolean>;
-  /** Removes the device from the bridge, then forgets the registration. `force` skips the bridge. */
+  /**
+   * Removes the device from the bridge, then forgets the registration. `force` skips the bridge:
+   * it invalidates this phone's FCM token so delivery stops, and queues the bridge removal for
+   * retry. It fails (staying registered) when the token cannot be invalidated.
+   */
   unregister(options?: { force?: boolean }): Promise<boolean>;
   /** Sign-out path: best-effort bridge removal, then everything local is gone. Never rejects. */
   release(): Promise<void>;
@@ -113,6 +121,30 @@ function parsePending(raw: string | null): { bridge: string; secret: string } | 
     return { bridge: value.bridge, secret: value.bridgeSecret };
   } catch {
     return null;
+  }
+}
+
+interface PendingRemoval {
+  bridge: string;
+  secret: string;
+  deviceId: string;
+}
+
+function parseRemovals(raw: string | null): PendingRemoval[] {
+  if (raw === null) return [];
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!Array.isArray(value)) return [];
+    return value.filter(
+      (item): item is PendingRemoval =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as PendingRemoval).bridge === 'string' &&
+        typeof (item as PendingRemoval).secret === 'string' &&
+        typeof (item as PendingRemoval).deviceId === 'string',
+    );
+  } catch {
+    return [];
   }
 }
 
@@ -161,6 +193,7 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
     label: null,
     bridge: persisted.registered ? persisted.bridge : null,
     error: null,
+    removalPending: false,
     pendingBridge: null,
   };
   // One operation at a time: a token refresh must not interleave with a (un)registration.
@@ -255,11 +288,19 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
     }
     emit({ status: 'registered', deviceId, label, bridge: check.url, error: null });
     persist();
+    // The new registration revives this device id on this bridge: a queued removal must not undo it.
+    await updateRemovals((list) =>
+      list.filter((item) => item.bridge !== check.url || item.deviceId !== deviceId),
+    );
     // A new pairing code can point at another bridge: the old one must not keep this device.
     if (replaced?.secret && replaced.bridge !== check.url) {
-      await deps.bridge
-        .unregister({ bridge: replaced.bridge, secret: replaced.secret }, replaced.deviceId)
-        .catch(() => false);
+      const item = {
+        bridge: replaced.bridge,
+        secret: replaced.secret,
+        deviceId: replaced.deviceId,
+      };
+      await updateRemovals((list) => [...list, item]);
+      await flushRemovals();
     }
     await dropPending();
     return true;
@@ -311,10 +352,69 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
     }
   }
 
+  async function readRemovals(): Promise<PendingRemoval[]> {
+    try {
+      return parseRemovals(await deps.secrets().getSecret(PUSH_REMOVALS_SECRET_ID));
+    } catch {
+      return [];
+    }
+  }
+
+  async function updateRemovals(
+    change: (list: PendingRemoval[]) => PendingRemoval[],
+  ): Promise<void> {
+    const next = change(await readRemovals());
+    try {
+      if (next.length === 0) await deps.secrets().deleteSecret(PUSH_REMOVALS_SECRET_ID);
+      else await deps.secrets().setSecret(PUSH_REMOVALS_SECRET_ID, JSON.stringify(next));
+    } catch {
+      // Without secure storage the queue cannot persist; this run still reports what it knows.
+    }
+    emit({ removalPending: next.length > 0 });
+  }
+
+  /** Retries every queued bridge removal; an entry leaves the queue once the bridge confirmed it. */
+  async function flushRemovals(): Promise<void> {
+    const list = await readRemovals();
+    emit({ removalPending: list.length > 0 });
+    if (list.length === 0) return;
+    const done: PendingRemoval[] = [];
+    for (const item of list) {
+      try {
+        await deps.bridge.unregister({ bridge: item.bridge, secret: item.secret }, item.deviceId);
+        done.push(item);
+      } catch {
+        // Retried when the phone is online again and at the next start.
+      }
+    }
+    if (done.length > 0) {
+      await updateRemovals((current) =>
+        current.filter(
+          (i) => !done.some((d) => d.bridge === i.bridge && d.deviceId === i.deviceId),
+        ),
+      );
+    }
+  }
+
   async function unregisterNow(force: boolean): Promise<boolean> {
     if (state.status !== 'registered') return true;
     emit({ status: 'unregistering', error: null });
-    if (!force && (await removeFromBridge()) === 'failed') {
+    if (force) {
+      const secret = await readSecret();
+      // The bridge keeps pushing to the unchanged token, so the token itself has to go first.
+      if (!(await deps.messaging.deleteToken())) {
+        emit({ status: 'registered', error: 'unregisterFailed' });
+        return false;
+      }
+      if (state.bridge !== null && state.deviceId !== null && secret !== null) {
+        const item = { bridge: state.bridge, secret, deviceId: state.deviceId };
+        await updateRemovals((list) => [...list, item]);
+      }
+      await clearLocal(true);
+      await flushRemovals();
+      return true;
+    }
+    if ((await removeFromBridge()) === 'failed') {
       emit({ status: 'registered', error: 'unregisterFailed' });
       return false;
     }
@@ -345,14 +445,23 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
     start() {
       void deps.deviceLabel().then((label) => emit({ label }));
       void refreshPending();
-      const stop = deps.messaging.onTokenRefresh((token) => void enqueue(() => syncToken(token)));
+      const stopTokens = deps.messaging.onTokenRefresh(
+        (token) => void enqueue(() => syncToken(token)),
+      );
+      void enqueue(flushRemovals);
       if (state.status === 'registered') {
         void enqueue(async () => {
           const token = await deps.messaging.getToken();
           if (token !== null) await syncToken(token);
         });
       }
-      return stop;
+      const retry = () => void enqueue(flushRemovals);
+      const hasWindow = typeof window !== 'undefined';
+      if (hasWindow) window.addEventListener('online', retry);
+      return () => {
+        stopTokens();
+        if (hasWindow) window.removeEventListener('online', retry);
+      };
     },
     refreshPending,
     async discardPending() {
@@ -369,7 +478,15 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
     unregister: (options) => enqueue(() => unregisterNow(options?.force === true)),
     release: () =>
       enqueue(async () => {
-        if (state.status === 'registered') await removeFromBridge();
+        const wasRegistered = state.status === 'registered';
+        let leftBehind = false;
+        if (wasRegistered && (await removeFromBridge()) === 'failed') leftBehind = true;
+        await flushRemovals();
+        if ((await readRemovals()).length > 0) leftBehind = true;
+        // Sign-out forgets the pairing secrets, so a bridge that could not be reached would keep
+        // pushing to this token: invalidate it instead.
+        if (leftBehind) await deps.messaging.deleteToken();
+        await updateRemovals(() => []);
         await clearLocal(false);
       }).catch(() => undefined),
     clearError: () => emit({ error: null }),
