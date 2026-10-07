@@ -8,7 +8,6 @@ import { useSessionViewStore } from '../../stores/sessionView';
 import { useWorkspaceStore } from '../../stores/workspace';
 import { ChangeDirectorySheet } from './ChangeDirectorySheet';
 import { FileSearch } from './FileSearch';
-import { FileViewer } from './FileViewer';
 import { FilesTree } from './FilesTree';
 import { GitActions } from './GitActions';
 import { GitChangesList } from './GitChangesList';
@@ -22,7 +21,10 @@ import type {
 } from '@droidmobile/daemon-client';
 import type { PullRequestStatusInfo } from './PullRequestChip';
 
-// Diffs are rare next to browsing; the viewer loads on first use.
+// The viewers pull in the syntax highlighter and are rarely open; they load on first use.
+const FileViewer = lazy(() =>
+  import('./FileViewer').then((module) => ({ default: module.FileViewer })),
+);
 const GitDiffViewer = lazy(() =>
   import('./GitDiffViewer').then((module) => ({ default: module.GitDiffViewer })),
 );
@@ -343,11 +345,13 @@ export function WorkspaceScreen() {
         data-testid="workspace-screen"
         style={{ height: '100%', padding: 0 }}
       >
-        <FileViewer
-          sessionId={activeSessionId}
-          filePath={viewingFile}
-          onBack={handleBackFromViewer}
-        />
+        <Suspense fallback={<Skeleton lines={4} />}>
+          <FileViewer
+            sessionId={activeSessionId}
+            filePath={viewingFile}
+            onBack={handleBackFromViewer}
+          />
+        </Suspense>
       </section>
     );
   }
