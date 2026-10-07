@@ -1,18 +1,18 @@
-# Release build and signing
+# Release and signing
 
-Droid Mobile is an unofficial client. Release builds are signed with a key you generate
-locally; nothing here uploads anything.
+Droid Mobile is an unofficial client. Release builds are signed with a key you generate locally;
+nothing here uploads anything.
 
-## One command
+## Build with one command
 
 ```powershell
 npm run android:release
 ```
 
 It runs, in order: the `google-services.json` copy from `secrets/`, the one-time keystore
-creation (skipped when it exists), the web build with `VITE_DROID_BUILD=release`,
-`cap sync` with `CAPACITOR_VARIANT=release`, `gradlew assembleRelease bundleRelease` and
-finally `tools/dev/verify-release.ps1`. No password is typed or passed on the command line.
+creation (skipped when it exists), the web build with `VITE_DROID_BUILD=release`, `cap sync` with
+`CAPACITOR_VARIANT=release`, `gradlew assembleRelease bundleRelease` and finally
+`tools/dev/verify-release.ps1`. No password is typed or passed on the command line.
 
 Outputs (same release key):
 
@@ -21,45 +21,60 @@ Outputs (same release key):
 | APK      | `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`    |
 | AAB      | `apps/mobile/android/app/build/outputs/bundle/release/app-release.aab` |
 
-Prerequisites are the ones in [android.md](android.md) (JDK 21, Android SDK with
-build-tools) plus Node 24.
+Prerequisites are the ones in [android.md](android.md) (JDK 21, Android SDK with build-tools)
+plus Node 24 and `npm install`. The version is `versionCode 1` and the app's package version
+(`apps/mobile/package.json`); raise `versionCode` in `apps/mobile/android/app/build.gradle` before
+every Play Store upload.
 
-## Signing material
+## Keystore creation
 
-`tools/dev/new-release-keystore.ps1` (`npm run android:keystore`) creates, once:
+`tools/dev/new-release-keystore.ps1` (run by `npm run android:release`, or alone with
+`npm run android:keystore`) creates, once:
 
-- `secrets/release.keystore`: PKCS12, RSA 4096, alias `droidmobile-release`, valid ~27 years.
-- `secrets/keystore.properties`: `storeFile`, `storePassword`, `keyAlias`, `keyPassword`
-  (a random password generated on your machine).
+- `secrets/release.keystore`: PKCS12, RSA 4096, alias `droidmobile-release`, valid about 27 years.
+- `secrets/keystore.properties`: `storeFile`, `storePassword`, `keyAlias`, `keyPassword` (a random
+  password generated on your machine and passed to `keytool` through the environment).
 
 `secrets/` is git-ignored, as are `*.keystore`, `*.jks`, `keystore.properties` and
-`google-services.json`. The script never overwrites an existing keystore: replacing the key
-would stop already installed releases from updating. **Back both files up.**
-Set `DROID_KEYSTORE_PROPERTIES` to use a properties file somewhere else. Gradle refuses to
-build a release artifact when no signing configuration is found; it never falls back to the
-debug key.
+`google-services.json`. The script never overwrites an existing keystore: replacing the key would
+stop already installed releases from updating. **Back both files up** in a place you control. If
+you lose them you cannot update an installed or published app. Set
+`DROID_KEYSTORE_PROPERTIES` to use a properties file somewhere else. Gradle refuses to build a
+release artifact when no signing configuration is found; it never falls back to the debug key.
+
+For Play App Signing, upload the AAB; Google re-signs the app for users and your key becomes the
+upload key ([play-store.md](play-store.md)).
 
 ## Firebase config
 
 `build-android.ps1` copies `secrets/google-services.json` (or the path in
-`GOOGLE_SERVICES_JSON_PATH` from `.env.local`) to `apps/mobile/android/app/` before every
-build. The copy is git-ignored. `verify-release.ps1` checks that its `package_name` equals the
-application id.
+`GOOGLE_SERVICES_JSON_PATH` from `.env.local`) to `apps/mobile/android/app/` before every build.
+The copy is git-ignored. Without it the build still works but push does not
+([notifications.md](notifications.md)). `verify-release.ps1` checks that its `package_name` equals
+the application id.
 
-## What `verify-release.ps1` checks
+## apksigner verify
 
-Run it alone with `npm run android:verify-release`. It prints PASS/FAIL per check and
+Run the whole check with `npm run android:verify-release`. It prints PASS/FAIL per check and
 exits non-zero on any failure. Only booleans, counts and certificate fingerprints are printed.
 
-- `apksigner verify` (v2 and v3, one signer, not the debug certificate), `zipalign -c 4`.
+- `apksigner verify` (v2 and v3, one signer, not the debug certificate) and `zipalign -c 4`.
 - `jarsigner -verify` for the AAB and equality of the AAB and APK signer SHA-256.
 - Application id `com.droidmobile.client`, min SDK 24, target SDK 36, label `Droid Mobile`.
 - No `usesCleartextTraffic`, no `debuggable`, `allowBackup="false"`.
-- `assets/capacitor.config.json`: `https` scheme, no `server.cleartext` or `server.url`,
-  WebView debugging off.
+- `assets/capacitor.config.json`: `https` scheme, no `server.cleartext` or `server.url`, WebView
+  debugging off.
 - No file in the APK with `factory` in its name.
-- No API key, `fk-` token, service-account key id or PEM private key in any entry
-  of the APK or AAB.
+- No API key, `fk-` token, service-account key id or PEM private key in any entry of the APK or
+  AAB.
+
+To run the signature check by hand:
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.0.0\apksigner.bat" verify --verbose --print-certs apps\mobile\android\app\build\outputs\apk\release\app-release.apk
+```
+
+It prints `Verifies` and the signer's SHA-256 digest. Use any installed build-tools version.
 
 ## Install on a phone
 
@@ -72,12 +87,14 @@ adb -s <serial> install apps\mobile\android\app\build\outputs\apk\release\app-re
 
 ## Release transport policy
 
-Release builds only connect over `wss://`. A `ws://` address (typed or from a pairing
-code) is refused with a message before any socket is opened. A convenient secure path to a
-desktop daemon is Tailscale Serve (for example `tailscale serve --bg --https=8443
-http://127.0.0.1:3101`, then `wss://<your-machine>.<tailnet>.ts.net:8443`). Debug builds
-keep `ws://` for the emulator and `adb reverse`; see [android.md](android.md).
+Release builds only connect over `wss://`. A `ws://` address (typed or from a pairing code) is
+refused with a message before any socket is opened. The convenient secure path to a desktop
+daemon is Tailscale Serve ([setup.md](setup.md#tailscale-serve-and-https-certificates)). Debug
+builds keep `ws://` for the emulator and `adb reverse`; see [android.md](android.md).
 
 ## Repository hygiene
 
-`npm run scan:secrets` scans the tracked tree and every revision for API-key shaped tokens (outside unit-test fixtures), service-account JSON, PEM private keys, the key stored in `.env.local`, and signing or Firebase files. It prints counts only and exits non-zero on any match.
+`npm run scan:secrets` scans the tracked tree and every revision for API-key shaped tokens
+(outside unit-test fixtures), service-account JSON, PEM private keys, the key stored in
+`.env.local`, and signing or Firebase files. It prints counts only and exits non-zero on any
+match. Run it before every commit that you intend to share.

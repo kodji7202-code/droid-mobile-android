@@ -59,7 +59,7 @@ function Write-DhBridgeConfig {
   $file = Get-DhBridgeConfigFile $StateDir
   Write-DhJsonFile -Path $file -Value ([ordered]@{ url = $Url; secret = $Secret })
   try {
-    Invoke-DhNative -FilePath 'icacls.exe' -ArgumentList @($file, '/inheritance:r', '/grant:r', "$($env:USERNAME):(R,W)") -TimeoutSec 10 | Out-Null
+    Invoke-DhNative -FilePath 'icacls.exe' -ArgumentList @($file, '/inheritance:r', '/grant:r', "$($env:USERNAME):(M)") -TimeoutSec 10 | Out-Null
   } catch { }
   return $file
 }

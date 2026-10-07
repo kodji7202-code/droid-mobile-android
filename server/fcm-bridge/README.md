@@ -13,6 +13,10 @@ event kind and the session id. No prompt text, file content, path or tool input 
 - Speaks plain HTTP. Put it behind a TLS reverse proxy for anything beyond `127.0.0.1` (see
   [Deploy behind TLS](#deploy-behind-tls)).
 
+The end-to-end setup (Firebase, hooks, registering the phone) is in
+[docs/notifications.md](../../docs/notifications.md). Problems with delivery:
+[docs/troubleshooting.md](../../docs/troubleshooting.md#push-not-arriving).
+
 ## Quick start (development)
 
 Dev port is **3102**.
@@ -211,7 +215,7 @@ logged with the device id and a masked token.
 | `devices.json` | `{"version":1,"devices":[{"deviceId","fcmToken","label","registeredAt","updatedAt"}]}`. Written atomically after every change, so registrations survive restarts and concurrent requests. FCM tokens are stored in clear text because FCM needs them; protect the directory (the file is created with mode 0600). A corrupt file stops the start instead of being overwritten. |
 | `pairing.json` | Salted scrypt verifier of the pairing secret (`salt`, `hash`, parameters).                                                                                                                                                                                                                                                                                                     |
 
-Logs are one JSON object per line on stdout (`level`, `time`, `msg`, `reqId`). `npm run dev`
+Logs are one JSON object per line on stdout (`level`, `time`, `msg`, `reqId`). `npm run dev -w @droidmobile/fcm-bridge`
 and the `tools/dev/with-env.ps1` loader print a few plain-text banner lines before the first log
 line; start `node dist/server.js` directly when you need a stdout that is pure JSON. Each request
 produces one `request completed` line with method, path, status and duration. The `Authorization`
@@ -246,12 +250,13 @@ settings file):
 }
 ```
 
-Equivalent request:
+Equivalent request (Windows PowerShell 5.1 strips the double quotes of a JSON string passed to
+`curl.exe`, so use `Invoke-RestMethod`; in `cmd` or a POSIX shell `curl -d '{...}'` works):
 
 ```powershell
-curl.exe -X POST http://127.0.0.1:3102/v1/events `
-  -H "Authorization: Bearer $env:BRIDGE_SECRET" -H "Content-Type: application/json" `
-  -d '{"session_id":"abc","hook_event_name":"Stop"}'
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3102/v1/events `
+  -Headers @{ Authorization = "Bearer $env:BRIDGE_SECRET" } -ContentType 'application/json' `
+  -Body '{"session_id":"abc","hook_event_name":"Stop"}'
 ```
 
 ## Deploy behind TLS

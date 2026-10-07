@@ -158,6 +158,24 @@ describe('Install-DroidHooks and Uninstall-DroidHooks (VAL-PCH-014..017)', () =>
     expect(readJson(file)).toEqual(plain);
   });
 
+  it('-RemoveBridgeConfig deletes the stored bridge.json even though its access is restricted', () => {
+    const dir = scratch('pch-hooks-');
+    const file = writeOriginal(dir);
+    const state = join(dir, 'state');
+    const install = runPs(
+      `Install-DroidHooks -SettingsPath '${file}' -StateDir '${state}' -BridgeUrl http://127.0.0.1:3102 -BridgeSecret ${SECRET}`,
+    );
+    expect(install.code).toBe(0);
+    expect(existsSync(join(state, 'bridge.json'))).toBe(true);
+
+    const r = runPs(
+      `Uninstall-DroidHooks -SettingsPath '${file}' -StateDir '${state}' -RemoveBridgeConfig`,
+    );
+    expect(r.code).toBe(0);
+    expect(r.out).not.toMatch(/denied/i);
+    expect(existsSync(join(state, 'bridge.json'))).toBe(false);
+  });
+
   it('-WhatIf changes nothing and creates no backup or config', () => {
     const dir = scratch('pch-hooks-');
     const file = writeOriginal(dir);

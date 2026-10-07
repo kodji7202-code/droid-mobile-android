@@ -8,6 +8,10 @@ everything works (`Doctor`).
 The helper never prints your Factory API key by default. Only `New-PairingCode -IncludeApiKey`
 shows it, on screen, with a warning, and it is never written to a file.
 
+Context: [PC setup](../../docs/setup.md), [connecting the phone](../../docs/pairing.md),
+[notifications](../../docs/notifications.md) and
+[troubleshooting](../../docs/troubleshooting.md).
+
 ## Prerequisites
 
 - Droid CLI (`droid.exe`) on `PATH` or at `%USERPROFILE%\bin\droid.exe` (override with `-DroidExe` or

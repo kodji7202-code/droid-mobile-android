@@ -1,23 +1,79 @@
-# Development setup
+# Setup
 
-## Prerequisites
+This page covers the PC side: the daemon, Tailscale Serve and HTTPS certificates, and the
+development setup. Connecting the phone is in [pairing.md](pairing.md); push notifications are in
+[notifications.md](notifications.md).
 
-- Node.js 24, npm 11 (pinned toolchain for this project)
-- git
-- For native Android builds: JDK 21 at `D:\droid-tools\jdk-21` (JDK 17 cannot build
-  Capacitor 8 projects), Android SDK at `%LOCALAPPDATA%\Android\Sdk`, Gradle 8.14.3 via
-  the wrapper. See [android.md](android.md) for the full native workflow.
+## PC setup
 
-## Install and run
+### Prerequisites
+
+- Windows 10 or 11 with Windows PowerShell 5.1 (PowerShell 7 also works).
+- The Droid CLI (`droid.exe`) on `PATH` or at `%USERPROFILE%\bin\droid.exe`, signed in to Factory.
+- Node.js 24 (npm 11) and git. Run `npm install` once in the repository root.
+- Tailscale, signed in, on the PC and on the phone (same tailnet).
+- Your own Factory API key (`fk-...`).
+
+### The short way: the PC helper
+
+The helper module in [tools/pc-helper](../tools/pc-helper/README.md) does the steps below and
+records what it changed so it can undo it:
 
 ```powershell
-npm install
-npm run dev   # Vite dev server on http://127.0.0.1:3100 (port hardcoded in the script)
+Import-Module .\tools\pc-helper\DroidMobileHelper.psd1
+Start-DroidDaemon -Port 3101
+Enable-TailscaleServe -Port 8443 -DaemonPort 3101
+Doctor -DaemonPort 3101
 ```
 
-## Environment variables
+`Start-DroidDaemon` runs the daemon under a hidden supervisor that restarts it after a crash.
+`Enable-TailscaleServe` prints the `wss://` address for the app. `Doctor` prints one PASS, WARN or
+FAIL line per check, with a fix under every problem. Every command accepts `-WhatIf`.
 
-`.env.local` at the repo root is git-ignored and holds (names only):
+### Start the daemon by hand
+
+```powershell
+droid daemon --host 127.0.0.1 --port 3101
+```
+
+Keep `--host 127.0.0.1`. The daemon has no TLS of its own, so Tailscale Serve (below) is the way
+to reach it from the phone. Check it with `Invoke-WebRequest http://127.0.0.1:3101/health`, which
+answers `factory-daemon ok`. The repository script `tools\dev\start-daemon.ps1` starts a detached
+daemon for development and tests (log files in `.tmp\logs`, PID file in `.tmp`).
+
+### Tailscale Serve and HTTPS certificates
+
+Release builds of the app accept `wss://` only, so the daemon needs a real TLS address. Tailscale
+provides one for every machine in your tailnet.
+
+1. In the Tailscale admin console, open the **DNS** page and turn on **MagicDNS** and **HTTPS
+   certificates**. Without them `tailscale serve --https` fails and `Doctor` reports the
+   "HTTPS certificates" check as FAIL.
+2. Publish the daemon:
+
+   ```powershell
+   tailscale serve --bg --https=8443 http://127.0.0.1:3101
+   tailscale serve status
+   ```
+
+   or, with the helper, `Enable-TailscaleServe -Port 8443 -DaemonPort 3101`. The helper first
+   records `tailscale serve status`, refuses to touch a serve entry it did not create, and
+   `Disable-TailscaleServe -Port 8443` restores the recorded state.
+
+3. The address for the app is `wss://<your-machine>.<tailnet>.ts.net:8443` (the MagicDNS name of
+   the PC, shown by `tailscale status`). Tailscale Serve only reaches devices in your tailnet;
+   nothing is opened to the internet. See [security.md](security.md#tailnet-exposure).
+
+To stop publishing: `tailscale serve --https=8443 off`, or `Disable-TailscaleServe -Port 8443`.
+
+### Optional: phone notifications
+
+Install the FCM bridge and the Droid hooks as described in [notifications.md](notifications.md).
+Skip this if in-app and background notifications are enough.
+
+## Environment variables for development
+
+`.env.local` at the repository root is git-ignored. It holds (names only):
 
 | Variable                        | Used by                                        |
 | ------------------------------- | ---------------------------------------------- |
@@ -26,28 +82,35 @@ npm run dev   # Vite dev server on http://127.0.0.1:3100 (port hardcoded in the 
 | `FIREBASE_SERVICE_ACCOUNT_PATH` | FCM bridge                                     |
 | `GOOGLE_SERVICES_JSON_PATH`     | Android build                                  |
 
-Load it into a shell without printing values:
+Load it into a command without printing values:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev\with-env.ps1 <command> [args...]
 ```
 
-## Dev services
+## Development setup
 
-| Service             | Port      | Start                                      |
-| ------------------- | --------- | ------------------------------------------ |
-| Vite dev server     | 3100      | `npm run dev -w @droidmobile/mobile`       |
-| droid daemon (test) | 3101      | `tools\dev\start-daemon.ps1`               |
-| FCM bridge          | 3102      | FCM-bridge milestone (see `services.yaml`) |
-| Throwaway daemons   | 3103-3109 | `tools\dev\start-daemon.ps1 -Port <p>`     |
+```powershell
+npm install
+npm run dev -w @droidmobile/mobile   # Vite dev server on http://127.0.0.1:3100 (the port is fixed)
+```
 
-The daemon health endpoint is `http://127.0.0.1:3101/health` (loopback only, returns
-`factory-daemon ok`). Browser code must NOT probe it — the daemon sends no CORS headers;
-the app checks reachability by opening the WebSocket and authenticating.
+Native builds need JDK 21 at `D:\droid-tools\jdk-21` (JDK 17 cannot build Capacitor 8 projects),
+the Android SDK at `%LOCALAPPDATA%\Android\Sdk` and the Gradle 8.14.3 wrapper. The full native
+workflow is in [android.md](android.md).
+
+| Service             | Port      | Start                                    |
+| ------------------- | --------- | ---------------------------------------- |
+| Vite dev server     | 3100      | `npm run dev -w @droidmobile/mobile`     |
+| droid daemon (test) | 3101      | `tools\dev\start-daemon.ps1`             |
+| FCM bridge          | 3102      | `npm run dev -w @droidmobile/fcm-bridge` |
+| Throwaway daemons   | 3103-3109 | `tools\dev\start-daemon.ps1 -Port <p>`   |
+
+The daemon's `/health` endpoint answers on loopback only and sends no CORS headers, so browser
+code never calls it. The app checks reachability by opening the WebSocket and authenticating.
+
+Quality gates: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run docs:check`.
 
 ## Troubleshooting
 
-- If port 3100 is taken, `--strictPort` makes Vite fail fast instead of drifting to another
-  port; stop the process you started on 3100 (`stop-daemon.ps1` style PID lookup is
-  restricted to the declared ports).
-- If the daemon is not healthy after ~8 s, check `.tmp\logs\daemon-3101.err.log`.
+See [troubleshooting.md](troubleshooting.md).
