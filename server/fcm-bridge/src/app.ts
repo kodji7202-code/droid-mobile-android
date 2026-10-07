@@ -77,7 +77,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // Own the body parsing so a malformed body of any content type is a plain 400 whose
   // message never quotes the payload (it may hold a token).
   app.removeAllContentTypeParsers();
-  app.addContentTypeParser('*', { parseAs: 'string' }, (_request, body, done) => {
+  app.addContentTypeParser('*', { parseAs: 'string' }, (request, body, done) => {
+    // An unmatched route is a 404 whatever the body holds.
+    if (request.is404) return done(null, undefined);
     const text = typeof body === 'string' ? body : body.toString('utf8');
     if (text.trim() === '') return done(null, undefined);
     try {
@@ -127,21 +129,6 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     sendError(reply, 404, 'not_found', 'Route not found'),
   );
 
-  app.addHook('onRequest', async (request, reply) => {
-    if (!request.url.startsWith('/v1/')) return;
-    const match = BEARER.exec(request.headers.authorization ?? '');
-    const verified = match?.[1] !== undefined && (await verifier.verify(match[1]));
-    if (verified) return;
-    request.log.warn(
-      { reason: match ? 'invalid_secret' : 'missing_secret' },
-      'authentication failed',
-    );
-    return reply
-      .header('www-authenticate', 'Bearer')
-      .code(401)
-      .send({ error: { code: 'unauthorized', message: 'Missing or invalid credentials' } });
-  });
-
   app.addHook('onResponse', async (request, reply) => {
     const route = request.url.split('?')[0];
     request.log[route === '/healthz' ? 'debug' : 'info'](
@@ -157,53 +144,80 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   app.get('/healthz', async () => ({ status: 'ok' }));
 
-  app.post('/v1/devices', async (request, reply) => {
-    const result = validateDevice(request.body);
-    if (!result.ok) return invalid(reply, result.errors);
-    const { created } = await store.upsert(result.value);
-    request.log.info(
-      {
-        deviceId: result.value.deviceId,
-        token: maskToken(result.value.fcmToken),
-        created,
-      },
-      'device registered',
-    );
-    return reply
-      .code(created ? 201 : 200)
-      .send({ deviceId: result.value.deviceId, label: result.value.label, created });
-  });
+  // Authentication is a hook of the encapsulated /v1 context rather than a check on the raw
+  // URL: the router matches percent-decoded paths (`/%76%31/devices` is `/v1/devices`), so
+  // only the matched route can say whether a request reaches a protected handler.
+  await app.register(
+    async (v1) => {
+      v1.addHook('onRequest', async (request, reply) => {
+        const match = BEARER.exec(request.headers.authorization ?? '');
+        const verified = match?.[1] !== undefined && (await verifier.verify(match[1]));
+        if (verified) return;
+        request.log.warn(
+          { reason: match ? 'invalid_secret' : 'missing_secret' },
+          'authentication failed',
+        );
+        return reply
+          .header('www-authenticate', 'Bearer')
+          .code(401)
+          .send({ error: { code: 'unauthorized', message: 'Missing or invalid credentials' } });
+      });
+      v1.setNotFoundHandler((_request, reply) =>
+        sendError(reply, 404, 'not_found', 'Route not found'),
+      );
+      v1.post('/devices', async (request, reply) => {
+        const result = validateDevice(request.body);
+        if (!result.ok) return invalid(reply, result.errors);
+        const { created } = await store.upsert(result.value);
+        request.log.info(
+          {
+            deviceId: result.value.deviceId,
+            token: maskToken(result.value.fcmToken),
+            created,
+          },
+          'device registered',
+        );
+        return reply
+          .code(created ? 201 : 200)
+          .send({ deviceId: result.value.deviceId, label: result.value.label, created });
+      });
 
-  app.delete<{ Params: { id: string } }>('/v1/devices/:id', async (request, reply) => {
-    const { id } = request.params;
-    const removed = isValidDeviceId(id) && (await store.remove(id));
-    if (!removed) return sendError(reply, 404, 'not_found', 'Unknown device');
-    request.log.info({ deviceId: id }, 'device removed');
-    return reply.code(204).send();
-  });
+      v1.delete<{ Params: { id: string } }>('/devices/:id', async (request, reply) => {
+        const { id } = request.params;
+        const removed = isValidDeviceId(id) && (await store.remove(id));
+        if (!removed) return sendError(reply, 404, 'not_found', 'Unknown device');
+        request.log.info({ deviceId: id }, 'device removed');
+        return reply.code(204).send();
+      });
 
-  app.post('/v1/events', async (request, reply) => {
-    const result = validateHookEvent(request.body);
-    if (!result.ok) return invalid(reply, result.errors);
-    const { hookEventName, notificationType, sessionId } = result.value;
-    const kind = mapHookEvent(hookEventName, notificationType);
-    const summary = {
-      hookEventName,
-      notificationType: notificationType?.slice(0, 64),
-      sessionId,
-    };
-    if (kind === null) {
-      request.log.info(summary, 'hook event ignored');
-      return { sent: 0, failed: 0, removed: 0, dryRun: config.dryRun };
-    }
-    request.log.info({ ...summary, kind, devices: store.size }, 'hook event received');
-    const outcome = await dispatchEvent({ store, sender, log: request.log }, { kind, sessionId });
-    request.log.info(
-      { kind, sessionId, ...outcome, dryRun: config.dryRun },
-      config.dryRun ? 'dry-run: no FCM call was made' : 'hook event delivered',
-    );
-    return { ...outcome, dryRun: config.dryRun };
-  });
+      v1.post('/events', async (request, reply) => {
+        const result = validateHookEvent(request.body);
+        if (!result.ok) return invalid(reply, result.errors);
+        const { hookEventName, notificationType, sessionId } = result.value;
+        const kind = mapHookEvent(hookEventName, notificationType);
+        const summary = {
+          hookEventName,
+          notificationType: notificationType?.slice(0, 64),
+          sessionId,
+        };
+        if (kind === null) {
+          request.log.info(summary, 'hook event ignored');
+          return { sent: 0, failed: 0, removed: 0, dryRun: config.dryRun };
+        }
+        request.log.info({ ...summary, kind, devices: store.size }, 'hook event received');
+        const outcome = await dispatchEvent(
+          { store, sender, log: request.log },
+          { kind, sessionId },
+        );
+        request.log.info(
+          { kind, sessionId, ...outcome, dryRun: config.dryRun },
+          config.dryRun ? 'dry-run: no FCM call was made' : 'hook event delivered',
+        );
+        return { ...outcome, dryRun: config.dryRun };
+      });
+    },
+    { prefix: '/v1' },
+  );
 
   return app;
 }

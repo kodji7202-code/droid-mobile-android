@@ -13,6 +13,8 @@ local.properties
 keystore.properties
 google-services.json
 firebase-service-account*.json
+*service-account*.json
+*.p12
 apps/mobile/android/app/release/
 .tools/
 coverage/

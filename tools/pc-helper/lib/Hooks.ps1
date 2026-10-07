@@ -3,11 +3,6 @@ function Get-DhDefaultSettingsPath {
   return (Join-Path (Join-Path $homeDir '.factory') 'settings.json')
 }
 
-function Resolve-DhFullPath {
-  param([Parameter(Mandatory)][string]$Path)
-  return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
-}
-
 function Get-DhNodeExe {
   $node = Get-Command node.exe -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($node) { return $node.Source }

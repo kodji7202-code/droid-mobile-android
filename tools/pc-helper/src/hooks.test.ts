@@ -158,6 +158,38 @@ describe('Install-DroidHooks and Uninstall-DroidHooks (VAL-PCH-014..017)', () =>
     expect(readJson(file)).toEqual(plain);
   });
 
+  it.each([
+    ['an empty hooks object', { theme: 'dark', hooks: {} }],
+    ['empty Stop and Notification arrays', { hooks: { Stop: [], Notification: [] } }],
+    ['an empty Stop array beside other events', { hooks: { Stop: [], PreToolUse: [] } }],
+    [
+      'an empty Notification array only',
+      { hooks: { Notification: [], Stop: [{ hooks: [userHook] }] } },
+    ],
+  ])('restores %s deep-equal after install and uninstall', (_name, doc) => {
+    const dir = scratch('pch-hooks-');
+    const file = writeOriginal(dir, doc);
+    const state = join(dir, 'state');
+    for (let i = 0; i < 2; i++) {
+      expect(runPs(`Install-DroidHooks -SettingsPath '${file}' -StateDir '${state}'`).code).toBe(0);
+    }
+    const installed = readJson(file).hooks as Record<string, unknown>;
+    expect(owned(installed, 'Stop')).toHaveLength(1);
+    expect(owned(installed, 'Notification')).toHaveLength(1);
+    expect(runPs(`Uninstall-DroidHooks -SettingsPath '${file}'`).code).toBe(0);
+    expect(readJson(file)).toEqual(doc);
+  });
+
+  it('removes the arrays it created beside a pre-existing empty one', () => {
+    const dir = scratch('pch-hooks-');
+    const doc = { hooks: { Stop: [] } };
+    const file = writeOriginal(dir, doc);
+    runPs(`Install-DroidHooks -SettingsPath '${file}' -StateDir '${join(dir, 'state')}'`);
+    runPs(`Uninstall-DroidHooks -SettingsPath '${file}'`);
+    const after = readJson(file) as { hooks: Record<string, unknown> };
+    expect(after.hooks).toEqual({ Stop: [] });
+    expect('Notification' in after.hooks).toBe(false);
+  });
   it('-RemoveBridgeConfig deletes the stored bridge.json even though its access is restricted', () => {
     const dir = scratch('pch-hooks-');
     const file = writeOriginal(dir);
@@ -276,12 +308,14 @@ describe('hook.mjs (VAL-PCH-018)', () => {
     stdin: string,
     env: Record<string, string>,
     verbatim = false,
+    cwd?: string,
   ): Promise<RunResult> {
     return new Promise((resolve, reject) => {
       const started = Date.now();
       const child = spawn(file, args, {
         env: { ...process.env, ...env },
         windowsVerbatimArguments: verbatim,
+        cwd,
       });
       let stdout = '';
       child.stdout.on('data', (c: Buffer) => (stdout += c.toString('utf8')));
@@ -389,6 +423,50 @@ describe('hook.mjs (VAL-PCH-018)', () => {
     expect(result.stdout).toBe('');
     expect(received).toHaveLength(1);
     expect(JSON.parse(received[0].body).session_id).toBe('sess-123');
+  });
+
+  it('keeps a relative -StateDir working when the hook later runs from another directory', async () => {
+    const dir = scratch('pch-hook-');
+    const elsewhere = scratch('pch-hook-cwd-');
+    writeOriginal(dir);
+    const install = runPs(
+      `Install-DroidHooks -SettingsPath .\\settings.json -StateDir .\\rel -BridgeUrl http://127.0.0.1:${PORT} -BridgeSecret ${SECRET}`,
+      {},
+      dir,
+    );
+    expect(install.code).toBe(0);
+    expect(existsSync(join(dir, 'rel', 'bridge.json'))).toBe(true);
+    const hooks = readJson(join(dir, 'settings.json')).hooks as Record<string, unknown>;
+    const command = owned(hooks, 'Stop')[0].hooks[0].command;
+    expect(command).toContain(join(dir, 'rel').replace(/\\/g, '/'));
+
+    const received: Array<{ headers: IncomingMessage['headers']; body: string }> = [];
+    await listen(received);
+    const result = await runCommand(
+      'cmd.exe',
+      ['/d', '/s', '/c', command],
+      JSON.stringify(sample),
+      {},
+      true,
+      elsewhere,
+    );
+    expect(result.code).toBe(0);
+    expect(received).toHaveLength(1);
+    expect(received[0].headers.authorization).toBe(`Bearer ${SECRET}`);
+  });
+
+  it('embeds an absolute state dir when DROIDMOBILE_HELPER_HOME is relative', () => {
+    const dir = scratch('pch-hook-');
+    writeOriginal(dir);
+    const install = runPs(
+      `Install-DroidHooks -SettingsPath .\\settings.json`,
+      { DROIDMOBILE_HELPER_HOME: '.\\home' },
+      dir,
+    );
+    expect(install.code).toBe(0);
+    const hooks = readJson(join(dir, 'settings.json')).hooks as Record<string, unknown>;
+    const command = owned(hooks, 'Stop')[0].hooks[0].command;
+    expect(command).toContain(`--state-dir "${join(dir, 'home').replace(/\\/g, '/')}"`);
   });
 });
 

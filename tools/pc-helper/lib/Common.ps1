@@ -3,10 +3,17 @@
 
 $script:DhHealthBody = 'factory-daemon ok'
 
+function Resolve-DhFullPath {
+  # Caller-owned paths must be absolute before the helper detaches a process or persists a hook
+  # command: both later run from a different working directory.
+  param([Parameter(Mandatory)][string]$Path)
+  return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+}
+
 function Get-DhStateDir {
   param([string]$StateDir)
-  if ($StateDir) { return $StateDir }
-  if ($env:DROIDMOBILE_HELPER_HOME) { return $env:DROIDMOBILE_HELPER_HOME }
+  if ($StateDir) { return (Resolve-DhFullPath $StateDir) }
+  if ($env:DROIDMOBILE_HELPER_HOME) { return (Resolve-DhFullPath $env:DROIDMOBILE_HELPER_HOME) }
   $base = $env:LOCALAPPDATA
   if (-not $base) { $base = [Environment]::GetFolderPath('LocalApplicationData') }
   return (Join-Path $base 'DroidMobileHelper')

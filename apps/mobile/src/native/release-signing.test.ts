@@ -43,6 +43,12 @@ describe('release signing configuration', () => {
       'apps/mobile/android/app/google-services.json',
       'upload.jks',
       'x.keystore',
+      'x.p12',
+      'upload.p12',
+      'secrets/a.p12',
+      'my-service-account.json',
+      'custom-service-account.json',
+      'app/service-account-prod.json',
     ];
     for (const file of ignored) {
       expect(() =>

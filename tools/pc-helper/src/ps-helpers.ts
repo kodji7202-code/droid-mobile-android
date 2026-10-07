@@ -24,12 +24,12 @@ export interface PsResult {
 }
 
 /** Runs a snippet in Windows PowerShell 5.1 with the helper module imported. */
-export function runPs(snippet: string, env: Record<string, string> = {}): PsResult {
+export function runPs(snippet: string, env: Record<string, string> = {}, cwd?: string): PsResult {
   const command = `Import-Module '${manifestPath}' -Force; ${snippet}`;
   const result = spawnSync(
     'powershell.exe',
     ['-NoProfile', '-NonInteractive', '-Command', command],
-    { encoding: 'utf8', env: { ...process.env, ...env }, timeout: 120_000 },
+    { encoding: 'utf8', env: { ...process.env, ...env }, timeout: 120_000, cwd },
   );
   return { code: result.status, out: `${result.stdout}${result.stderr}` };
 }

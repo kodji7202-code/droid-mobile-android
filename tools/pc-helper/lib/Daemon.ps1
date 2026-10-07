@@ -1,7 +1,7 @@
 function Resolve-DhDroidExe {
   param([string]$DroidExe)
-  if ($DroidExe) { return $DroidExe }
-  if ($env:DROIDMOBILE_DROID_EXE) { return $env:DROIDMOBILE_DROID_EXE }
+  if ($DroidExe) { return (Resolve-DhFullPath $DroidExe) }
+  if ($env:DROIDMOBILE_DROID_EXE) { return (Resolve-DhFullPath $env:DROIDMOBILE_DROID_EXE) }
   $command = Get-Command droid.exe -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($command) { return $command.Source }
   $fallback = Join-Path $env:USERPROFILE 'bin\droid.exe'

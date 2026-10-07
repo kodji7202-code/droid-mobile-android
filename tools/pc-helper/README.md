@@ -53,7 +53,8 @@ needs a bridge URL it can reach over HTTPS; `http://127.0.0.1:3102` works for th
 ## State and logs
 
 Default folder: `%LOCALAPPDATA%\DroidMobileHelper` (override with `-StateDir` or
-`$env:DROIDMOBILE_HELPER_HOME`). It never holds the Factory API key. The only secret in it is the
+`$env:DROIDMOBILE_HELPER_HOME`; relative paths, also for `-DroidExe`, are resolved against the
+current folder before anything is detached or written to a hook command). It never holds the Factory API key. The only secret in it is the
 bridge pairing secret in `bridge.json`, written by `Install-DroidHooks -BridgeUrl ...` and readable
 by your Windows user only.
 
@@ -190,7 +191,11 @@ Uninstall-DroidHooks -SettingsPath $env:TEMP\scratch\settings.json -RemoveBridge
 Removes only the entries that `Install-DroidHooks` added, from a neighbouring `hooks.json` and from
 the settings file, after making a backup of each file it changes. Keys and hook entries that the
 install created and nobody else uses are removed too, so the file returns to its original content;
-hooks you added yourself, before or after the install, stay. A second run prints
+hooks you added yourself, before or after the install, stay. An empty `hooks` object or empty
+`Stop`/`Notification` array that was already there stays too. The install records what it created
+with two inert flags at the end of its hook command (`--droidmobile-created-event`,
+`--droidmobile-created-hooks`); hooks installed by an older version have none, so uninstall may
+leave an empty array or object behind for them. A second run prints
 `Nothing to remove` and exits 0. `-RemoveBridgeConfig` also deletes `bridge.json`.
 
 Parameters: `-SettingsPath`, `-StateDir`, `-RemoveBridgeConfig`, `-WhatIf`.

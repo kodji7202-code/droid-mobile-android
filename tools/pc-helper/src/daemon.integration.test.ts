@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join, relative } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { runPs, scratchDir } from './ps-helpers';
 
@@ -110,4 +110,32 @@ describe.skipIf(busy)('supervised daemon lifecycle (VAL-PCH-002/004/005/007)', (
     expect(processCount(`*supervisor.ps1*-Port ${PORT} *`)).toBe(0);
     expect(processCount(`*daemon --host 127.0.0.1 --port ${PORT}*`)).toBe(0);
   }, 60_000);
+});
+
+describe.skipIf(busy)('relative caller paths', () => {
+  it('starts detached with a relative -StateDir and -DroidExe, then stops from another cwd', async () => {
+    const exe = runPs(`& (Get-Module DroidMobileHelper) { Resolve-DhDroidExe $null }`).out.trim();
+    const relativeExe = relative(scratch.dir, exe);
+    expect(isAbsolute(relativeExe)).toBe(false);
+    const state = join(scratch.dir, 'rel');
+    const elsewhere = scratchDir('pch-daemon-cwd-');
+    try {
+      const start = runPs(
+        `Start-DroidDaemon -Port ${PORT} -StateDir .\\rel -DroidExe '${relativeExe}'`,
+        {},
+        scratch.dir,
+      );
+      expect(start.code).toBe(0);
+      // A pooled keep-alive socket to the previous daemon on this port fails once, so retry.
+      let answer = await health();
+      for (let attempt = 0; answer === null && attempt < 3; attempt++) answer = await health();
+      expect(answer).toBe('factory-daemon ok');
+      expect(existsSync(join(state, `daemon-${PORT}.pid`))).toBe(true);
+    } finally {
+      const stop = runPs(`Stop-DroidDaemon -Port ${PORT} -StateDir '${state}'`, {}, elsewhere.dir);
+      elsewhere.cleanup();
+      expect(stop.code).toBe(0);
+    }
+    expect(listeners(PORT)).toEqual([]);
+  }, 90_000);
 });

@@ -82,6 +82,86 @@ describe('authentication', () => {
   });
 });
 
+describe('route aliases', () => {
+  const deviceAliases = [
+    '/%76%31/devices',
+    '/%76%31%2Fdevices',
+    '/v1%2Fdevices',
+    '/v1%2fdevices',
+    '/v1/%64evices',
+    '/%2576%2531/devices',
+    '//v1/devices',
+    '/v1//devices',
+    '/v1/devices/',
+    '/V1/devices',
+    '/v1/Devices',
+    '/v1/./devices',
+    '/./v1/devices',
+    '/v1/x/../devices',
+    '/v1/devices?x=1',
+    '/v1/devices;a=b',
+  ];
+  const eventAliases = [
+    '/%76%31/events',
+    '/v1%2Fevents',
+    '//v1/events',
+    '/v1/events/',
+    '/V1/events',
+  ];
+
+  it.each([...deviceAliases, ...eventAliases])(
+    'never persists or dispatches through %s without the secret',
+    async (url) => {
+      h = await createHarness();
+      const payload = url.includes('events') ? stopEvent : device;
+      for (const headers of [undefined, { authorization: 'Bearer nope' }]) {
+        const res = await h.app.inject({ method: 'POST', url, payload, headers });
+        expect([401, 404]).toContain(res.statusCode);
+      }
+      expect(h.store.size).toBe(0);
+    },
+  );
+
+  it.each(['/%76%31/devices/phone-1', '/v1%2Fdevices%2Fphone-1', '//v1/devices/phone-1'])(
+    'never deletes through %s without the secret',
+    async (url) => {
+      h = await createHarness();
+      await h.app.inject({ method: 'POST', url: '/v1/devices', payload: device, headers: h.auth });
+      for (const headers of [undefined, { authorization: 'Bearer nope' }]) {
+        const res = await h.app.inject({ method: 'DELETE', url, headers });
+        expect([401, 404]).toContain(res.statusCode);
+      }
+      expect(h.store.size).toBe(1);
+    },
+  );
+
+  it('answers 404 for an unmatched alias even when the body is malformed', async () => {
+    h = await createHarness();
+    for (const url of ['/V1/devices', '//v1/devices', '/v1%2Fdevices', '/nope']) {
+      const res = await h.app.inject({ method: 'POST', url, payload: '{nope' });
+      expect(res.statusCode).toBe(404);
+    }
+  });
+
+  it('serves a decoded alias only with the secret, and the canonical route still works', async () => {
+    h = await createHarness();
+    const alias = await h.app.inject({
+      method: 'POST',
+      url: '/%76%31/devices',
+      payload: device,
+      headers: h.auth,
+    });
+    expect(alias.statusCode).toBe(201);
+    const canonical = await h.app.inject({
+      method: 'POST',
+      url: '/v1/devices',
+      payload: { ...device, deviceId: 'phone-2' },
+      headers: h.auth,
+    });
+    expect(canonical.statusCode).toBe(201);
+    expect(h.store.size).toBe(2);
+  });
+});
 describe('POST /v1/devices', () => {
   it('registers a device, never echoes the token, and is idempotent per deviceId', async () => {
     h = await createHarness();

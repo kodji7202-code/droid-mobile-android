@@ -24,6 +24,8 @@ import { pathToFileURL } from 'node:url';
 /** A hook command carrying this argument belongs to the helper. */
 export const OWNER_MARKER = '--droidmobile-hook';
 export const HOOK_EVENTS = ['Notification', 'Stop'];
+const CREATED_EVENT_MARKER = '--droidmobile-created-event';
+const CREATED_HOOKS_MARKER = '--droidmobile-created-hooks';
 
 const KNOWN_EVENTS = [
   'PreToolUse',
@@ -148,8 +150,13 @@ function eventMap(doc, kind, create) {
   return doc.hooks;
 }
 
+function stripMarkers(command) {
+  return command.replace(` ${CREATED_EVENT_MARKER}`, '').replace(` ${CREATED_HOOKS_MARKER}`, '');
+}
+
 function removeOwned(groups) {
   let removed = 0;
+  const created = { event: false, hooks: false };
   const kept = [];
   for (const group of groups) {
     if (!isPlainObject(group) || !Array.isArray(group.hooks)) {
@@ -157,11 +164,16 @@ function removeOwned(groups) {
       continue;
     }
     const remaining = group.hooks.filter((hook) => !isOwnedHook(hook));
+    for (const hook of group.hooks) {
+      if (!isOwnedHook(hook)) continue;
+      if (hook.command.includes(CREATED_EVENT_MARKER)) created.event = true;
+      if (hook.command.includes(CREATED_HOOKS_MARKER)) created.hooks = true;
+    }
     removed += group.hooks.length - remaining.length;
     if (remaining.length === group.hooks.length) kept.push(group);
     else if (remaining.length > 0) kept.push({ ...group, hooks: remaining });
   }
-  return { kept, removed };
+  return { kept, removed, created };
 }
 
 function ownedCount(map, event) {
@@ -175,17 +187,34 @@ function ownedCount(map, event) {
   return { count: commands.length, commands };
 }
 
+/**
+ * Uninstall must give back what install found, including an empty `hooks` object or an empty
+ * event array that already existed. Install and uninstall are separate processes, so what
+ * install created is recorded on the command it writes: CREATED_EVENT_MARKER when it created
+ * that event's array, CREATED_HOOKS_MARKER when it created the `hooks` key. Uninstall deletes
+ * only containers that carry the matching marker.
+ */
 export function applyInstall(doc, kind, command) {
+  const hadHooksKey = 'hooks' in doc;
   const map = eventMap(doc, kind, true);
+  const createdHooksKey = !hadHooksKey && map === doc.hooks;
+  const previous = HOOK_EVENTS.flatMap((event) => ownedCount(map, event).commands);
+  const createdHooks = createdHooksKey || previous.some((c) => c.includes(CREATED_HOOKS_MARKER));
   let changed = false;
   for (const event of HOOK_EVENTS) {
     if (map[event] !== undefined && !Array.isArray(map[event])) {
       throw new HooksConfigError(`hooks.${event} is not an array; refusing to change it.`);
     }
     const { count, commands } = ownedCount(map, event);
-    if (count === 1 && commands[0] === command) continue;
+    if (count === 1 && stripMarkers(commands[0]) === command) continue;
+    const createdEvent =
+      map[event] === undefined || commands.some((c) => c.includes(CREATED_EVENT_MARKER));
     const { kept } = removeOwned(map[event] ?? []);
-    kept.push({ hooks: [{ type: 'command', command, timeout: 10 }] });
+    const marked =
+      command +
+      (createdEvent ? ` ${CREATED_EVENT_MARKER}` : '') +
+      (createdHooks ? ` ${CREATED_HOOKS_MARKER}` : '');
+    kept.push({ hooks: [{ type: 'command', command: marked, timeout: 10 }] });
     map[event] = kept;
     changed = true;
   }
@@ -196,15 +225,19 @@ export function applyUninstall(doc, kind) {
   const map = eventMap(doc, kind, false);
   if (!map) return 0;
   let removed = 0;
+  let createdHooks = false;
   for (const event of Object.keys(map)) {
     if (!Array.isArray(map[event])) continue;
     const result = removeOwned(map[event]);
     if (result.removed === 0) continue;
     removed += result.removed;
-    if (result.kept.length === 0) delete map[event];
+    if (result.created.hooks) createdHooks = true;
+    if (result.kept.length === 0 && result.created.event) delete map[event];
     else map[event] = result.kept;
   }
-  if (removed > 0 && map === doc.hooks && Object.keys(map).length === 0) delete doc.hooks;
+  if (removed > 0 && map === doc.hooks && Object.keys(map).length === 0 && createdHooks) {
+    delete doc.hooks;
+  }
   return removed;
 }
 
