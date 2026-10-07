@@ -18,6 +18,8 @@ export const PUSH_SECRET_ID = 'push.bridgeSecret';
 export const PUSH_STORAGE_KEY = 'droid.push';
 /** Secure-store JSON list of devices a bridge may still hold; the secret is needed to retry. */
 export const PUSH_REMOVALS_SECRET_ID = 'push.pendingRemovals';
+/** Set while a release left the FCM token valid; stored next to the removal queue it belongs to. */
+export const PUSH_DELIVERY_SECRET_ID = 'push.deliveryNotStopped';
 
 export type PushStatus = 'unregistered' | 'registering' | 'registered' | 'unregistering';
 
@@ -47,6 +49,8 @@ export interface PushState {
   error: PushErrorKind | null;
   /** True while a bridge may still hold a device this phone stopped using; removal is retried. */
   removalPending: boolean;
+  /** True after a release could neither invalidate the FCM token nor reach the bridge: push may still arrive. */
+  deliveryNotStopped: boolean;
   /** Bridge URL of a pairing code waiting from the Connect screen; its secret is never exposed. */
   pendingBridge: string | null;
 }
@@ -199,6 +203,7 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
     bridge: persisted.registered ? persisted.bridge : null,
     error: null,
     removalPending: false,
+    deliveryNotStopped: false,
     pendingBridge: null,
   };
   // One operation at a time: a token refresh must not interleave with a (un)registration.
@@ -376,6 +381,28 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
       // Without secure storage the queue cannot persist; this run still reports what it knows.
     }
     emit({ removalPending: next.length > 0 });
+    // Nothing left that a bridge could push for: delivery is stopped whatever happened to the token.
+    if (next.length === 0) await setDeliveryNotStopped(false);
+  }
+
+  async function setDeliveryNotStopped(on: boolean): Promise<void> {
+    try {
+      if (on) await deps.secrets().setSecret(PUSH_DELIVERY_SECRET_ID, '1');
+      else await deps.secrets().deleteSecret(PUSH_DELIVERY_SECRET_ID);
+    } catch {
+      // Without secure storage the flag only lives for this run.
+    }
+    emit({ deliveryNotStopped: on });
+  }
+
+  async function loadDeliveryNotStopped(): Promise<void> {
+    try {
+      if ((await deps.secrets().getSecret(PUSH_DELIVERY_SECRET_ID)) === '1') {
+        emit({ deliveryNotStopped: true });
+      }
+    } catch {
+      // Keep what this run already knows.
+    }
   }
 
   /** Retries every queued bridge removal; an entry leaves the queue once the bridge confirmed it. */
@@ -414,6 +441,7 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
         emit({ status: 'registered', error: 'unregisterFailed' });
         return false;
       }
+      await setDeliveryNotStopped(false);
       if (state.bridge !== null && state.deviceId !== null && secret !== null) {
         const item = { bridge: state.bridge, secret, deviceId: state.deviceId };
         await updateRemovals((list) => [...list, item]);
@@ -428,6 +456,15 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
     }
     await clearLocal(true);
     return true;
+  }
+
+  /** Retries queued removals and, after a failed release, the token invalidation itself. */
+  async function retryRelease(): Promise<void> {
+    await loadDeliveryNotStopped();
+    await flushRemovals();
+    if (state.deliveryNotStopped && state.status === 'unregistered') {
+      if (await deps.messaging.deleteToken()) await updateRemovals(() => []);
+    }
   }
 
   async function syncToken(token: string): Promise<void> {
@@ -456,14 +493,14 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
       const stopTokens = deps.messaging.onTokenRefresh(
         (token) => void enqueue(() => syncToken(token)),
       );
-      void enqueue(flushRemovals);
+      void enqueue(retryRelease);
       if (state.status === 'registered') {
         void enqueue(async () => {
           const token = await deps.messaging.getToken();
           if (token !== null) await syncToken(token);
         });
       }
-      const retry = () => void enqueue(flushRemovals);
+      const retry = () => void enqueue(retryRelease);
       const hasWindow = typeof window !== 'undefined';
       if (hasWindow) window.addEventListener('online', retry);
       return () => {
@@ -504,6 +541,7 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
           await updateRemovals(() => []);
           leftBehind = false;
         }
+        if (leftBehind) await setDeliveryNotStopped(true);
         await clearLocal(false);
         if (leftBehind) emit({ error: 'unregisterFailed', removalPending: true });
         return !leftBehind;

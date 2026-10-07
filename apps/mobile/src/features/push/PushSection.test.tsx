@@ -246,6 +246,46 @@ describe('Settings > Notifications > push section', () => {
     stop();
   });
 
+  it('never says turned off after a sign-out release that could not stop delivery', async () => {
+    renderSection();
+    fireEvent.change(screen.getByTestId('settings-push-pairing'), { target: { value: CODE } });
+    await waitFor(() => expect(status()).toHaveAttribute('data-state', 'registered'));
+    mocks.unregister.mockRejectedValue(new BridgeError('unreachable'));
+    mocks.deleteToken.mockResolvedValue(false);
+    await act(async () => {
+      await expect(releasePushRegistration()).resolves.toBe(false);
+    });
+    await waitFor(() => expect(status()).toHaveAttribute('data-state', 'deliveryNotStopped'));
+    expect(status()).toHaveTextContent(en.push.status.deliveryNotStopped);
+    expect(status()).not.toHaveTextContent(/turned off/i);
+    expect(screen.queryByTestId('settings-push-error')).not.toBeInTheDocument();
+
+    mocks.deleteToken.mockResolvedValue(true);
+    const stop = startPushRegistry();
+    await waitFor(() => expect(status()).toHaveAttribute('data-state', 'unregistered'));
+    expect(status()).toHaveTextContent(en.push.status.unregistered);
+    stop();
+  });
+
+  it('shows the not-yet-stopped message in Romanian', async () => {
+    renderSection();
+    fireEvent.change(screen.getByTestId('settings-push-pairing'), { target: { value: CODE } });
+    await waitFor(() => expect(status()).toHaveAttribute('data-state', 'registered'));
+    mocks.unregister.mockRejectedValue(new BridgeError('unreachable'));
+    mocks.deleteToken.mockResolvedValue(false);
+    await act(async () => {
+      await changeAppLanguage('ro');
+      await releasePushRegistration();
+    });
+    await waitFor(() => expect(status()).toHaveAttribute('data-state', 'deliveryNotStopped'));
+    expect(status()).toHaveTextContent(ro.push.status.deliveryNotStopped);
+
+    mocks.deleteToken.mockResolvedValue(true);
+    const stop = startPushRegistry();
+    await waitFor(() => expect(status()).toHaveAttribute('data-state', 'unregistered'));
+    stop();
+  });
+
   it('keeps a registered, truthful state when the token cannot be invalidated offline', async () => {
     const user = userEvent.setup();
     renderSection();

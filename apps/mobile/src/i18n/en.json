@@ -649,6 +649,7 @@
       "registering": "Registering…",
       "registered": "Registered",
       "removalPending": "Turned off on this phone. The bridge still has to forget it; removal retries automatically.",
+      "deliveryNotStopped": "This phone may still receive push notifications. Sign-out could not stop delivery; cleanup is retried automatically.",
       "unregistering": "Turning off…"
     },
     "bridgeLabel": "Bridge",

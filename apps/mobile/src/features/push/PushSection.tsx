@@ -102,8 +102,14 @@ export function PushSection() {
       });
   };
 
-  const removalPending = push.removalPending && push.status === 'unregistered';
-  const statusKey = removalPending ? 'removalPending' : push.status;
+  const unregistered = push.status === 'unregistered';
+  const deliveryNotStopped = push.deliveryNotStopped && unregistered;
+  const removalPending = push.removalPending && unregistered;
+  const statusKey = deliveryNotStopped
+    ? 'deliveryNotStopped'
+    : removalPending
+      ? 'removalPending'
+      : push.status;
   const statusLabel = t(`push.status.${statusKey}`);
 
   return (
@@ -125,7 +131,7 @@ export function PushSection() {
           {t('push.removalPendingNote')}
         </p>
       ) : null}
-      {push.error ? (
+      {push.error && !(deliveryNotStopped && push.error === 'unregisterFailed') ? (
         <p className="field__error" data-testid="settings-push-error" role="alert">
           {t(`push.error.${push.error}`)}
         </p>

@@ -651,6 +651,7 @@
       "registering": "Se înregistrează…",
       "registered": "Înregistrat",
       "removalPending": "Oprit pe acest telefon. Bridge-ul trebuie încă să îl uite; eliminarea se reîncearcă automat.",
+      "deliveryNotStopped": "Acest telefon ar putea încă primi notificări push. Deconectarea nu a putut opri livrarea; curățarea se reîncearcă automat.",
       "unregistering": "Se oprește…"
     },
     "bridgeLabel": "Bridge",

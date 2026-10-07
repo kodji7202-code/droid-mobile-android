@@ -6,6 +6,7 @@ import { PENDING_BRIDGE_SECRET_ID } from '../connect/pairing';
 import {
   createLocalPushStorage,
   createPushRegistry,
+  PUSH_DELIVERY_SECRET_ID,
   PUSH_REMOVALS_SECRET_ID,
   PUSH_SECRET_ID,
 } from './pushRegistry';
@@ -535,6 +536,80 @@ describe('unregistering', () => {
     );
     expect(await secrets.getSecret(PUSH_REMOVALS_SECRET_ID)).toBeNull();
     stop();
+  });
+  describe('release that could not stop delivery', () => {
+    async function failedRelease() {
+      const ctx = setup({ deleteToken: () => Promise.resolve(false) });
+      await ctx.registry.register({ bridge: BRIDGE, secret: SECRET });
+      ctx.bridge.unregister.mockRejectedValue(new BridgeError('unreachable'));
+      await expect(ctx.registry.release()).resolves.toBe(false);
+      return ctx;
+    }
+
+    it('flags delivery as not stopped and persists it with the queue', async () => {
+      const { registry, secrets } = await failedRelease();
+      expect(registry.getState()).toMatchObject({
+        status: 'unregistered',
+        removalPending: true,
+        deliveryNotStopped: true,
+      });
+      expect(await secrets.getSecret(PUSH_DELIVERY_SECRET_ID)).not.toBeNull();
+      expect(await secrets.getSecret(PUSH_REMOVALS_SECRET_ID)).toContain('droid-test0001');
+    });
+
+    it('keeps the flag across restarts while bridge and token invalidation keep failing', async () => {
+      const { messaging, reload } = await failedRelease();
+      const next = reload();
+      expect(next.getState().deliveryNotStopped).toBe(false);
+      const stop = next.start();
+      await vi.waitFor(() => expect(messaging.deleteToken).toHaveBeenCalledTimes(2));
+      expect(next.getState()).toMatchObject({
+        status: 'unregistered',
+        removalPending: true,
+        deliveryNotStopped: true,
+      });
+      stop();
+    });
+
+    it('retries token invalidation when the network is back and clears the flag on success', async () => {
+      const { messaging, secrets, reload } = await failedRelease();
+      const next = reload();
+      const stop = next.start();
+      await vi.waitFor(() => expect(messaging.deleteToken).toHaveBeenCalledTimes(2));
+      expect(next.getState().deliveryNotStopped).toBe(true);
+
+      messaging.deleteToken.mockResolvedValue(true);
+      window.dispatchEvent(new Event('online'));
+      await vi.waitFor(() => expect(next.getState().deliveryNotStopped).toBe(false));
+      expect(messaging.deleteToken).toHaveBeenCalledTimes(3);
+      expect(next.getState().removalPending).toBe(false);
+      expect(await secrets.getSecret(PUSH_DELIVERY_SECRET_ID)).toBeNull();
+      expect(await secrets.getSecret(PUSH_REMOVALS_SECRET_ID)).toBeNull();
+      stop();
+    });
+
+    it('clears the flag once every queued removal succeeds, without a token', async () => {
+      const { bridge, messaging, secrets, reload } = await failedRelease();
+      bridge.unregister.mockReset();
+      bridge.unregister.mockResolvedValue(true);
+      const next = reload();
+      const stop = next.start();
+      await vi.waitFor(() => expect(bridge.unregister).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(next.getState().removalPending).toBe(false));
+      expect(next.getState().deliveryNotStopped).toBe(false);
+      expect(messaging.deleteToken).toHaveBeenCalledTimes(1);
+      expect(await secrets.getSecret(PUSH_DELIVERY_SECRET_ID)).toBeNull();
+      stop();
+    });
+
+    it('does not set the flag when the token invalidation succeeded', async () => {
+      const { registry, bridge, secrets } = setup();
+      await registry.register({ bridge: BRIDGE, secret: SECRET });
+      bridge.unregister.mockRejectedValue(new BridgeError('unreachable'));
+      await expect(registry.release()).resolves.toBe(true);
+      expect(registry.getState().deliveryNotStopped).toBe(false);
+      expect(await secrets.getSecret(PUSH_DELIVERY_SECRET_ID)).toBeNull();
+    });
   });
   it('release keeps the token when the bridge confirmed the removal', async () => {
     const { registry, messaging } = setup();
