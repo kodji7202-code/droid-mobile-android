@@ -87,8 +87,11 @@ export interface ConnectionManagerDeps {
   removeSavedConnection(id: string): void;
   clearSavedConnections(): void;
   getSecureStore(): SecureStore;
-  /** Removes this device's push registration (best effort, never rejects) when the last connection goes. */
-  releasePush?(): Promise<void>;
+  /**
+   * Removes this device's push registration when the last connection goes. Never rejects; a
+   * cleanup that could not finish stays queued in the push registry and does not block sign-out.
+   */
+  releasePush?(): Promise<unknown>;
   checkUrl(
     rawUrl: string,
   ): { ok: true; url: string } | { ok: false; reason: 'malformed' | 'insecure' };

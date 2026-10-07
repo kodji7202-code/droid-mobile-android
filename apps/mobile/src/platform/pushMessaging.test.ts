@@ -7,7 +7,6 @@ function fakePlugin() {
   return {
     plugin: {
       getToken: vi.fn(() => Promise.resolve({ token: 'abc:def' })),
-      deleteToken: vi.fn(() => Promise.resolve()),
       addListener: vi.fn((_event: 'tokenReceived', next: (data: { token: string }) => void) => {
         listener = next;
         return Promise.resolve({ remove });
@@ -15,6 +14,8 @@ function fakePlugin() {
     },
     emit: (token: string) => listener?.({ token }),
     remove,
+    // The app's own native plugin: settles only when Firebase's deletion Task does.
+    native: { deleteToken: vi.fn(() => Promise.resolve()) },
   };
 }
 
@@ -41,16 +42,32 @@ describe('push messaging wrapper', () => {
   });
 
   it('reports whether the token could be invalidated', async () => {
-    const { plugin } = fakePlugin();
-    const api = createPushMessaging(plugin, () => true);
+    const { plugin, native } = fakePlugin();
+    const api = createPushMessaging(plugin, () => true, native);
     expect(await api.deleteToken()).toBe(true);
-    plugin.deleteToken.mockRejectedValueOnce(new Error('SERVICE_NOT_AVAILABLE'));
+    native.deleteToken.mockRejectedValueOnce(new Error('SERVICE_NOT_AVAILABLE'));
     expect(await api.deleteToken()).toBe(false);
-    const web = createPushMessaging(plugin, () => false);
+    const web = createPushMessaging(plugin, () => false, native);
     expect(await web.deleteToken()).toBe(false);
-    expect(plugin.deleteToken).toHaveBeenCalledTimes(2);
+    expect(native.deleteToken).toHaveBeenCalledTimes(2);
   });
 
+  it('settles only after the native deletion finished and reports its late failure', async () => {
+    const { plugin, native } = fakePlugin();
+    let fail: (error: Error) => void = () => undefined;
+    native.deleteToken.mockReturnValueOnce(
+      new Promise<void>((_resolve, reject) => {
+        fail = reject;
+      }),
+    );
+    const api = createPushMessaging(plugin, () => true, native);
+    let settled: boolean | null = null;
+    void api.deleteToken().then((result) => (settled = result));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(settled).toBeNull();
+    fail(new Error('SERVICE_NOT_AVAILABLE'));
+    await vi.waitFor(() => expect(settled).toBe(false));
+  });
   it('forwards token refreshes and removes the listener on dispose', async () => {
     const { plugin, emit, remove } = fakePlugin();
     const api = createPushMessaging(plugin, () => true);

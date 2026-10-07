@@ -1,11 +1,12 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import type { PluginListenerHandle } from '@capacitor/core';
+import { appNotificationsPlugin } from './appNotifications';
+import type { AppNotificationsPlugin } from './appNotifications';
 
 // Registered by name instead of importing the package entry: its web fallback pulls in the
 // optional `firebase` web SDK, which the Android-only app does not ship.
 interface FirebaseMessagingPlugin {
   getToken(): Promise<{ token: string }>;
-  deleteToken(): Promise<void>;
   addListener(
     event: 'tokenReceived',
     listener: (data: { token: string }) => void,
@@ -27,6 +28,10 @@ export interface PushMessagingApi {
 export function createPushMessaging(
   plugin: FirebaseMessagingPlugin = registerPlugin<FirebaseMessagingPlugin>('FirebaseMessaging'),
   isNative: () => boolean = () => Capacitor.isNativePlatform(),
+  // The stock plugin's deleteToken resolves before Firebase finished, so deletion goes through the app's own plugin.
+  tokenDeletion: Pick<AppNotificationsPlugin, 'deleteToken'> = {
+    deleteToken: () => appNotificationsPlugin.deleteToken(),
+  },
 ): PushMessagingApi {
   return {
     isSupported: isNative,
@@ -42,7 +47,7 @@ export function createPushMessaging(
     async deleteToken() {
       if (!isNative()) return false;
       try {
-        await plugin.deleteToken();
+        await tokenDeletion.deleteToken();
         return true;
       } catch {
         return false;

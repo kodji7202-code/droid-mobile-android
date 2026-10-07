@@ -14,6 +14,7 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
 import com.getcapacitor.annotation.PermissionCallback
+import com.google.firebase.messaging.FirebaseMessaging
 import java.lang.ref.WeakReference
 
 /**
@@ -125,6 +126,18 @@ class AppNotificationsPlugin : Plugin() {
             ),
         )
         call.resolve(JSObject().put("posted", posted))
+    }
+
+    /**
+     * Invalidates this phone's FCM token and answers only once Firebase finished: the stock
+     * firebase-messaging plugin resolves before the deletion Task completes, so it cannot tell
+     * the WebView whether the phone stopped receiving push.
+     */
+    @PluginMethod
+    fun deleteToken(call: PluginCall) {
+        FirebaseMessaging.getInstance().deleteToken()
+            .addOnSuccessListener { call.resolve() }
+            .addOnFailureListener { call.reject(it.message ?: "Token deletion failed", "TOKEN_DELETE_FAILED") }
     }
 
     @PluginMethod

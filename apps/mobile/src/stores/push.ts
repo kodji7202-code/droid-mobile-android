@@ -45,4 +45,4 @@ export const usePushStore = create<PushStore>(() => ({
 export const startPushRegistry = (): (() => void) => registry.start();
 
 /** Sign-out and forgetting the last connection. Never rejects. */
-export const releasePushRegistration = (): Promise<void> => registry.release();
+export const releasePushRegistration = (): Promise<boolean> => registry.release();

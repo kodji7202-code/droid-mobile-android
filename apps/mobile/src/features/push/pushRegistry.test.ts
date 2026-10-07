@@ -442,6 +442,44 @@ describe('unregistering', () => {
     stop();
   });
 
+  it('a normal turn off after replacing an unreachable bridge invalidates the token', async () => {
+    const { registry, bridge, secrets, messaging } = setup();
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    const other = 'https://bridge.example.invalid';
+    bridge.unregister.mockImplementation((target) =>
+      target.bridge === BRIDGE
+        ? Promise.reject(new BridgeError('unreachable'))
+        : Promise.resolve(true),
+    );
+    await registry.register({ bridge: other, secret: 'other-secret' });
+    expect(registry.getState()).toMatchObject({ status: 'registered', removalPending: true });
+
+    await expect(registry.unregister()).resolves.toBe(true);
+    expect(messaging.deleteToken).toHaveBeenCalledTimes(1);
+    expect(bridge.unregister).toHaveBeenCalledWith(
+      { bridge: other, secret: 'other-secret' },
+      'droid-test0001',
+    );
+    expect(registry.getState()).toMatchObject({ status: 'unregistered', removalPending: true });
+    expect(await secrets.getSecret(PUSH_REMOVALS_SECRET_ID)).toContain(BRIDGE);
+  });
+
+  it('a normal turn off after replacement stays registered when the token cannot be invalidated', async () => {
+    const { registry, bridge, messaging } = setup({ deleteToken: () => Promise.resolve(false) });
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    bridge.unregister.mockRejectedValue(new BridgeError('unreachable'));
+    await registry.register({ bridge: 'https://bridge.example.invalid', secret: 'other-secret' });
+    await expect(registry.unregister()).resolves.toBe(false);
+    expect(messaging.deleteToken).toHaveBeenCalledTimes(1);
+    expect(registry.getState()).toMatchObject({ status: 'registered', error: 'unregisterFailed' });
+  });
+
+  it('a normal turn off keeps the token when no removal is queued', async () => {
+    const { registry, messaging } = setup();
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    await expect(registry.unregister()).resolves.toBe(true);
+    expect(messaging.deleteToken).not.toHaveBeenCalled();
+  });
   it('is a no-op when nothing is registered', async () => {
     const { registry, bridge } = setup();
     await expect(registry.unregister()).resolves.toBe(true);
@@ -452,7 +490,7 @@ describe('unregistering', () => {
     const { registry, bridge, secrets, storage } = setup();
     await registry.register({ bridge: BRIDGE, secret: SECRET });
     bridge.unregister.mockRejectedValueOnce(new BridgeError('unreachable'));
-    await expect(registry.release()).resolves.toBeUndefined();
+    await expect(registry.release()).resolves.toBe(true);
     expect(bridge.unregister).toHaveBeenCalledTimes(1);
     expect(registry.getState()).toMatchObject({ status: 'unregistered', deviceId: null });
     expect(await secrets.getSecret(PUSH_SECRET_ID)).toBeNull();
@@ -469,6 +507,35 @@ describe('unregistering', () => {
     expect(registry.getState().removalPending).toBe(false);
   });
 
+  it('release with a failed removal and a failed invalidation keeps the retry and says so', async () => {
+    const { registry, bridge, secrets, messaging, reload } = setup({
+      deleteToken: () => Promise.resolve(false),
+    });
+    await registry.register({ bridge: BRIDGE, secret: SECRET });
+    bridge.unregister.mockRejectedValue(new BridgeError('unreachable'));
+    await expect(registry.release()).resolves.toBe(false);
+    expect(messaging.deleteToken).toHaveBeenCalledTimes(1);
+    expect(registry.getState()).toMatchObject({
+      status: 'unregistered',
+      error: 'unregisterFailed',
+      removalPending: true,
+    });
+    expect(await secrets.getSecret(PUSH_SECRET_ID)).toBeNull();
+    expect(await secrets.getSecret(PUSH_REMOVALS_SECRET_ID)).toContain('droid-test0001');
+
+    bridge.unregister.mockReset();
+    bridge.unregister.mockResolvedValue(true);
+    const next = reload();
+    const stop = next.start();
+    await vi.waitFor(() => expect(bridge.unregister).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(next.getState().removalPending).toBe(false));
+    expect(bridge.unregister).toHaveBeenCalledWith(
+      { bridge: BRIDGE, secret: SECRET },
+      'droid-test0001',
+    );
+    expect(await secrets.getSecret(PUSH_REMOVALS_SECRET_ID)).toBeNull();
+    stop();
+  });
   it('release keeps the token when the bridge confirmed the removal', async () => {
     const { registry, messaging } = setup();
     await registry.register({ bridge: BRIDGE, secret: SECRET });

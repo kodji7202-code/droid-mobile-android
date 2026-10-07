@@ -88,11 +88,16 @@ export interface PushRegistry {
   /**
    * Removes the device from the bridge, then forgets the registration. `force` skips the bridge:
    * it invalidates this phone's FCM token so delivery stops, and queues the bridge removal for
-   * retry. It fails (staying registered) when the token cannot be invalidated.
+   * retry. It fails (staying registered) when the token cannot be invalidated. Without `force`,
+   * a removal still queued for an earlier bridge also makes it invalidate the token.
    */
   unregister(options?: { force?: boolean }): Promise<boolean>;
-  /** Sign-out path: best-effort bridge removal, then everything local is gone. Never rejects. */
-  release(): Promise<void>;
+  /**
+   * Sign-out path: bridge removal or token invalidation, then the local registration is gone.
+   * Never rejects. Resolves false when neither worked: the removals stay queued (in storage that
+   * sign-out does not clear) and are retried at the next start.
+   */
+  release(): Promise<boolean>;
   clearError(): void;
 }
 
@@ -399,7 +404,10 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
   async function unregisterNow(force: boolean): Promise<boolean> {
     if (state.status !== 'registered') return true;
     emit({ status: 'unregistering', error: null });
-    if (force) {
+    // An old bridge that is still queued would keep pushing to the same token, so turning push
+    // off is only true once the token is invalidated or that queue is empty.
+    if (!force) await flushRemovals();
+    if (force || state.removalPending) {
       const secret = await readSecret();
       // The bridge keeps pushing to the unchanged token, so the token itself has to go first.
       if (!(await deps.messaging.deleteToken())) {
@@ -478,17 +486,28 @@ export function createPushRegistry(deps: PushRegistryDeps): PushRegistry {
     unregister: (options) => enqueue(() => unregisterNow(options?.force === true)),
     release: () =>
       enqueue(async () => {
-        const wasRegistered = state.status === 'registered';
-        let leftBehind = false;
-        if (wasRegistered && (await removeFromBridge()) === 'failed') leftBehind = true;
         await flushRemovals();
-        if ((await readRemovals()).length > 0) leftBehind = true;
-        // Sign-out forgets the pairing secrets, so a bridge that could not be reached would keep
-        // pushing to this token: invalidate it instead.
-        if (leftBehind) await deps.messaging.deleteToken();
-        await updateRemovals(() => []);
+        let leftBehind = (await readRemovals()).length > 0;
+        if (state.status === 'registered') {
+          const secret = await readSecret();
+          if ((await removeFromBridge()) === 'failed') {
+            leftBehind = true;
+            if (state.bridge !== null && state.deviceId !== null && secret !== null) {
+              const item = { bridge: state.bridge, secret, deviceId: state.deviceId };
+              await updateRemovals((list) => [...list, item]);
+            }
+          }
+        }
+        // A bridge that could not be reached would keep pushing to this token: invalidate it.
+        // If that fails too, the queued removals stay as the only retry owner.
+        if (leftBehind && (await deps.messaging.deleteToken())) {
+          await updateRemovals(() => []);
+          leftBehind = false;
+        }
         await clearLocal(false);
-      }).catch(() => undefined),
+        if (leftBehind) emit({ error: 'unregisterFailed', removalPending: true });
+        return !leftBehind;
+      }).catch(() => false),
     clearError: () => emit({ error: null }),
   };
 }

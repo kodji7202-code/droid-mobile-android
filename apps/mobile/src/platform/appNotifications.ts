@@ -24,13 +24,16 @@ export interface LocalNotification {
   approveLabel?: string;
 }
 
-interface AppNotificationsPlugin {
+/** The native AppNotifications plugin as the WebView sees it. */
+export interface AppNotificationsPlugin {
   checkPermission(): Promise<{ granted: boolean }>;
   requestPermission(): Promise<{ granted: boolean }>;
   openSettings(): Promise<void>;
   configure(config: ChannelConfig): Promise<void>;
   post(notification: LocalNotification): Promise<{ posted: boolean }>;
   cancel(options: { tag: string }): Promise<void>;
+  /** Resolves only after Firebase deleted the FCM token; rejects when that failed. */
+  deleteToken(): Promise<void>;
   addListener(
     event: 'notificationTapped',
     listener: (data: { sessionId: string }) => void,
@@ -57,8 +60,10 @@ export interface AppNotificationsApi {
   onApprove(listener: (requestId: string, sessionId: string) => void): () => void;
 }
 
+export const appNotificationsPlugin = registerPlugin<AppNotificationsPlugin>('AppNotifications');
+
 export function createAppNotifications(
-  plugin: AppNotificationsPlugin = registerPlugin<AppNotificationsPlugin>('AppNotifications'),
+  plugin: AppNotificationsPlugin = appNotificationsPlugin,
   isNative: () => boolean = () => Capacitor.isNativePlatform(),
 ): AppNotificationsApi {
   return {
