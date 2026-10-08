@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { writePref } from '../platform/durablePrefs';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
@@ -64,11 +65,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setPreference = useCallback((next: ThemePreference) => {
     setPreferenceState(next);
     setResolved(resolveTheme(next));
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, next);
-    } catch {
-      // Ignore storage failures; the choice still applies for this session.
-    }
+    void writePref(THEME_STORAGE_KEY, next);
   }, []);
 
   return (

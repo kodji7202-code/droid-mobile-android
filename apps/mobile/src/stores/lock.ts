@@ -1,6 +1,7 @@
 ﻿import { create } from 'zustand';
 import { Capacitor } from '@capacitor/core';
 import { biometrics } from '../platform/biometrics';
+import { writePref } from '../platform/durablePrefs';
 import type { BiometricOutcome } from '../platform/biometrics';
 
 export const LOCK_ENABLED_KEY = 'droid.lock.enabled';
@@ -29,11 +30,7 @@ function readGrace(): number {
 }
 
 function persist(key: string, value: string): void {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    // Settings persistence is best effort; the in-memory value still applies.
-  }
+  void writePref(key, value);
 }
 
 /** True when the app has been away from the foreground longer than the grace period. */
@@ -134,4 +131,3 @@ export const useLockStore = create<LockStore>((set, get) => {
     },
   };
 });
-

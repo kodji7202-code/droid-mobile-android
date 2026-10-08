@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { writePref } from '../platform/durablePrefs';
 
 export const NOTIFICATIONS_ENABLED_KEY = 'droid.notifications.enabled';
 export const NOTIFICATIONS_APPROVALS_KEY = 'droid.notifications.approvals';
@@ -14,11 +15,7 @@ function read(key: string): boolean {
 }
 
 function persist(key: string, value: boolean): void {
-  try {
-    window.localStorage.setItem(key, String(value));
-  } catch {
-    // Best effort; the in-memory value still applies.
-  }
+  void writePref(key, String(value));
 }
 
 interface NotificationSettingsStore {
@@ -30,7 +27,7 @@ interface NotificationSettingsStore {
   setChannel(channel: 'approvals' | 'turns', enabled: boolean): void;
 }
 
-/** Master and per-channel notification switches. Non-secret, so localStorage. */
+/** Master and per-channel notification switches. Non-secret, so localStorage plus the native mirror. */
 export const useNotificationSettingsStore = create<NotificationSettingsStore>((set) => ({
   enabled: read(NOTIFICATIONS_ENABLED_KEY),
   approvals: read(NOTIFICATIONS_APPROVALS_KEY),

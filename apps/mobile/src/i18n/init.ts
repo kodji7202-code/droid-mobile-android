@@ -2,6 +2,7 @@ import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import en from './en.json';
 import ro from './ro.json';
+import { writePref } from '../platform/durablePrefs';
 
 export const LANGUAGE_STORAGE_KEY = 'droidm.lang';
 export const SUPPORTED_LANGUAGES = ['en', 'ro'] as const;
@@ -22,11 +23,7 @@ export function readStoredLanguage(): AppLanguage {
  * accessibility.
  */
 export function changeAppLanguage(language: AppLanguage): Promise<void> {
-  try {
-    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-  } catch {
-    // Ignore storage failures; the switch still applies for this session.
-  }
+  void writePref(LANGUAGE_STORAGE_KEY, language);
   document.documentElement.lang = language;
   return i18next.changeLanguage(language).then(() => undefined);
 }

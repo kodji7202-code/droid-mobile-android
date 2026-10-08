@@ -584,7 +584,7 @@
     "sdkVersion": "Versiune SDK",
     "protocolVersion": "Versiune protocol daemon",
     "unknown": "Necunoscut",
-    "unofficial": "Droid Mobile este un client neoficial. Vorbește cu propriul tău daemon Droid prin SDK-ul public."
+    "unofficial": "Droid Mobile este un client neoficial. Nu este afiliat, aprobat sau conectat cu Factory. Vorbește cu propriul tău daemon Droid prin SDK-ul public."
   },
   "diagnostics": {
     "title": "Diagnosticare",

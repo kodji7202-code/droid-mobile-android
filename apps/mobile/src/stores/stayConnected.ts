@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { writePref } from '../platform/durablePrefs';
 
 export const STAY_CONNECTED_KEY = 'droid.stayConnected';
 
@@ -15,15 +16,11 @@ interface StayConnectedStore {
   setEnabled(enabled: boolean): void;
 }
 
-/** "Stay connected": keeps the foreground service running without a turn. Non-secret, so localStorage. */
+/** "Stay connected": keeps the foreground service running without a turn. Non-secret, so localStorage plus the native mirror. */
 export const useStayConnectedStore = create<StayConnectedStore>((set) => ({
   enabled: read(),
   setEnabled(enabled) {
-    try {
-      window.localStorage.setItem(STAY_CONNECTED_KEY, String(enabled));
-    } catch {
-      // Best effort; the in-memory value still applies.
-    }
+    void writePref(STAY_CONNECTED_KEY, String(enabled));
     set({ enabled });
   },
 }));

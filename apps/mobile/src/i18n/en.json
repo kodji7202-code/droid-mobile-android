@@ -582,7 +582,7 @@
     "sdkVersion": "SDK version",
     "protocolVersion": "Daemon protocol version",
     "unknown": "Unknown",
-    "unofficial": "Droid Mobile is an unofficial client. It talks to your own Droid daemon through its public SDK."
+    "unofficial": "Droid Mobile is an unofficial client. It is not affiliated with, endorsed by or connected to Factory. It talks to your own Droid daemon through its public SDK."
   },
   "diagnostics": {
     "title": "Diagnostics",
