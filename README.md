@@ -8,6 +8,7 @@
 coding agent that talks directly to the `droid daemon` on your own PC.
 
 [![CI](https://github.com/kodji7202-code/droid-mobile-android/actions/workflows/ci.yml/badge.svg)](https://github.com/kodji7202-code/droid-mobile-android/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/kodji7202-code/droid-mobile-android?logo=github)](https://github.com/kodji7202-code/droid-mobile-android/releases/latest)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Platform: Android 7.0+](https://img.shields.io/badge/platform-Android%207.0%2B-3DDC84.svg?logo=android&logoColor=white)](docs/android.md)
 [![Capacitor 8](https://img.shields.io/badge/Capacitor-8-119EFF.svg?logo=capacitor&logoColor=white)](https://capacitorjs.com)
@@ -235,6 +236,10 @@ flowchart LR
   Caddy or nginx, or a container). See [docs/notifications.md](docs/notifications.md).
 
 ## Quick start
+
+### Download
+
+Prebuilt signed APK: [latest release](https://github.com/kodji7202-code/droid-mobile-android/releases/latest). Note that push notifications through FCM in the prebuilt APK work only for the maintainer's Firebase project; everyone else gets local notifications and Stay connected mode, or can build their own APK with their own google-services.json ([docs/notifications.md](docs/notifications.md)).
 
 ### 1. Set up the PC
 
