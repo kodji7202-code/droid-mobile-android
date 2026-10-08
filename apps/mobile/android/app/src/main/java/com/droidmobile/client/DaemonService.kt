@@ -109,7 +109,10 @@ class DaemonService : Service() {
 
         @Volatile
         var running: Boolean = false
-            private set
+            private set(value) {
+                field = value
+                DaemonWebView.onServiceStateChanged()
+            }
 
         fun start(context: Context, texts: ServiceTexts?) {
             val intent = Intent(context, DaemonService::class.java)
