@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { helperDir, runPs, scratchDir } from './ps-helpers';
+import { fakeDroid, helperDir, runPs, scratchDir } from './ps-helpers';
 
 const cleanups: Array<() => void | Promise<void>> = [];
 afterEach(async () => {
@@ -479,7 +479,11 @@ describe('Get-DroidDoctor failure modes (VAL-PCH-019, VAL-PCH-020)', () => {
     const before = sha(file);
     const r = runPs(
       `Doctor -DaemonPort 3108 -BridgeUrl http://127.0.0.1:3198 -SettingsPath '${file}' -StateDir '${state}'`,
-      { FACTORY_API_KEY: 'fk-unit-test-key-0000000000000000', DROIDMOBILE_BRIDGE_SECRET: SECRET },
+      {
+        FACTORY_API_KEY: 'fk-unit-test-key-0000000000000000',
+        DROIDMOBILE_BRIDGE_SECRET: SECRET,
+        DROIDMOBILE_DROID_EXE: fakeDroid(scratch('pch-droid-')),
+      },
     );
     expect(r.code).not.toBe(0);
     expect(r.out).toMatch(/\[PASS\] droid version: \d+\.\d+\.\d+/);

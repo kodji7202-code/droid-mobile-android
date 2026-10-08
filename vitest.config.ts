@@ -15,6 +15,8 @@ export default defineConfig({
           name: 'unit',
           environment: 'jsdom',
           globals: true,
+          // PowerShell spawns in tools/pc-helper are slow on hosted runners.
+          testTimeout: 60_000,
           setupFiles: ['./apps/mobile/src/test/setup.ts'],
           include: [
             'apps/*/src/**/*.test.{ts,tsx}',

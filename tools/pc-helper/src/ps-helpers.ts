@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -35,6 +35,14 @@ export function runPs(snippet: string, env: Record<string, string> = {}, cwd?: s
 }
 
 export function scratchDir(prefix: string): { dir: string; cleanup: () => void } {
-  const dir = mkdtempSync(join(tmpdir(), prefix));
+  // The hosted runner's os.tmpdir() is an 8.3 short path (RUNNER~1); PowerShell reports the long form.
+  const dir = realpathSync.native(mkdtempSync(join(tmpdir(), prefix)));
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+}
+
+/** Writes a stub droid.cmd that prints a version, so tests never depend on an installed Droid CLI. */
+export function fakeDroid(dir: string): string {
+  const exe = join(dir, 'droid.cmd');
+  writeFileSync(exe, '@echo off\r\necho 9.9.9\r\n');
+  return exe;
 }

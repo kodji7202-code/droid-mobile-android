@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { createServer, connect, type Server } from 'node:net';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { helperDir, runPs, scratchDir } from './ps-helpers';
+import { fakeDroid, helperDir, runPs, scratchDir } from './ps-helpers';
 
 const cleanups: Array<() => void | Promise<void>> = [];
 afterEach(async () => {
@@ -169,7 +169,7 @@ describe('daemon commands without starting a daemon', () => {
     cleanups.push(scratch.cleanup);
     const state = join(scratch.dir, 'state');
     const r = runPs(
-      `Start-DroidDaemon -Port ${port} -StateDir '${state}' -WhatIf; Stop-DroidDaemon -Port ${port} -StateDir '${state}' -WhatIf`,
+      `Start-DroidDaemon -Port ${port} -StateDir '${state}' -DroidExe '${fakeDroid(scratch.dir)}' -WhatIf; Stop-DroidDaemon -Port ${port} -StateDir '${state}' -WhatIf`,
     );
     expect(r.out).toContain('What if');
     expect(existsSync(state)).toBe(false);
