@@ -27,7 +27,7 @@ const folderName = (cwd: string | undefined): string | undefined =>
     .at(-1);
 
 const clip = (text: string) =>
-  text.length > DETAIL_LIMIT ? `${text.slice(0, DETAIL_LIMIT - 1)}â€¦` : text;
+  text.length > DETAIL_LIMIT ? `${text.slice(0, DETAIL_LIMIT - 1)}…` : text;
 
 function requestDetail(entry: PendingInteraction): string | undefined {
   if (entry.kind !== 'permission') return undefined;

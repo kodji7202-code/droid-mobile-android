@@ -87,6 +87,17 @@ describe('NotificationCoordinator', () => {
     });
   });
 
+  it('truncates a long detail with a real ellipsis, not mojibake', () => {
+    ctx.update({
+      pending: [permission('p1', 's1', 'x'.repeat(300))],
+      views: { s1: view(true) },
+    });
+    const text = ctx.post.mock.calls[0]?.[0].text ?? '';
+    expect(text.endsWith('\u2026')).toBe(true);
+    expect(text).not.toContain('\u00e2\u20ac');
+    expect(text).toBe(`demo: ${'x'.repeat(159)}\u2026`);
+  });
+
   it('removes the notification once the request is answered', () => {
     const pending = [permission('p1', 's1')];
     ctx.update({ pending, views: { s1: view(true) } });

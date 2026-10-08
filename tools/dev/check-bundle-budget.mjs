@@ -3,7 +3,8 @@
 //
 // Usage (after `npm run build`): node tools/dev/check-bundle-budget.mjs
 //
-// The initial JS is the entry script plus every modulepreload link in dist/index.html, and
+// The initial JS is the entry script plus every modulepreload link in dist/index.html, the
+// bootstrap chunk that main.tsx imports dynamically once the durable prefs are restored, and
 // whatever those chunks import statically. The SDK, xterm, the syntax highlighter and the
 // diff viewer must be reachable only through dynamic imports.
 import { readdirSync, readFileSync } from 'node:fs';
@@ -44,8 +45,15 @@ const staticImports = (source) =>
     ),
   ].map((match) => match[1]);
 
+const dynamicImports = (source) =>
+  [...source.matchAll(/\bimport\(\s*["'`]\.\/([^"'`]+\.js)["'`]\s*\)/g)].map((match) => match[1]);
+
+// main.tsx imports bootstrap on every start, so it is initial JS despite being a dynamic import.
+const bootstrap = [...referenced].flatMap((name) =>
+  dynamicImports(chunks.get(name) ?? '').filter((target) => /^bootstrap-/.test(target)),
+);
 const initial = new Set();
-const pending = [...referenced];
+const pending = [...referenced, ...bootstrap];
 while (pending.length > 0) {
   const name = pending.pop();
   if (initial.has(name) || !chunks.has(name)) continue;
@@ -55,7 +63,7 @@ while (pending.length > 0) {
 
 const kib = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
 let total = 0;
-console.log('Initial JS (entry + modulepreload + static imports), gzip:');
+console.log('Initial JS (entry + bootstrap + modulepreload + static imports), gzip:');
 for (const name of [...initial].sort()) {
   const size = gzipSize(chunks.get(name));
   total += size;
@@ -69,6 +77,7 @@ for (const name of [...chunks.keys()].filter((n) => !initial.has(n)).sort()) {
 }
 
 const problems = [];
+if (bootstrap.length === 0) problems.push('the entry does not import a bootstrap chunk');
 if (total > BUDGET_BYTES) problems.push(`initial JS is ${total} bytes gzip, over ${BUDGET_BYTES}`);
 for (const [library, marker] of Object.entries(HEAVY)) {
   const leaked = [...initial].filter((name) => marker.test(chunks.get(name)));
