@@ -29,11 +29,15 @@ OAuth for itself; see [tos.md](tos.md).
   removes them. Folder trust, once granted, cannot be withdrawn from the app.
 - Mission sessions can use many credits. The app asks for confirmation before it creates one.
   Mission Control shows the state of a Mission; it does not replace the desktop for long runs.
+  Missions have not been exercised with real runs.
+- File search in a session's workspace shows at most 50 results.
 
 ## Android
 
 - Release builds connect over `wss://` only, so a plain `ws://` daemon works only in a debug
   build ([security.md](security.md#transport-policy)).
+- Android 15 limits how long the foreground service may run. It pauses and restarts the next time
+  you open the app. Stay connected costs some battery.
 - Android may pause the app in the background. Turn on **Stay connected** and exempt the app from
   battery optimisation ([notifications.md](notifications.md)); some vendors add their own
   restrictions ([troubleshooting.md](troubleshooting.md#battery-restrictions)).
@@ -51,8 +55,10 @@ OAuth for itself; see [tos.md](tos.md).
   public service.
 - The Docker image has only been checked statically; the build and run are untested on the
   development PC.
-- Push shows a fixed text ("Open the app to see what needs your attention"). It never contains
-  prompt or file content by design.
+- Push shows a fixed text ("Open the app to see what needs your attention"), in English only. It
+  never contains prompt or file content by design.
+- A late approvals push replaces the local approvals notification and its **Approve** button.
+- Queued push removal retries at app start and when the device comes back online.
 - Droid reads hooks at start: sessions that were running before `Install-DroidHooks` need a
   restart to send push.
 

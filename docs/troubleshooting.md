@@ -80,7 +80,10 @@ Work from the phone back to the PC.
    at start. Hook failures are logged in `%LOCALAPPDATA%\DroidMobileHelper\logs\hook.log`.
 6. After a bridge secret rotation every phone must register again.
 7. A phone you force-stopped does not receive push until you open the app once.
-8. Check [battery restrictions](#battery-restrictions) next.
+8. If the screen shows **Removal pending** or **Delivery not yet stopped** after you turned push
+   off, the app retries at app start and when the device is back online. Open the app with a
+   connection to let it finish.
+9. Check [battery restrictions](#battery-restrictions) next.
 
 ## Battery restrictions
 
@@ -93,7 +96,10 @@ app, **Stay connected** stops by itself.
   sleeping apps.
 - The screen shows **Exempt from battery optimisation** once it worked.
 - Turn on **Stay connected** for long turns, and keep the notification it shows; do not swipe the
-  app away from recents if your phone vendor treats that as a force stop.
+  app away from recents if your phone vendor treats that as a force stop. It costs some battery;
+  turn it off to save battery.
+- On Android 15 the system may pause the service after a long run. Open the app to start it again;
+  an explicit **Stop** stays final.
 - Some vendors add their own "protected apps" or "autostart" lists; allow Droid Mobile there too.
   See [dontkillmyapp.com](https://dontkillmyapp.com) for vendor steps.
 - Push through the bridge ([notifications.md](notifications.md)) still arrives for a stopped

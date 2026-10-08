@@ -18,7 +18,8 @@ that runs on your PC.
 - Manage MCP servers, skills, slash commands, plugins, custom models and automations, and
   follow Mission sessions.
 - Get notifications when Droid needs your approval or finishes a turn, in the app, in the
-  background and (through your own FCM bridge) when the app is closed.
+  background and (through your own FCM bridge) when the app is closed. Optional Stay
+  connected keeps long turns alive with the screen off (it costs some battery).
 - English and Romanian, light and dark theme, optional biometric app lock, tablet layout.
 
 ## How it fits together

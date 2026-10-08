@@ -21,6 +21,11 @@ Open **Settings > Notifications**.
   (quiet). A third channel, **Background connection**, belongs to the foreground service.
 - A notification for the session you are looking at is not shown, and notifications are withdrawn
   once you answer or see the request. Tapping one opens that session.
+- Channel names follow the app language. If Android refuses a notification, the app tries again
+  later.
+- The local approval notification and the push for the same session share one tag
+  (`approvals:<sessionId>`). If a push for that session arrives after the local notification, it
+  replaces it, and the replacement has no **Approve** button. Open the app to answer.
 - Local notifications are built on the phone and can name the tool or command that waits for
   approval. Push notifications from the bridge never do.
 
@@ -32,8 +37,21 @@ runs on its own while a turn or an approval is pending. A low-priority notificat
 **Stop** button is shown while it runs. Tapping **Stop** switches stay connected off and the app
 does not restart the service until it is needed again.
 
-The toggle is in **Settings > Notifications**. Turn it off when you do not need it; it uses
-battery.
+While the service runs (Stay connected on, or a turn running), the app keeps its page visible to
+Android's web engine, so long turns can finish and notify with the screen off. When the service
+stops, the page is throttled or frozen as usual.
+
+On Android 15 the system limits how long a "data sync" service may run. When that limit is
+reached the service pauses and starts again the next time you open the app. Tapping **Stop** is
+final and is not undone by this restart. The app also checks on resume that the service matches
+what is running.
+
+The toggle is in **Settings > Notifications**. Stay connected costs some battery; turn it off to
+save battery when you do not need it.
+
+The app keeps its non-secret settings (stay connected, language, theme, notification switches,
+app lock) in native storage as well, so they survive Android closing the app right after you
+change them.
 
 ## Battery optimisation
 
@@ -104,6 +122,12 @@ payload is described in [the bridge README](../server/fcm-bridge/README.md#fcm-m
    In the app open **Settings > Notifications > Push notifications**, paste or scan the code and
    choose **Register this phone**. You can also type the bridge URL and the pairing secret by
    hand. **Turn off push** unregisters the phone from the bridge.
+
+   **Turn off on this phone only** invalidates this phone's FCM token without contacting the
+   bridge. The screen is truthful about progress: **Removal pending** means the bridge still has
+   the registration and the app will remove it; **Delivery not yet stopped** means the token
+   could not be invalidated yet. In both cases the app retries automatically at app start and
+   when the device comes back online, and sign-out keeps retrying the cleanup.
 
 6. **Check.** `Doctor -BridgeUrl https://bridge.example.com` checks that the bridge answers
    `/healthz` and that the hooks are installed.
