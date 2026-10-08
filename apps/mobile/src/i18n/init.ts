@@ -28,10 +28,15 @@ export function changeAppLanguage(language: AppLanguage): Promise<void> {
   return i18next.changeLanguage(language).then(() => undefined);
 }
 
+const initialLanguage = readStoredLanguage();
+// index.html ships lang="en"; without this a relaunch with Romanian stored would
+// leave screen readers on the English voice until the language is changed again.
+document.documentElement.lang = initialLanguage;
+
 // Resolves once i18next is initialized; inline resources need no async backend.
 // Await this before the first render so no raw keys can flash.
 export const i18nReady = i18next.use(initReactI18next).init({
-  lng: readStoredLanguage(),
+  lng: initialLanguage,
   fallbackLng: 'en',
   resources: {
     en: { translation: en },
