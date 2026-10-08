@@ -15,7 +15,7 @@ import { removeScratchDir } from './integration-cleanup';
 
 const DAEMON_PORT = 3105;
 const DAEMON_URL = `ws://127.0.0.1:${DAEMON_PORT}`;
-const DROID_EXE = process.env.DC_TEST_DROID_EXE ?? 'C:\\Users\\claud\\bin\\droid.exe';
+const DROID_EXE = process.env.DC_TEST_DROID_EXE ?? 'droid';
 const API_KEY = process.env.FACTORY_API_KEY;
 
 if (!API_KEY) {

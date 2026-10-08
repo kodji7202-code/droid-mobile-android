@@ -19,7 +19,7 @@ const API_KEY = process.env.FACTORY_API_KEY;
 
 if (!API_KEY) {
   throw new Error(
-    'FACTORY_API_KEY is not set. Integration tests run against the real daemon: load .env.local and start services.droid-daemon-test (see services.yaml).',
+    'FACTORY_API_KEY is not set. Integration tests run against the real daemon: load .env.local and start a test daemon with tools/dev/start-daemon.ps1.',
   );
 }
 

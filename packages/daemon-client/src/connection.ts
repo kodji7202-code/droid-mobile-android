@@ -1,5 +1,5 @@
 /**
- * createDaemonConnection: the adapter's connection core (architecture.md 3.1).
+ * createDaemonConnection: the adapter's connection core.
  *
  * - One WebSocket, one `daemon.authenticate`, over the SDK facade
  *   `connectToDaemon` (root entrypoint of @factory/droid-sdk 0.9.1).

@@ -1,0 +1,13 @@
+Droid Mobile
+Copyright 2026 kodji7202-code
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Droid Mobile is an unofficial client. It is not made, endorsed, sponsored or supported by
+Factory, and it is not affiliated with Factory. "Factory" and "Droid" are trademarks of their
+respective owners.
+
+This product uses the @factory/droid-sdk package, which is licensed under the Apache License,
+Version 2.0, and connects to the user's own "droid daemon" with the user's own Factory API key.
+Other third-party packages are used under their own licenses; see the dependency manifests and
+package-lock.json.

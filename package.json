@@ -4,6 +4,15 @@
   "private": true,
   "type": "module",
   "description": "Unofficial Android client for Factory Droid (Capacitor + React + TypeScript).",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kodji7202-code/droid-mobile-android.git"
+  },
+  "homepage": "https://github.com/kodji7202-code/droid-mobile-android#readme",
+  "bugs": {
+    "url": "https://github.com/kodji7202-code/droid-mobile-android/issues"
+  },
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -27,6 +36,7 @@
     "android:keystore": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/new-release-keystore.ps1",
     "android:verify-release": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/verify-release.ps1",
     "docs:check": "node tools/dev/check-docs.mjs",
+    "bundle:budget": "node tools/dev/check-bundle-budget.mjs",
     "scan:secrets": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/scan-repo-secrets.ps1",
     "android:sync": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/build-android.ps1 -Variant debug -SyncOnly",
     "android:check": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/check-android-variants.ps1",

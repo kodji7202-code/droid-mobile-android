@@ -1,6 +1,6 @@
 # Web build + cap sync + Gradle assemble for the chosen variant.
 #
-# The Capacitor variant (transport policy, architecture.md section 2) is selected ONLY through
+# The Capacitor variant (transport policy, see docs/android.md) is selected ONLY through
 # the CAPACITOR_VARIANT env consumed by capacitor.config.ts during `cap sync`:
 #   debug   -> androidScheme http, WebView debugging on, cleartext via debug source set
 #   release -> default https://localhost origin, no cleartext, wss-only

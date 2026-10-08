@@ -8,7 +8,15 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-export const DOC_FILES = ['README.md', 'server/fcm-bridge/README.md', 'tools/pc-helper/README.md'];
+export const DOC_FILES = [
+  'README.md',
+  'CONTRIBUTING.md',
+  'SECURITY.md',
+  'CODE_OF_CONDUCT.md',
+  'CHANGELOG.md',
+  'server/fcm-bridge/README.md',
+  'tools/pc-helper/README.md',
+];
 export const DOCS_DIR = 'docs';
 
 /** Topic -> pattern that at least one heading in the documentation set must match. */

@@ -1,7 +1,7 @@
 /**
  * Sidecar terminal client. The SDK facade swallows `daemon.terminal_data` and
  * `daemon.terminal_exit`, so terminals use their own low-level connection
- * (architecture.md section 2): `createWebSocketDaemonClient` + `onMessage`.
+ *: `createWebSocketDaemonClient` + `onMessage`.
  *
  * A terminal belongs to the connection that created it; after the owner
  * disconnects the shell keeps running and a NEW connection's `list` returns it

@@ -1,7 +1,9 @@
 # start-daemon.ps1 - start a detached `droid daemon` via WMI/CIM Win32_Process.Create.
 #
-# Usage (from the repo root, as referenced by services.yaml):
+# Usage (from the repo root):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev\start-daemon.ps1 [-Port 3101]
+#
+# droid.exe is taken from -DroidExe, $env:DROIDMOBILE_DROID_EXE, PATH or %USERPROFILE%\bin.
 #
 # - The daemon survives the launching shell (children of plain Start-Process die with it).
 # - Logs: .tmp\logs\daemon-<port>.out.log / .err.log; the cmd wrapper PID (the kill handle)
@@ -10,12 +12,18 @@
 # - Prints no secrets; the daemon is unauthenticated on loopback by design.
 param(
   [int]$Port = 3101,
-  [string]$DroidExe = 'C:\Users\claud\bin\droid.exe',
+  [string]$DroidExe,
   [int]$HealthTimeoutSec = 30,
   [string]$StateDir
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $DroidExe) {
+  $onPath = Get-Command droid.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+  $DroidExe = if ($env:DROIDMOBILE_DROID_EXE) { $env:DROIDMOBILE_DROID_EXE }
+  elseif ($onPath) { $onPath.Source }
+  else { Join-Path $env:USERPROFILE 'bin\droid.exe' }
+}
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $logDir = Join-Path $repoRoot '.tmp\logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null

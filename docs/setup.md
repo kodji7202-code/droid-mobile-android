@@ -73,14 +73,15 @@ Skip this if in-app and background notifications are enough.
 
 ## Environment variables for development
 
-`.env.local` at the repository root is git-ignored. It holds (names only):
+`.env.local` at the repository root is git-ignored. Copy [`.env.example`](../.env.example), which
+documents every variable the scripts read, and fill in what you need. The main ones (names only):
 
-| Variable                        | Used by                                        |
-| ------------------------------- | ---------------------------------------------- |
-| `FACTORY_API_KEY`               | daemon authentication (integration tests, app) |
-| `TAILSCALE_HOSTNAME`            | PC helper, `wss://` endpoints                  |
-| `FIREBASE_SERVICE_ACCOUNT_PATH` | FCM bridge                                     |
-| `GOOGLE_SERVICES_JSON_PATH`     | Android build                                  |
+| Variable                        | Used by                                             |
+| ------------------------------- | --------------------------------------------------- |
+| `FACTORY_API_KEY`               | integration tests, dev scripts, `-IncludeApiKey`    |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | FCM bridge                                          |
+| `GOOGLE_SERVICES_JSON_PATH`     | Android build                                       |
+| `DROIDMOBILE_TOOLS_DIR`         | optional folder with `jdk-21`, `gradle-home`, `avd` |
 
 Load it into a command without printing values:
 
@@ -95,8 +96,9 @@ npm install
 npm run dev -w @droidmobile/mobile   # Vite dev server on http://127.0.0.1:3100 (the port is fixed)
 ```
 
-Native builds need JDK 21 at `D:\droid-tools\jdk-21` (JDK 17 cannot build Capacitor 8 projects),
-the Android SDK at `%LOCALAPPDATA%\Android\Sdk` and the Gradle 8.14.3 wrapper. The full native
+Native builds need JDK 21 (JDK 17 cannot build Capacitor 8 projects; `JAVA_HOME`, or a `jdk-21`
+folder inside `DROIDMOBILE_TOOLS_DIR`), the Android SDK (default `%LOCALAPPDATA%\Android\Sdk`,
+or `ANDROID_HOME`) and the Gradle 8.14.3 wrapper. The full native
 workflow is in [android.md](android.md).
 
 | Service             | Port      | Start                                    |

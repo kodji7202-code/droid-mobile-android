@@ -1,7 +1,7 @@
 import { redactSecrets, redactValue } from './redact';
 
 /**
- * Error taxonomy of the daemon-client adapter (architecture.md 3.1). Every
+ * Error taxonomy of the daemon-client adapter. Every
  * class redacts secret material from its message at construction time, so a
  * serialized error can never carry an API key (KEY-LEAK-SCAN count 0).
  */

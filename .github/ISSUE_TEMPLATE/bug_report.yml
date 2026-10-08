@@ -1,0 +1,84 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem.
+
+        **Never paste API keys, bridge secrets, pairing codes that contain a key, or your real
+        Tailscale machine name.** Use placeholders such as `my-pc.tailnet-name.ts.net`. To report
+        a security problem, follow [SECURITY.md](https://github.com/kodji7202-code/droid-mobile-android/blob/main/SECURITY.md)
+        instead of opening a public issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Settings > Notifications
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Connecting / pairing
+        - Sessions and chat
+        - Workspace (files, git, terminal)
+        - Extensions (MCP, skills, commands, plugins, automations)
+        - Missions
+        - Notifications / Stay connected / push
+        - PC helper (PowerShell module)
+        - FCM bridge
+        - Build / release / CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: App version and build type
+      description: Settings > About & diagnostics. Say whether it is a debug or release build.
+      placeholder: '1.0.0 (release)'
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: 'Pixel 8, Android 15'
+  - type: input
+    id: pc
+    attributes:
+      label: PC setup
+      description: Windows version, droid CLI version (`droid --version`), Tailscale yes/no.
+      placeholder: 'Windows 11 23H2, droid 0.2xx, Tailscale Serve'
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted diagnostics
+      description: |
+        Attach the log bundle from Settings > About & diagnostics (it redacts keys and tokens),
+        and `Doctor` output from the PC helper if the problem is about connecting. Check it for
+        anything private before you post it.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and docs/troubleshooting.md and docs/limitations.md.
+          required: true
+        - label: I removed API keys, secrets and real hostnames from everything I posted.
+          required: true

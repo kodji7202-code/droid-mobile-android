@@ -1,6 +1,6 @@
 # stop-daemon.ps1 - stop the daemon started by start-daemon.ps1, and nothing else.
 #
-# Usage (from the repo root, as referenced by services.yaml):
+# Usage (from the repo root):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev\stop-daemon.ps1 [-Port 3101]
 #
 # Only a process recorded in .tmp\daemon-<port>.pid is ever killed, and only after its

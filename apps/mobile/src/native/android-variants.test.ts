@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildConfig } from '../../capacitor.config';
 
 /**
- * Transport policy (architecture.md section 2) as an executable check:
+ * Transport policy (docs/android.md) as an executable check:
  * - debug variant: http scheme, cleartext allowed (debug source set only), WebView debugging on
  * - release variant: default https origin, no cleartext, no debuggable WebView, allowBackup=false
  * - app id com.droidmobile.client and display name "Droid Mobile" in both variants

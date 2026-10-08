@@ -1,6 +1,6 @@
 /**
  * Integration tests for the daemon-client connection core, run against the
- * REAL droid daemon on 127.0.0.1:3101 (services.yaml: droid-daemon-test) with
+ * REAL droid daemon on 127.0.0.1:3101 (tools/dev/start-daemon.ps1) with
  * the real key from .env.local (FACTORY_API_KEY). No mocks of the daemon.
  *
  * Real-credit discipline: prompts are the contract's minimal ones; every
@@ -23,7 +23,7 @@ const CLOSED_PORT_URL = 'ws://127.0.0.1:3199';
 
 if (!API_KEY) {
   throw new Error(
-    'FACTORY_API_KEY is not set. Integration tests run against the real daemon: load .env.local and start services.droid-daemon-test (see services.yaml).',
+    'FACTORY_API_KEY is not set. Integration tests run against the real daemon: load .env.local and start a test daemon with tools/dev/start-daemon.ps1.',
   );
 }
 

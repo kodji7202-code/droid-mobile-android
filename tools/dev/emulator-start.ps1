@@ -1,6 +1,6 @@
 # Starts the droid-api36 emulator detached via WMI/CIM (survives this shell) and waits for boot.
-# Cold boot is ~79 s. Afterwards DELETE D:\droid-tools\avd\droid-api36.avd\snapshots (the emulator
-# writes a ~3 GB snapshot at exit even with -no-snapshot-save).
+# Cold boot is ~79 s. Afterwards delete <AVD home>\droid-api36.avd\snapshots (the emulator
+# writes a ~3 GB snapshot at exit even with -no-snapshot-save). Needs an AVD named droid-api36.
 #
 # Usage (from repo root):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev\emulator-start.ps1

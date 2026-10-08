@@ -12,7 +12,7 @@ const STATUS_KEYS: Record<ConnectionStatus, string> = {
 };
 
 /**
- * Live daemon connection status (architecture.md section 5 anchor
+ * Live daemon connection status (anchor
  * `connection-status`). Present on every main destination: the visible text,
  * the `data-status` colour class and the accessible name all indicate the
  * current daemon-client status.

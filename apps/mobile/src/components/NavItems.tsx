@@ -34,7 +34,7 @@ function NavItem({ item }: { item: NavItemDefinition }) {
 
 /**
  * Phone layout: fixed bottom navigation bar with the four primary
- * destinations (>= 48 dp touch targets, see architecture.md section 5).
+ * destinations (>= 48 dp touch targets).
  */
 export function NavigationBar() {
   const { t } = useTranslation();

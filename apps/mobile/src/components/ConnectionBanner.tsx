@@ -11,7 +11,7 @@ const MESSAGE_KEYS: Record<Exclude<ConnectionStatus, 'ready'>, string> = {
 };
 
 /**
- * Visible connection banner (architecture.md section 5 anchor area
+ * Visible connection banner (anchor area
  * `connection-*`): explains a non-ready status and offers the manual retry
  * control. Never blocks the shell, so a launch with an unreachable daemon
  * shows the offline state instead of a blank screen (VAL-ONBOARD-034).

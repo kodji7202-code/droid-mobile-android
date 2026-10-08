@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "androidVersionCode": 1,
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 3100 --strictPort",

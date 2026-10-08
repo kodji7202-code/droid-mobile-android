@@ -1,0 +1,6 @@
+# Normalise line endings so Windows and Linux checkouts match (scripts and tests compare file text).
+* text=auto eol=lf
+*.png binary
+*.jar binary
+*.keystore binary
+*.jks binary

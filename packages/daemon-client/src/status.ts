@@ -1,5 +1,5 @@
 /**
- * Connection status state machine (architecture.md 3.1). Pure reducer; the
+ * Connection status state machine. Pure reducer; the
  * connection owns the side effects (retries, listeners).
  *
  * Status meanings:

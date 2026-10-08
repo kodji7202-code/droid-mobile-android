@@ -4,7 +4,7 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // The `unit` project runs in jsdom so component tests work; pure node tests are
 // unaffected (node APIs remain available under the jsdom environment). The
 // `integration` project runs in node and needs the real droid daemon on
-// 127.0.0.1:3101 (services.yaml: droid-daemon-test). Vitest 5 requires unique
+// 127.0.0.1:3101 (tools/dev/start-daemon.ps1). Vitest 5 requires unique
 // project names, so per-package configs must not reintroduce their own projects.
 export default defineConfig({
   test: {

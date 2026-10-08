@@ -2,7 +2,7 @@
  * @droidmobile/daemon-client — adapter over @factory/droid-sdk 0.9.1.
  *
  * The UI never imports the SDK directly; all daemon access goes through this
- * package (architecture.md 3.1). Pure TypeScript, no React.
+ * package. Pure TypeScript, no React.
  */
 export { createDaemonConnection } from './connection';
 export type {

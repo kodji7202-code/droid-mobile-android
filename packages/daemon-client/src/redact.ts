@@ -2,7 +2,7 @@
  * Redacts secret material from free-form text (error messages, logs) and
  * structured values. Factory API keys start with `fk-`; any other credential is
  * recognised by its name (apiKey, token, secret, password, authorization,
- * bearer) because its format is unknowable (architecture.md section 3.1:
+ * bearer) because its format is unknowable (design note:
  * "Never logs credentials; redacts apiKey/token in any serialized error").
  */
 const FACTORY_API_KEY_PATTERN = /fk-[A-Za-z0-9][A-Za-z0-9_-]*/g;

@@ -1,7 +1,7 @@
 import type { Message } from 'firebase-admin/messaging';
 
 /**
- * Opaque, minimal push payload for FCM messages (architecture.md section 3.4):
+ * Opaque, minimal push payload for FCM messages:
  * only the event kind and the daemon session id ever leave the PC. No code, file
  * content or secret material is ever included.
  */

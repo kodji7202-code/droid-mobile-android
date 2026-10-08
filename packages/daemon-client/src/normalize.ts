@@ -1,6 +1,6 @@
 /**
  * Normalizes SDK stream events into the stable event union consumed by the
- * UI (architecture.md 3.1: "stream(prompt, opts) as an async iterable of
+ * UI (design note: "stream(prompt, opts) as an async iterable of
  * normalized events"). Pure function, unit-tested; unknown event types are
  * passed through as `unknown` so future daemons do not crash the app.
  */

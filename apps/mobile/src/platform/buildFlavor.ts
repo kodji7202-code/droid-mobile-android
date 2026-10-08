@@ -1,6 +1,6 @@
 /**
  * Debug builds may use cleartext `ws://` daemons; release builds are `wss://`
- * only (transport policy, architecture.md section 2). `VITE_DROID_BUILD` is
+ * only (transport policy, see docs/android.md). `VITE_DROID_BUILD` is
  * set by tools/dev/build-android.ps1 to the Capacitor variant; without it the
  * Vite dev server counts as debug and every other build as release.
  */

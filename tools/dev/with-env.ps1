@@ -1,6 +1,6 @@
 # with-env.ps1 - load .env.local into the current process, then run the given command.
 #
-# Usage (from the repo root, as referenced by services.yaml):
+# Usage (from the repo root):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev\with-env.ps1 <command> [args...]
 #   e.g.: ... with-env.ps1 npm run dev -w @droidmobile/fcm-bridge -- --port 3102
 #

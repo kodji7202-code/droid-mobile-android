@@ -1,5 +1,5 @@
 /**
- * Jittered exponential backoff for the reconnect loop (architecture.md 3.1:
+ * Jittered exponential backoff for the reconnect loop (design note:
  * "Backoff with jitter"). Pure function; randomness is injectable for tests.
  */
 export interface BackoffOptions {

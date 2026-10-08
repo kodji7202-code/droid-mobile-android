@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, lint, test, build
+    # Windows is the supported PC platform: the PC helper and dev-script tests run
+    # powershell.exe, which is not available on the Linux runners.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          # Full history so the secret scan can inspect every revision.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Translation bundles (en and ro keys match)
+        run: npm run i18n:check
+
+      - name: Documentation links and scripts
+        run: npm run docs:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Bundle budget
+        run: npm run bundle:budget
+
+      - name: Secret scan (tracked files and history)
+        run: npm run scan:secrets

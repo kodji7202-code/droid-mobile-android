@@ -1,5 +1,5 @@
 /**
- * SessionHandle: the adapter's per-session wrapper (architecture.md 3.1).
+ * SessionHandle: the adapter's per-session wrapper.
  * Survives reconnects: after the connection re-resumes opened sessions, the
  * same handle delegates to the new underlying SDK session; if a call hits a
  * stale attachment, the next call re-resumes on the current connection.
