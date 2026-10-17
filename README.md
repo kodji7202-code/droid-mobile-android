@@ -105,7 +105,8 @@ scratch Factory home and a small throwaway demo project (no personal sessions, k
 **Connection and security**
 
 - API-key sign-in; the key is kept in Android Keystore-backed secure storage.
-- Pairing by code: scan a QR, read a QR from an image, or paste text. Several saved connections.
+- Pairing by code: scan a QR with the Google Code Scanner, read a QR from an image, use the Paste
+  button or open a `droidmobile://pair` link (always confirmed first). Several saved connections.
 - Optional app lock with fingerprint, face or screen lock.
 - Release builds accept `wss://` only.
 
@@ -252,7 +253,7 @@ Import-Module .\tools\pc-helper\DroidMobileHelper.psd1
 Start-DroidDaemon -Port 3101                        # supervised droid daemon on 127.0.0.1:3101
 Enable-TailscaleServe -Port 8443 -DaemonPort 3101   # prints URL: wss://<your-pc>.<tailnet>.ts.net:8443
 Doctor -DaemonPort 3101                             # PASS / WARN / FAIL per check, with fixes
-New-PairingCode                                     # prints a droidmobile://pair code and a QR
+New-PairingCode                                     # prints a droidmobile://pair code, a QR and opens a large QR page
 ```
 
 The helper records what it changes and can undo it (`Disable-TailscaleServe`,
@@ -261,22 +262,34 @@ the [helper README](tools/pc-helper/README.md).
 
 ### 2. Install the app on the phone
 
-There is no published release yet, so build the APK from source
-([Building from source](#building-from-source)) and install it with `adb`:
+Download the signed APK from the repository's
+[Releases page](https://github.com/kodji7202-code/droid-mobile-android/releases/latest) and verify
+its signature as described in [docs/release.md](docs/release.md), or build it from source
+([Building from source](#building-from-source)). Install it with `adb`:
 
 ```powershell
 adb install apps\mobile\android\app\build\outputs\apk\release\app-release.apk
 ```
 
-When a release APK is published, it will be listed on the repository's Releases page, and you can
-verify its signature as described in [docs/release.md](docs/release.md).
+The current version is 1.0.1 ([changelog](CHANGELOG.md)); it installs over 1.0.0 and keeps your
+saved connections.
 
 ### 3. Connect
 
 Open the app and either type the **Daemon URL** (`wss://my-pc.tailnet-name.ts.net:8443`) and your
-**API key**, or scan or paste the pairing code from step 1 and then enter the key. The key is
-never part of the code unless you ask for it with `New-PairingCode -IncludeApiKey`. See
-[docs/pairing.md](docs/pairing.md).
+**API key**, or use the pairing code from step 1:
+
+- Scan the QR code that `New-PairingCode` shows in your browser with **Scan QR code** in the app
+  (the Google Code Scanner; no camera permission). If the scanner is not available on your phone,
+  use **Scan from image** or copy the code text and tap **Paste from clipboard**.
+- Phone camera apps such as Samsung Camera and Google Lens usually show a `droidmobile://` QR
+  code as text only; use the in-app scanner or **Paste** instead. Tapping a `droidmobile://pair`
+  link opens the app and asks you to confirm before anything is saved.
+- A code without a key fills the address, then you enter the key. The key is never part of the code
+  unless you ask for it with `New-PairingCode -IncludeApiKey`; a code with a key connects right
+  away.
+
+See [docs/pairing.md](docs/pairing.md).
 
 ### 4. Optional: push and Stay connected
 
@@ -288,7 +301,8 @@ never part of the code unless you ask for it with `New-PairingCode -IncludeApiKe
   walkthrough is [docs/notifications.md](docs/notifications.md).
 
 If something does not connect, start with [docs/troubleshooting.md](docs/troubleshooting.md) and
-`Doctor`.
+`Doctor`. If the QR scanner is unavailable or the camera shows the QR as text, use **Paste from
+clipboard** ([pairing troubleshooting](docs/troubleshooting.md#pairing-code-or-qr-scan-does-not-work)).
 
 ## Building from source
 

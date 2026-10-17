@@ -67,6 +67,11 @@ Check 'no networkSecurityConfig permitting cleartext' ($manifest -notmatch 'clea
 $badging = (& "$bt\aapt2.exe" dump badging $Apk) -join "`n"
 $label = [regex]::Match($badging, "application-label:'([^']*)'").Groups[1].Value
 Check 'application label is Droid Mobile' ($label -eq 'Droid Mobile') $label
+$appPackage = Get-Content 'apps\mobile\package.json' -Raw | ConvertFrom-Json
+$badgedName = [regex]::Match($badging, "versionName='([^']*)'").Groups[1].Value
+$badgedCode = [regex]::Match($badging, "versionCode='([^']*)'").Groups[1].Value
+Check 'versionName equals apps/mobile/package.json version' ($badgedName -ne '' -and $badgedName -eq $appPackage.version) $badgedName
+Check 'versionCode equals apps/mobile/package.json androidVersionCode' ($badgedCode -ne '' -and $badgedCode -eq [string]$appPackage.androidVersionCode) $badgedCode
 
 $gsFile = 'secrets\google-services.json'
 if (Test-Path $gsFile) {

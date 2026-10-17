@@ -8,7 +8,7 @@ is an **unofficial** client and is not affiliated with Factory ([tos.md](tos.md)
 | Document                                 | Contents                                                              |
 | ---------------------------------------- | --------------------------------------------------------------------- |
 | [setup.md](setup.md)                     | PC setup: daemon, Tailscale Serve, HTTPS certificates, dev setup      |
-| [pairing.md](pairing.md)                 | Connecting the phone: URL, key, QR or text, pairing code              |
+| [pairing.md](pairing.md)                 | Connecting the phone: URL, key, QR, Paste button, pairing link        |
 | [notifications.md](notifications.md)     | Local notifications, stay connected, battery, push through the bridge |
 | [troubleshooting.md](troubleshooting.md) | Fixes for the common problems                                         |
 | [limitations.md](limitations.md)         | Known limitations                                                     |

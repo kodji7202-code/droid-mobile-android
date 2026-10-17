@@ -39,23 +39,58 @@ It prints a code and a QR block of the same text:
 droidmobile://pair?v=1&url=wss://my-pc.tail1234.ts.net:8443
 ```
 
-In an interactive console it also opens a large QR code in your default browser (a temporary page
-in `%LOCALAPPDATA%\DroidMobile\pairing\`, readable only by your Windows account). Scan it, then
-press Enter in the PowerShell window; the page is deleted. Use `New-PairingCode -NoWindow` to skip
-the page.
+### The QR window on the PC
 
-On the phone, use one of the three paths on the Connect screen:
+In an interactive console `New-PairingCode` also opens a large QR code in your default browser (a
+temporary page in `%LOCALAPPDATA%\DroidMobile\pairing\`, readable only by your Windows account).
+Scan it, then press Enter in the PowerShell window; the page is deleted. If the command is
+interrupted with Ctrl+C the page is deleted too. Use `New-PairingCode -NoWindow` to skip the page
+and use the QR block in the console.
+
+### On the phone
+
+Use one of these paths on the Connect screen:
 
 - **Scan QR code** opens the Google Code Scanner (part of Google Play services; the app needs no
-  camera permission). The first time, the scanner module may download, with a progress message. If
-  the module is not available on the phone, use **Scan from image**, **Paste** or type the details.
+  camera permission). The first time, the scanner module may download, with a progress message.
+  If the module is not available (no Google Play services, no network for the download, or the
+  scan fails), the screen says so; use **Scan from image**, **Paste from clipboard** or type the
+  details.
 - **Scan from image** reads a QR code from a picture or screenshot.
-- **Paste pairing code**: copy the text on the PC (for example into a note that syncs to the
-  phone) and paste it into the field.
+- **Paste from clipboard** reads the clipboard and applies the code in one tap. Copy the text on
+  the PC (for example into a note that syncs to the phone) and tap it.
+- **Paste pairing code** is the text field for the same thing: paste into it and the code is
+  applied right away.
 
-A valid code fills the URL (and the key, when the code contains one). The code is checked
-strictly: unknown parameters, a wrong version or half a bridge pair make it invalid, and the
-field clears. Tap **Connect** to finish.
+Pasting is forgiving. Line breaks and spaces that a console adds when it wraps a long line, and
+quotes or angle brackets around the code, are ignored. If the clipboard holds something else, the
+app says the clipboard does not contain a valid pairing code and changes nothing.
+
+A valid code fills the URL (and the key, when the code contains one):
+
+- A code **with** a key connects immediately. The connection is saved only after the daemon
+  accepts the key, and the key never appears on screen.
+- A code **without** a key fills the URL and moves to the key field; type the key and tap
+  **Connect**.
+
+The code is checked strictly: unknown parameters, a wrong version or half a bridge pair make it
+invalid, and nothing is filled.
+
+### Opening a pairing link
+
+The app is registered for `droidmobile://pair` links, so tapping one in a note, a chat or a
+browser on the phone opens Droid Mobile. The app never acts on a link silently: it first shows a
+**Pair with this daemon?** dialog with the daemon address, whether an API key is included (the key
+itself is not shown) and the notification bridge, if any. **Continue** applies the link the same
+way as a pasted code (a link with a key connects, a link without one fills the address and waits
+for the key); **Cancel** discards it and changes nothing. With the app lock on, the dialog
+appears only after you unlock the app. A release build accepts only `wss://` links. A link that
+is not valid shows an error and changes nothing.
+
+Phone camera apps such as Samsung Camera and Google Lens usually show a QR code with a custom
+scheme like `droidmobile://` as plain text only, without an "open" button. Scan the QR with the
+in-app **Scan QR code** instead, or copy the text and use **Paste from clipboard**. The PC helper's
+QR window and the console QR carry the same text.
 
 ### What a pairing code contains
 

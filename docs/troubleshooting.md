@@ -28,6 +28,28 @@ The app says it could not reach a daemon at this address, or the status stays **
 6. With a debug build over `adb reverse`, run `adb reverse tcp:3101 tcp:3101` again after every
    reconnect of the USB cable, and use `ws://127.0.0.1:3101`.
 
+## Pairing code or QR scan does not work
+
+- **The scanner says it is not available, or stays at a progress message.** **Scan QR code** uses
+  the Google Code Scanner from Google Play services and may need to download a module the first
+  time. Check the network and that Google Play services is up to date. Meanwhile, copy the
+  pairing code text and tap **Paste from clipboard** on the Connect screen, or use **Scan from
+  image** with a screenshot of the QR.
+- **The phone camera shows the QR as text.** Camera apps such as Samsung Camera and Google Lens
+  usually do not open custom-scheme links. Scan from inside the app instead, or copy the text
+  and use **Paste from clipboard**.
+- **"The clipboard does not contain a valid pairing code".** Copy the whole
+  `droidmobile://pair?...` line again. Line breaks from a wrapped console line are fine, but the
+  text must be complete. If a code was made for an older helper, run `New-PairingCode` again.
+- **The pairing link shows "not valid" or "only accepts secure pairing links".** A release build
+  needs a `wss://` address. Create a new code with the `wss://` address printed by
+  `Enable-TailscaleServe`.
+- **A pairing code with a key was refused.** The app tried to connect with it and the daemon
+  rejected the key or could not be reached; the message tells which. Fix that cause (see below),
+  or run `New-PairingCode` without `-IncludeApiKey` and type the key.
+- **The QR page did not open on the PC.** It opens only in an interactive console and when a
+  default browser is set. Scan the QR block in the console, or paste the printed text.
+
 ## TLS or certificate error
 
 The connection fails during the TLS handshake, or the browser or app mentions a certificate.

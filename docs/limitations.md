@@ -41,8 +41,11 @@ OAuth for itself; see [tos.md](tos.md).
 - Android may pause the app in the background. Turn on **Stay connected** and exempt the app from
   battery optimisation ([notifications.md](notifications.md)); some vendors add their own
   restrictions ([troubleshooting.md](troubleshooting.md#battery-restrictions)).
-- The `droidmobile://pair` code is pasted or scanned inside the app. It is not registered as a
-  link that other apps can open.
+- Camera apps such as Samsung Camera and Google Lens usually show a `droidmobile://` QR code as
+  plain text only, with no button that opens the app. Use the in-app **Scan QR code** or copy the
+  text and tap **Paste from clipboard** ([pairing.md](pairing.md#opening-a-pairing-link)).
+- The in-app QR scanner is the Google Code Scanner and needs Google Play services. Without it,
+  use **Scan from image**, **Paste from clipboard** or manual entry.
 - The app is tied to the Firebase project whose `google-services.json` was present at build time.
   A different Firebase project needs its own build.
 - Language support: English and Romanian.
