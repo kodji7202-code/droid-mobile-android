@@ -6,6 +6,8 @@ import { isDebugBuild } from '../../platform/buildFlavor';
 import { qrScanner } from '../../platform/qrScanner';
 import type { QrScanResult } from '../../platform/qrScanner';
 import { usePushStore } from '../../stores/push';
+import { normalizePairingInput } from '../connect/pairing';
+import { readClipboardText } from '../terminal/clipboard';
 
 type ScanNotice = 'noQr' | 'failed' | null;
 
@@ -55,10 +57,20 @@ export function PushSection() {
     // The code carries the secret: it never stays in the field, valid or not.
     event.target.value = '';
     setScanNotice(null);
-    if (text.trim() === '') return;
+    if (normalizePairingInput(text) === '') return;
     void push.registerFromPairingCode(text).then((ok) => {
       if (ok) setBridgeUrl('');
     });
+  };
+
+  const onPaste = () => {
+    setScanNotice(null);
+    push.clearError();
+    void readClipboardText()
+      .then((text) => push.registerFromPairingCode(text ?? ''))
+      .then((ok) => {
+        if (ok) setBridgeUrl('');
+      });
   };
 
   const onScanResult = (result: QrScanResult) => {
@@ -195,6 +207,15 @@ export function PushSection() {
           <p className="field__description" id="settings-push-pairing-hint">
             {registered ? t('push.replaceHint') : t('push.pairingHint')}
           </p>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            data-testid="push-paste-button"
+            disabled={busy}
+            onClick={onPaste}
+          >
+            {t('push.paste')}
+          </button>
           <button
             type="button"
             className="btn btn--secondary"

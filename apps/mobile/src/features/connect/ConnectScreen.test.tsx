@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderAppAt } from '../../test/render-app';
@@ -8,6 +8,10 @@ import { loadSavedConnections, saveActiveConnection } from '../../platform/saved
 import { createDaemonConnection } from '@droidmobile/daemon-client';
 import { qrScanner } from '../../platform/qrScanner';
 import type { QrScanResult } from '../../platform/qrScanner';
+import { changeAppLanguage } from '../../i18n/init';
+import en from '../../i18n/en.json';
+import ro from '../../i18n/ro.json';
+import { readClipboardText } from '../terminal/clipboard';
 
 const PROBE_KEY = 'fk-invalid-validation-probe';
 vi.mock('../../platform/qrScanner', () => ({
@@ -18,6 +22,8 @@ vi.mock('../../platform/qrScanner', () => ({
     stopCamera: vi.fn(),
   },
 }));
+
+vi.mock('../terminal/clipboard', () => ({ readClipboardText: vi.fn(), copyText: vi.fn() }));
 
 const connectMock = vi.fn();
 const disconnectMock = vi.fn();
@@ -36,6 +42,14 @@ vi.mock('@droidmobile/daemon-client', async (importOriginal) => {
     })),
   };
 });
+
+/** Makes the next connect hang until released, so the busy state can be observed. */
+function holdConnect(): () => void {
+  let release: () => void = () => undefined;
+  connectMock.mockReset();
+  connectMock.mockReturnValue(new Promise<void>((resolve) => (release = resolve)));
+  return release;
+}
 
 function renderConnect() {
   return renderAppAt('/connect', { connected: false });
@@ -231,7 +245,8 @@ describe('ConnectScreen pairing paste', () => {
     );
   });
 
-  it('fills URL and key from a valid code and clears the pairing field', () => {
+  it('fills URL and key from a valid code, clears the pairing field and starts connecting', async () => {
+    const release = holdConnect();
     renderConnect();
     const code = `droidmobile://pair?v=1&url=ws%3A%2F%2F127.0.0.1%3A3101&key=${PROBE_KEY}`;
     fireEvent.change(screen.getByTestId('connect-paste-pairing'), { target: { value: code } });
@@ -240,7 +255,9 @@ describe('ConnectScreen pairing paste', () => {
     expect(screen.getByTestId('connect-key-input')).toHaveAttribute('type', 'password');
     expect(screen.getByTestId('connect-paste-pairing')).toHaveValue('');
     expect(document.body.innerText ?? document.body.textContent).not.toContain(PROBE_KEY);
-    expect(screen.getByTestId('connect-submit')).toBeEnabled();
+    expect(screen.getByTestId('connect-submit')).toHaveAttribute('aria-busy', 'true');
+    expect(createDaemonConnection).toHaveBeenCalledTimes(1);
+    await act(async () => release());
   });
 
   it('release build explains that wss:// is required as soon as a ws:// pairing code is pasted', () => {
@@ -355,7 +372,8 @@ describe('ConnectScreen QR scanning', () => {
     expect(screen.getByTestId('connect-key-input')).toBeEnabled();
   });
 
-  it('fills the fields from a live camera scan', async () => {
+  it('connects from a live camera scan that carries a key', async () => {
+    const release = holdConnect();
     vi.mocked(qrScanner.scanCamera).mockResolvedValue({
       status: 'ok',
       text: `droidmobile://pair?v=1&url=ws%3A%2F%2F10.0.2.2%3A3101&key=${PROBE_KEY}`,
@@ -363,7 +381,9 @@ describe('ConnectScreen QR scanning', () => {
     renderConnect();
     fireEvent.click(screen.getByTestId('connect-scan-qr'));
     await waitFor(() => expect(screen.getByTestId('connect-key-input')).toHaveValue(PROBE_KEY));
-    expect(screen.getByTestId('connect-submit')).toBeEnabled();
+    expect(screen.getByTestId('connect-submit')).toHaveAttribute('aria-busy', 'true');
+    expect(createDaemonConnection).toHaveBeenCalledTimes(1);
+    await act(async () => release());
   });
 
   it('does nothing visible when the user cancels', async () => {
@@ -396,5 +416,190 @@ describe('ConnectScreen QR scanning', () => {
     fireEvent.click(screen.getByTestId('connect-submit'));
     expect(screen.getByTestId('connect-error')).toBeInTheDocument();
     expect(createDaemonConnection).not.toHaveBeenCalled();
+  });
+});
+
+describe('ConnectScreen Paste button and auto-connect', () => {
+  const FULL = `droidmobile://pair?v=1&url=ws%3A%2F%2F127.0.0.1%3A3101&key=${PROBE_KEY}`;
+  const URL_ONLY = 'droidmobile://pair?v=1&url=ws%3A%2F%2F127.0.0.1%3A3101';
+
+  beforeEach(async () => {
+    connectMock.mockReset();
+    connectMock.mockResolvedValue(undefined);
+    vi.mocked(createDaemonConnection).mockClear();
+    vi.mocked(qrScanner.scanImage).mockReset();
+    vi.mocked(readClipboardText).mockReset();
+    useConnectionStore.setState({ connection: null, status: 'offline', activeConnectionId: null });
+    window.localStorage.clear();
+    await act(async () => {
+      await changeAppLanguage('en');
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('exposes a labelled Paste button in English and Romanian', async () => {
+    renderConnect();
+    const button = screen.getByTestId('connect-paste-button');
+    expect(button).toBe(screen.getByRole('button', { name: en.connect.paste }));
+    expect(button.tagName).toBe('BUTTON');
+    await act(async () => {
+      await changeAppLanguage('ro');
+    });
+    expect(screen.getByTestId('connect-paste-button')).toHaveAccessibleName(ro.connect.paste);
+    expect(ro.connect.paste).not.toBe(en.connect.paste);
+  });
+
+  it('connects straight from a URL and key on the clipboard without pressing connect', async () => {
+    vi.mocked(readClipboardText).mockResolvedValue(`${FULL.slice(0, 40)}\r\n${FULL.slice(40)}\r\n`);
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-paste-button'));
+    await waitFor(() => expect(screen.getByTestId('sessions-screen')).toBeInTheDocument());
+    expect(createDaemonConnection).toHaveBeenCalledTimes(1);
+    const id = useConnectionStore.getState().activeConnectionId;
+    expect(await getSecureStore().getSecret(id ?? '')).toBe(PROBE_KEY);
+    expect(JSON.stringify({ ...window.localStorage })).not.toContain(PROBE_KEY);
+    expect(document.body.innerHTML).not.toContain(PROBE_KEY);
+  });
+
+  it('keeps the key masked and out of the DOM while the connection is pending', async () => {
+    let reject: (reason: unknown) => void = () => undefined;
+    connectMock.mockReturnValue(new Promise<void>((_, r) => (reject = r)));
+    vi.mocked(readClipboardText).mockResolvedValue(FULL);
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-paste-button'));
+    await waitFor(() => expect(connectMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('connect-key-input')).toHaveAttribute('type', 'password');
+    expect(screen.getByTestId('connect-submit')).toBeDisabled();
+    expect(screen.getByTestId('connect-paste-pairing')).toHaveValue('');
+    expect(document.body.innerHTML).not.toContain(PROBE_KEY);
+    reject(Object.assign(new Error('x'), { kind: 'auth' }));
+    await waitFor(() => expect(screen.getByTestId('connect-error')).toHaveTextContent(/rejected/i));
+  });
+
+  it('fills only the URL from a URL-only clipboard, focuses the key field and does not connect', async () => {
+    vi.mocked(readClipboardText).mockResolvedValue(URL_ONLY);
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-paste-button'));
+    await waitFor(() =>
+      expect(screen.getByTestId('connect-url-input')).toHaveValue('ws://127.0.0.1:3101'),
+    );
+    expect(screen.getByTestId('connect-key-input')).toHaveValue('');
+    expect(screen.getByTestId('connect-key-input')).toHaveFocus();
+    expect(screen.getByTestId('connect-submit')).toBeDisabled();
+    expect(screen.queryByTestId('connect-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('connect-pairing-error')).not.toBeInTheDocument();
+    expect(createDaemonConnection).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    '',
+    'hello',
+    'https://example.com',
+    'droidmobile://pair?v=2&url=wss://x.example.invalid',
+    'droidmobile://pair?v=9&key=fk-probe-secret-clipboard-0001',
+  ])('shows a clipboard error for %j and leaves fields and DOM untouched', async (clipboard) => {
+    vi.mocked(readClipboardText).mockResolvedValue(clipboard);
+    renderConnect();
+    fireEvent.change(screen.getByTestId('connect-url-input'), { target: { value: 'ws://keep:1' } });
+    fireEvent.click(screen.getByTestId('connect-paste-button'));
+    expect(await screen.findByTestId('connect-pairing-error')).toHaveTextContent(
+      en.connect.pasteInvalid,
+    );
+    expect(screen.getByTestId('connect-url-input')).toHaveValue('ws://keep:1');
+    expect(screen.getByTestId('connect-key-input')).toHaveValue('');
+    expect(createDaemonConnection).not.toHaveBeenCalled();
+    expect(document.body.innerHTML).not.toContain('fk-probe-secret-clipboard-0001');
+    expect(document.body.innerHTML).not.toContain('probe-secret');
+  });
+
+  it('shows the clipboard error when the clipboard cannot be read', async () => {
+    vi.mocked(readClipboardText).mockResolvedValue(null);
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-paste-button'));
+    expect(await screen.findByTestId('connect-pairing-error')).toHaveTextContent(
+      en.connect.pasteInvalid,
+    );
+  });
+
+  it('shows the clipboard error in Romanian', async () => {
+    vi.mocked(readClipboardText).mockResolvedValue('hello');
+    renderConnect();
+    await act(async () => {
+      await changeAppLanguage('ro');
+    });
+    fireEvent.click(screen.getByTestId('connect-paste-button'));
+    expect(await screen.findByTestId('connect-pairing-error')).toHaveTextContent(
+      ro.connect.pasteInvalid,
+    );
+    expect(ro.connect.pasteInvalid).not.toBe(en.connect.pasteInvalid);
+  });
+
+  it('does not connect from a release build clipboard that uses ws://', async () => {
+    vi.stubEnv('VITE_DROID_BUILD', 'release');
+    vi.mocked(readClipboardText).mockResolvedValue(FULL);
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-paste-button'));
+    expect(await screen.findByTestId('connect-error')).toHaveTextContent(/wss:\/\//);
+    expect(createDaemonConnection).not.toHaveBeenCalled();
+  });
+
+  it('auto-connects when a wrapped code with a key is pasted into the pairing field', async () => {
+    renderConnect();
+    const wrapped = `"${FULL.slice(0, 55)}\r\n${FULL.slice(55)}"`;
+    fireEvent.change(screen.getByTestId('connect-paste-pairing'), { target: { value: wrapped } });
+    await waitFor(() => expect(screen.getByTestId('sessions-screen')).toBeInTheDocument());
+    expect(createDaemonConnection).toHaveBeenCalledTimes(1);
+    const id = useConnectionStore.getState().activeConnectionId;
+    expect(await getSecureStore().getSecret(id ?? '')).toBe(PROBE_KEY);
+  });
+
+  it('accepts a wrapped URL-only code in the pairing field, focuses the key and does not connect', () => {
+    renderConnect();
+    fireEvent.change(screen.getByTestId('connect-paste-pairing'), {
+      target: { value: `${URL_ONLY.slice(0, 50)}\r\n${URL_ONLY.slice(50)}\n` },
+    });
+    expect(screen.getByTestId('connect-url-input')).toHaveValue('ws://127.0.0.1:3101');
+    expect(screen.getByTestId('connect-paste-pairing')).toHaveValue('');
+    expect(screen.getByTestId('connect-key-input')).toHaveFocus();
+    expect(screen.queryByTestId('connect-pairing-error')).not.toBeInTheDocument();
+    expect(createDaemonConnection).not.toHaveBeenCalled();
+  });
+
+  it('auto-connects after an image scan whose payload carries a key', async () => {
+    vi.mocked(qrScanner.scanImage).mockResolvedValue({ status: 'ok', text: FULL });
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-scan-image'));
+    await waitFor(() => expect(screen.getByTestId('sessions-screen')).toBeInTheDocument());
+    expect(createDaemonConnection).toHaveBeenCalledTimes(1);
+    const id = useConnectionStore.getState().activeConnectionId;
+    expect(await getSecureStore().getSecret(id ?? '')).toBe(PROBE_KEY);
+  });
+
+  it('keeps URL-only image scans waiting for the key', async () => {
+    vi.mocked(qrScanner.scanImage).mockResolvedValue({ status: 'ok', text: URL_ONLY });
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-scan-image'));
+    await waitFor(() =>
+      expect(screen.getByTestId('connect-url-input')).toHaveValue('ws://127.0.0.1:3101'),
+    );
+    expect(screen.getByTestId('connect-submit')).toBeDisabled();
+    expect(createDaemonConnection).not.toHaveBeenCalled();
+  });
+
+  it('opens one connection when the same payload is applied twice quickly', async () => {
+    const release = holdConnect();
+    vi.mocked(readClipboardText).mockResolvedValue(FULL);
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-paste-button'));
+    fireEvent.click(screen.getByTestId('connect-paste-button'));
+    await waitFor(() => expect(connectMock).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(createDaemonConnection).toHaveBeenCalledTimes(1);
+    await act(async () => release());
   });
 });

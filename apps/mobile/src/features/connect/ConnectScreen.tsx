@@ -11,7 +11,8 @@ import type { SavedConnection } from '../../platform/savedConnections';
 import { qrScanner } from '../../platform/qrScanner';
 import type { QrScanResult } from '../../platform/qrScanner';
 import { getSecureStore } from '../../platform/secureStore';
-import { parsePairingCode, PENDING_BRIDGE_SECRET_ID } from './pairing';
+import { readClipboardText } from '../terminal/clipboard';
+import { normalizePairingInput, parsePairingCode, PENDING_BRIDGE_SECRET_ID } from './pairing';
 import type { PairingPayload } from './pairing';
 import { checkDaemonUrl, isApiKeyFormat, isCleartextUrl } from './validation';
 
@@ -40,7 +41,7 @@ export function ConnectScreen() {
   const keyInput = useRef<HTMLInputElement>(null);
   const [hasKey, setHasKey] = useState(false);
   const [pairing, setPairing] = useState('');
-  const [pairingError, setPairingError] = useState(false);
+  const [pairingError, setPairingError] = useState<'invalid' | 'clipboard' | null>(null);
   const [scanNotice, setScanNotice] = useState<'unavailable' | 'denied' | 'failed' | null>(null);
   const [scanning, setScanning] = useState(false);
   const [errorKey, setErrorKey] = useState<ConnectErrorKey | null>(null);
@@ -60,6 +61,21 @@ export function ConnectScreen() {
     setErrorKey(null);
   };
 
+  const startConnect = (daemonUrl: string, apiKey: string) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setErrorKey(null);
+    connect(daemonUrl, apiKey)
+      .then(() => navigate('/sessions', { replace: true }))
+      .catch((error: unknown) => setErrorKey(messageKeyFor(error)))
+      .finally(() => {
+        inFlight.current = false;
+        setBusy(false);
+      });
+  };
+
+  /** A payload with URL and key connects at once, like `connect-submit`; a URL alone waits for the key. */
   const applyPayload = (payload: PairingPayload) => {
     setUrl(payload.url);
     if (payload.key !== undefined && keyInput.current) {
@@ -73,27 +89,45 @@ export function ConnectScreen() {
         .catch(() => undefined);
     }
     setPairing('');
-    setPairingError(false);
+    setPairingError(null);
     const urlCheck = checkDaemonUrl(payload.url, isDebugBuild());
     setErrorKey(!urlCheck.ok && urlCheck.reason === 'insecure' ? 'connect.errorInsecure' : null);
+    if (payload.key === undefined) {
+      keyInput.current?.focus();
+    } else if (urlCheck.ok) {
+      startConnect(urlCheck.url, payload.key);
+    }
   };
 
   const onPairingChange = (event: ChangeEvent<HTMLInputElement>) => {
     const text = event.target.value;
     setScanNotice(null);
-    if (text.trim() === '') {
+    if (normalizePairingInput(text) === '') {
       setPairing('');
-      setPairingError(false);
+      setPairingError(null);
       return;
     }
     const payload = parsePairingCode(text);
     if (payload === null) {
       // A rejected code may still embed a key or bridge secret; never keep it in the field.
       setPairing('');
-      setPairingError(true);
+      setPairingError('invalid');
       return;
     }
     applyPayload(payload);
+  };
+
+  const onPaste = () => {
+    setScanNotice(null);
+    setPairingError(null);
+    void readClipboardText().then((text) => {
+      const payload = text === null ? null : parsePairingCode(text);
+      if (payload === null) {
+        setPairingError('clipboard');
+        return;
+      }
+      applyPayload(payload);
+    });
   };
 
   const onScanResult = (result: QrScanResult) => {
@@ -101,14 +135,14 @@ export function ConnectScreen() {
       case 'ok': {
         const payload = parsePairingCode(result.text);
         if (payload === null) {
-          setPairingError(true);
+          setPairingError('invalid');
           return;
         }
         applyPayload(payload);
         return;
       }
       case 'none':
-        setPairingError(true);
+        setPairingError('invalid');
         return;
       case 'unavailable':
         setScanNotice('unavailable');
@@ -126,7 +160,7 @@ export function ConnectScreen() {
 
   const onScan = (scan: () => Promise<QrScanResult>) => {
     setScanNotice(null);
-    setPairingError(false);
+    setPairingError(null);
     scan()
       .then(onScanResult, () => setScanNotice('failed'))
       .finally(() => setScanning(false));
@@ -148,16 +182,7 @@ export function ConnectScreen() {
       return;
     }
 
-    inFlight.current = true;
-    setBusy(true);
-    setErrorKey(null);
-    connect(urlCheck.url, apiKey)
-      .then(() => navigate('/sessions', { replace: true }))
-      .catch((error: unknown) => setErrorKey(messageKeyFor(error)))
-      .finally(() => {
-        inFlight.current = false;
-        setBusy(false);
-      });
+    startConnect(urlCheck.url, apiKey);
   };
 
   return (
@@ -255,7 +280,7 @@ export function ConnectScreen() {
             data-testid="connect-paste-pairing"
             value={pairing}
             onChange={onPairingChange}
-            aria-invalid={pairingError}
+            aria-invalid={pairingError !== null}
             aria-describedby="connect-pairing-hint"
             autoCapitalize="none"
             autoCorrect="off"
@@ -270,10 +295,20 @@ export function ConnectScreen() {
           </p>
           {pairingError ? (
             <p className="field__error" data-testid="connect-pairing-error" role="alert">
-              {t('connect.pairingInvalid')}
+              {pairingError === 'clipboard'
+                ? t('connect.pasteInvalid')
+                : t('connect.pairingInvalid')}
             </p>
           ) : null}
         </div>
+        <button
+          type="button"
+          className="btn btn--secondary"
+          data-testid="connect-paste-button"
+          onClick={onPaste}
+        >
+          {t('connect.paste')}
+        </button>
         <button
           type="button"
           className="btn btn--secondary"

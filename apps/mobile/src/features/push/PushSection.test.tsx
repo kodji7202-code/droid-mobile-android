@@ -20,6 +20,12 @@ const mocks = vi.hoisted(() => ({
   unregister: vi.fn(),
   scanImage: vi.fn(),
   deleteToken: vi.fn(),
+  readClipboard: vi.fn(),
+}));
+
+vi.mock('../terminal/clipboard', () => ({
+  readClipboardText: () => mocks.readClipboard(),
+  copyText: vi.fn(),
 }));
 
 vi.mock('../../platform/pushMessaging', () => ({
@@ -57,6 +63,7 @@ describe('Settings > Notifications > push section', () => {
     mocks.register.mockReset().mockResolvedValue(undefined);
     mocks.unregister.mockReset().mockResolvedValue(true);
     mocks.scanImage.mockReset();
+    mocks.readClipboard.mockReset();
     mocks.deleteToken.mockReset().mockResolvedValue(true);
     await releasePushRegistration();
     await getSecureStore().deleteSecret(PENDING_BRIDGE_SECRET_ID);
@@ -96,6 +103,83 @@ describe('Settings > Notifications > push section', () => {
     );
     expect(field.value).toBe('');
     expect(mocks.register).not.toHaveBeenCalled();
+  });
+
+  it('registers from a pairing code wrapped in quotes with line breaks and invisible characters', async () => {
+    renderSection();
+    const wrapped = `"${CODE.slice(0, 50)}\r\n${CODE.slice(50, 90)}\u200B \t${CODE.slice(90)}\n"`;
+    fireEvent.change(screen.getByTestId('settings-push-pairing'), { target: { value: wrapped } });
+    await waitFor(() => expect(status()).toHaveAttribute('data-state', 'registered'));
+    expect(mocks.register).toHaveBeenCalledWith(
+      { bridge: BRIDGE, secret: SECRET },
+      expect.anything(),
+    );
+    expect(screen.getByTestId<HTMLInputElement>('settings-push-pairing').value).toBe('');
+  });
+
+  it('keeps rejecting a wrapped code with an unsupported version and registers nothing', async () => {
+    renderSection();
+    const broken = CODE.replace('v=1', 'v=2');
+    fireEvent.change(screen.getByTestId('settings-push-pairing'), {
+      target: { value: `"${broken.slice(0, 50)}\r\n${broken.slice(50)}"` },
+    });
+    expect(await screen.findByTestId('settings-push-error')).toHaveTextContent(
+      en.push.error.pairingInvalid,
+    );
+    expect(mocks.register).not.toHaveBeenCalled();
+  });
+
+  describe('Paste button', () => {
+    it('is labelled in English and Romanian', async () => {
+      renderSection();
+      const button = screen.getByTestId('push-paste-button');
+      expect(button).toBe(screen.getByRole('button', { name: en.push.paste }));
+      await act(async () => {
+        await changeAppLanguage('ro');
+      });
+      expect(screen.getByTestId('push-paste-button')).toHaveAccessibleName(ro.push.paste);
+      expect(ro.push.paste).not.toBe(en.push.paste);
+    });
+
+    it('registers with the bridge from the clipboard and keeps the secret out of the page', async () => {
+      mocks.readClipboard.mockResolvedValue(`${CODE.slice(0, 60)}\r\n${CODE.slice(60)}\r\n`);
+      renderSection();
+      fireEvent.click(screen.getByTestId('push-paste-button'));
+      await waitFor(() => expect(status()).toHaveAttribute('data-state', 'registered'));
+      expect(mocks.register).toHaveBeenCalledTimes(1);
+      expect(mocks.register).toHaveBeenCalledWith(
+        { bridge: BRIDGE, secret: SECRET },
+        expect.objectContaining({ fcmToken: 'aaaa:bbbb' }),
+      );
+      expect(document.body.innerHTML).not.toContain(SECRET);
+      expect(JSON.stringify({ ...window.localStorage })).not.toContain(SECRET);
+    });
+
+    it.each(['hello', '', null])(
+      'shows the localized pairing error for clipboard %j and registers nothing',
+      async (clipboard) => {
+        mocks.readClipboard.mockResolvedValue(clipboard);
+        renderSection();
+        fireEvent.click(screen.getByTestId('push-paste-button'));
+        expect(await screen.findByTestId('settings-push-error')).toHaveTextContent(
+          en.push.error.pairingInvalid,
+        );
+        expect(mocks.register).not.toHaveBeenCalled();
+        expect(status()).toHaveAttribute('data-state', 'unregistered');
+      },
+    );
+
+    it('explains a clipboard code without bridge details', async () => {
+      mocks.readClipboard.mockResolvedValue(
+        'droidmobile://pair?v=1&url=ws%3A%2F%2F10.0.2.2%3A3101',
+      );
+      renderSection();
+      fireEvent.click(screen.getByTestId('push-paste-button'));
+      expect(await screen.findByTestId('settings-push-error')).toHaveTextContent(
+        en.push.error.pairingNoBridge,
+      );
+      expect(mocks.register).not.toHaveBeenCalled();
+    });
   });
 
   it('a wrong secret shows a localized error without the secret or any server text and stays unregistered', async () => {
