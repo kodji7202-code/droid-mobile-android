@@ -6,7 +6,8 @@ a pairing code for the app, installs the Droid hooks that feed the push bridge, 
 everything works (`Doctor`).
 
 The helper never prints your Factory API key by default. Only `New-PairingCode -IncludeApiKey`
-shows it, on screen, with a warning, and it is never written to a file.
+shows it, on screen, with a warning. It is never saved: the only file that can contain it is the
+temporary QR page (as QR modules, not as text), which is deleted when you press Enter.
 
 Context: [PC setup](../../docs/setup.md), [connecting the phone](../../docs/pairing.md),
 [notifications](../../docs/notifications.md) and
@@ -44,8 +45,9 @@ New-PairingCode -BridgeUrl http://127.0.0.1:3102 -BridgeSecretFile .\pair-secret
 Doctor -DaemonPort 3101
 ```
 
-The last two lines print the `droidmobile://pair?...` code and its QR block, then one PASS, WARN or
-FAIL line per check. Skip the `Install-DroidHooks` and bridge parts if you do not want phone
+The last two lines print the `droidmobile://pair?...` code and its QR block (and open a large QR
+page in your browser: scan it, then press Enter in the console to close and delete it; add
+`-NoWindow` to skip the page), then one PASS, WARN or FAIL line per check. Skip the `Install-DroidHooks` and bridge parts if you do not want phone
 notifications: `New-PairingCode` then prints only the daemon URL. A phone on another network
 needs a bridge URL it can reach over HTTPS; `http://127.0.0.1:3102` works for the emulator
 (`http://10.0.2.2:3102`) and for local checks only.
@@ -137,11 +139,25 @@ and as a QR block. The URL is the recorded serve URL, or `wss://<magicdns>:<Serv
 record exists (`-Url` overrides). The bridge secret comes from `-BridgeSecretFile` (first line),
 `-BridgeSecret` or `$env:DROIDMOBILE_BRIDGE_SECRET`; it is the secret printed by the bridge's
 generate command, not the Factory API key. The Factory API key is added only with `-IncludeApiKey`
-(read from `$env:FACTORY_API_KEY`, or prompted without echo), is shown with a warning, and is never
-written to a file. The QR is rendered by `qr.mjs`, which receives the payload on stdin.
+(read from `$env:FACTORY_API_KEY`, or prompted without echo) and is shown with a warning. The QR is
+rendered by `qr.mjs`, which receives the payload on stdin.
+
+In an interactive console the command also shows a large QR in your browser: it writes a
+self-contained HTML page (inline SVG, no scripts, no external resources) to
+`%LOCALAPPDATA%\DroidMobile\pairing\`, a directory that only your Windows account can access, opens
+it in the default browser and waits ("Press Enter once the phone is paired"). After Enter, or after
+Ctrl+C, the page is deleted. Pages left behind by an earlier crashed run (`droidmobile-pairing-*.html`)
+are deleted when the next window run starts. With `-IncludeApiKey` the QR in the page contains the
+key, so the page exists only while the command waits. The page is never written inside the
+repository. It is skipped, with nothing written or opened, by `-NoWindow`, `-NoQr` and `-PassThru`,
+and whenever input or output is redirected or PowerShell was started with `-NonInteractive`.
+
+Test hooks: `-Opener { param($path) ... }` replaces the default `Start-Process` that opens the page,
+and `DROIDMOBILE_PAIRING_FORCE_WINDOW=1` treats a redirected console as interactive and reads the
+Enter key from standard input.
 
 Parameters: `-Url`, `-ServePort`, `-BridgeUrl`, `-BridgeSecret`, `-BridgeSecretFile`,
-`-IncludeApiKey`, `-NoQr`, `-PassThru`, `-StateDir`.
+`-IncludeApiKey`, `-NoQr`, `-NoWindow`, `-Opener`, `-PassThru`, `-StateDir`.
 
 ### Install-DroidHooks
 

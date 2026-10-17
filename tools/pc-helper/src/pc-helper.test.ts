@@ -67,7 +67,7 @@ describe('New-PairingCode (VAL-PCH-013, VAL-PCH-023)', () => {
   it('prints url only, no key even when FACTORY_API_KEY is set, plus a QR block', () => {
     const scratch = scratchDir('pch-pair-');
     cleanups.push(scratch.cleanup);
-    const r = runPs(`New-PairingCode -Url '${url}' -StateDir '${scratch.dir}'`, {
+    const r = runPs(`New-PairingCode -Url '${url}' -StateDir '${scratch.dir}' -NoWindow`, {
       FACTORY_API_KEY: fakeKey,
     });
     expect(r.code).toBe(0);
@@ -79,9 +79,12 @@ describe('New-PairingCode (VAL-PCH-013, VAL-PCH-023)', () => {
   });
 
   it('adds bridge and bridgeSecret together, reading the secret from the environment', () => {
-    const r = runPs(`New-PairingCode -Url '${url}' -BridgeUrl http://10.0.2.2:3102 -NoQr`, {
-      DROIDMOBILE_BRIDGE_SECRET: 'bridge-secret-value',
-    });
+    const r = runPs(
+      `New-PairingCode -Url '${url}' -BridgeUrl http://10.0.2.2:3102 -NoQr -NoWindow`,
+      {
+        DROIDMOBILE_BRIDGE_SECRET: 'bridge-secret-value',
+      },
+    );
     expect(r.code).toBe(0);
     expect(payloadLine(r.out)).toBe(
       `droidmobile://pair?v=1&url=${url}&bridge=http://10.0.2.2:3102&bridgeSecret=bridge-secret-value`,
@@ -89,17 +92,20 @@ describe('New-PairingCode (VAL-PCH-013, VAL-PCH-023)', () => {
   });
 
   it('refuses a bridge URL without a secret and a secret without a bridge URL', () => {
-    const noSecret = runPs(`New-PairingCode -Url '${url}' -BridgeUrl http://10.0.2.2:3102 -NoQr`, {
-      DROIDMOBILE_BRIDGE_SECRET: '',
-    });
+    const noSecret = runPs(
+      `New-PairingCode -Url '${url}' -BridgeUrl http://10.0.2.2:3102 -NoQr -NoWindow`,
+      {
+        DROIDMOBILE_BRIDGE_SECRET: '',
+      },
+    );
     expect(noSecret.code).not.toBe(0);
     expect(noSecret.out).toContain('pairing secret');
-    const orphan = runPs(`New-PairingCode -Url '${url}' -BridgeSecret abc -NoQr`);
+    const orphan = runPs(`New-PairingCode -Url '${url}' -BridgeSecret abc -NoQr -NoWindow`);
     expect(orphan.code).not.toBe(0);
   });
 
   it('rejects a URL that is not ws:// or wss://', () => {
-    const r = runPs("New-PairingCode -Url 'https://example.com' -NoQr");
+    const r = runPs("New-PairingCode -Url 'https://example.com' -NoQr -NoWindow");
     expect(r.code).not.toBe(0);
     expect(r.out).toContain('-Url must look like');
   });
@@ -108,7 +114,7 @@ describe('New-PairingCode (VAL-PCH-013, VAL-PCH-023)', () => {
     const scratch = scratchDir('pch-key-');
     cleanups.push(scratch.cleanup);
     const r = runPs(
-      `New-PairingCode -Url '${url}' -IncludeApiKey -NoQr -StateDir '${scratch.dir}'`,
+      `New-PairingCode -Url '${url}' -IncludeApiKey -NoQr -NoWindow -StateDir '${scratch.dir}'`,
       { FACTORY_API_KEY: fakeKey },
     );
     expect(r.code).toBe(0);

@@ -39,6 +39,11 @@ It prints a code and a QR block of the same text:
 droidmobile://pair?v=1&url=wss://my-pc.tail1234.ts.net:8443
 ```
 
+In an interactive console it also opens a large QR code in your default browser (a temporary page
+in `%LOCALAPPDATA%\DroidMobile\pairing\`, readable only by your Windows account). Scan it, then
+press Enter in the PowerShell window; the page is deleted. Use `New-PairingCode -NoWindow` to skip
+the page.
+
 On the phone, use one of the three paths on the Connect screen:
 
 - **Scan QR code** opens the Google Code Scanner (part of Google Play services; the app needs no

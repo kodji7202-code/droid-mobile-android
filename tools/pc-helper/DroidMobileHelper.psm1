@@ -9,6 +9,7 @@ Import-Module CimCmdlets -ErrorAction Stop
 . (Join-Path $PSScriptRoot 'lib\Common.ps1')
 . (Join-Path $PSScriptRoot 'lib\Daemon.ps1')
 . (Join-Path $PSScriptRoot 'lib\Tailscale.ps1')
+. (Join-Path $PSScriptRoot 'lib\PairingPage.ps1')
 . (Join-Path $PSScriptRoot 'lib\Pairing.ps1')
 . (Join-Path $PSScriptRoot 'lib\Hooks.ps1')
 . (Join-Path $PSScriptRoot 'lib\Doctor.ps1')

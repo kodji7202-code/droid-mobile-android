@@ -67,8 +67,14 @@ function New-PairingCode {
     Payload: droidmobile://pair?v=1&url=<wss-url>[&bridge=<bridge-url>&bridgeSecret=<secret>]
     The URL is the helper's recorded Tailscale Serve URL, or wss://<magicdns>:<ServePort>.
     The Factory API key is NOT included unless -IncludeApiKey is given; then it is read from
-    $env:FACTORY_API_KEY (or prompted for), shown on screen only with a warning, and never
-    written to any file. Nothing here is saved to disk.
+    $env:FACTORY_API_KEY (or prompted for) and shown with a warning.
+    In an interactive console the command also writes a self-contained HTML page with a large QR
+    to %LOCALAPPDATA%\DroidMobile\pairing\ (directory restricted to the current user), opens it in
+    the default browser, waits for Enter and deletes it again, also on Ctrl+C. Pages left behind by
+    earlier runs are deleted first. With -IncludeApiKey the page's QR contains the key, so it exists
+    only while the command waits. Nothing else is saved to disk.
+    The page is skipped with -NoWindow, -NoQr or -PassThru and whenever input or output is redirected
+    or the shell was started with -NonInteractive.
   .PARAMETER Url
     Daemon URL to embed (ws:// or wss://). Default: the recorded Serve URL.
   .PARAMETER ServePort
@@ -85,7 +91,14 @@ function New-PairingCode {
   .PARAMETER NoQr
     Print only the text payload.
   .PARAMETER PassThru
-    Also return the payload string.
+    Also return the payload string. Implies -NoWindow.
+  .PARAMETER NoWindow
+    Do not write or open the QR page and do not wait for Enter.
+  .PARAMETER Opener
+    Script block that opens the QR page; it receives the page path as its only argument.
+    Default: Start-Process on the page, which uses the default browser. Mainly a test hook.
+    Setting DROIDMOBILE_PAIRING_FORCE_WINDOW=1 treats a redirected console as interactive and reads
+    the Enter key from standard input (test hook).
   .PARAMETER StateDir
     Same meaning as for Enable-TailscaleServe (only read, to find the Serve URL).
   .EXAMPLE
@@ -101,6 +114,8 @@ function New-PairingCode {
     [switch]$IncludeApiKey,
     [switch]$NoQr,
     [switch]$PassThru,
+    [switch]$NoWindow,
+    [scriptblock]$Opener,
     [string]$StateDir
   )
 
@@ -154,12 +169,13 @@ function New-PairingCode {
 
   if ($key) {
     Write-Host 'WARNING: this pairing code contains your Factory API key. Show it only to your own phone,' -ForegroundColor Yellow
-    Write-Host 'do not paste it into chats or tickets, and clear this window afterwards. Nothing was saved.' -ForegroundColor Yellow
+    Write-Host 'do not paste it into chats or tickets, and clear this window afterwards. Nothing is kept on disk.' -ForegroundColor Yellow
   } elseif ($BridgeUrl) {
     Write-Host 'Note: this pairing code contains the bridge pairing secret. Do not share or save the output.'
   }
   Write-Host 'Pairing code (paste into the app via "Paste pairing code", or scan the QR):'
   Write-Host $payload
+  $rows = $null
   if (-not $NoQr) {
     $rows = Get-DhQrRows -Payload $payload
     if ($rows) {
@@ -169,6 +185,9 @@ function New-PairingCode {
     } else {
       Write-Host 'QR block skipped: Node.js or the qrcode-generator package (npm install in the repo) is not available.'
     }
+  }
+  if ($rows -and -not $NoWindow -and -not $PassThru -and (Test-DhInteractiveConsole)) {
+    Show-DhPairingPage -Rows $rows -IncludesKey ([bool]$key) -Opener $Opener
   }
   $global:LASTEXITCODE = 0
   if ($PassThru) { return $payload }
