@@ -152,6 +152,37 @@ describe('New-PairingCode QR page (VAL-PAIR-023..026)', () => {
     expect(listing(s.state)).toEqual([]);
   });
 
+  it('removes pre-existing explicit SYSTEM and Administrators entries from the pairing directory', () => {
+    const s = makeScratch();
+    mkdirSync(s.pairingDir, { recursive: true });
+    const grant = spawnSync(
+      'icacls.exe',
+      [s.pairingDir, '/grant', '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F'],
+      { encoding: 'utf8' },
+    );
+    expect(grant.status, grant.stdout + grant.stderr).toBe(0);
+
+    const r = runPs(
+      `New-PairingCode -Url '${url}' -IncludeApiKey -StateDir '${s.state}' -Opener ${openerStub(s)}`,
+      env(s, { FACTORY_API_KEY: fakeKey }),
+      undefined,
+      '\r\n',
+    );
+    expect(r.code).toBe(0);
+    expect(existsSync(join(s.dir, 'acl.json')), r.out).toBe(true);
+    const acl = JSON.parse(
+      readFileSync(join(s.dir, 'acl.json'), 'utf8').replace(/^\uFEFF/, ''),
+    ) as {
+      protected: boolean;
+      users: string[];
+      me: string;
+    };
+    expect(acl.protected).toBe(true);
+    expect(acl.users).toHaveLength(1);
+    expect(acl.users[0].toLowerCase()).toBe(acl.me.toLowerCase());
+    expect(listing(s.pairingDir)).toEqual([]);
+  });
+
   it('-NoWindow, -PassThru, -NoQr and plain non-interactive runs create nothing and open nothing', () => {
     const s = makeScratch();
     const stub = openerStub(s);

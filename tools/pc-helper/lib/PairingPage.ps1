@@ -26,9 +26,29 @@ function Initialize-DhPairingDir {
   param([Parameter(Mandatory)][string]$Path)
   try {
     Initialize-DhDirectory $Path
-    $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-    $result = Invoke-DhNative -FilePath 'icacls.exe' -ArgumentList @($Path, '/inheritance:r', '/grant:r', "*${sid}:(OI)(CI)F") -TimeoutSec 10
-    return ($result.ExitCode -eq 0)
+    # The whole DACL is replaced rather than edited: an elevated session creates directories with
+    # explicit SYSTEM and Administrators entries that icacls /inheritance:r would keep. .NET is used
+    # instead of Get-Acl/Set-Acl because PSModulePath can load an incompatible security module.
+    $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+    $security = New-Object System.Security.AccessControl.DirectorySecurity
+    $security.SetAccessRuleProtection($true, $false)
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+      $sid,
+      [System.Security.AccessControl.FileSystemRights]::FullControl,
+      ([System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit),
+      [System.Security.AccessControl.PropagationFlags]::None,
+      [System.Security.AccessControl.AccessControlType]::Allow)
+    $security.AddAccessRule($rule)
+    $info = New-Object System.IO.DirectoryInfo $Path
+    $info.SetAccessControl($security)
+
+    $actual = $info.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access)
+    if (-not $actual.AreAccessRulesProtected) { return $false }
+    $rules = @($actual.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]))
+    if ($rules.Count -ne 1) { return $false }
+    return ($rules[0].IdentityReference.Value -eq $sid.Value -and
+      $rules[0].AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+      (($rules[0].FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -eq [System.Security.AccessControl.FileSystemRights]::FullControl))
   } catch {
     return $false
   }
