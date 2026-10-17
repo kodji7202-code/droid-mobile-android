@@ -20,6 +20,11 @@ Pairing fixes. Version code 2, so it installs over 1.0.0 and keeps your saved co
   message that points to **Scan from image**, **Paste** or manual entry.
 - **Pasting a pairing code** accepts what you actually copy from a console: line breaks and
   spaces from a wrapped line, and quotes or angle brackets around the code, are tolerated.
+- **App lock (security)**: cancelling or failing the biometric prompt no longer reconnects to
+  the daemon or reads the saved key while the app is locked. Resuming the app stays locked until
+  you unlock it.
+- **Pair links from Recents**: a `droidmobile://pair` link is not replayed when the task is
+  relaunched from Recents.
 
 ### Added
 
