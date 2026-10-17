@@ -27,6 +27,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- droidmobile://pair pairing links; the app always asks before using one. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="droidmobile" android:host="pair" />
+            </intent-filter>
+
         </activity>
 
         <!-- Tells Google Play services to download the Google Code Scanner (UI) module at install time. -->

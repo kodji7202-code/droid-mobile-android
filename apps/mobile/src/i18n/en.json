@@ -55,6 +55,21 @@
     "errorKeyRejected": "The daemon rejected this API key. Check the key and try again.",
     "errorUnreachable": "Could not reach a droid daemon at this address. Check the URL and that the daemon is running."
   },
+  "pairLink": {
+    "title": "Pair with this daemon?",
+    "message": "A link from another app wants to connect Droid Mobile to a daemon. Continue only if you created this link yourself.",
+    "daemon": "Daemon",
+    "key": "API key",
+    "keyIncluded": "Included in the link (not shown)",
+    "keyMissing": "Not included, you will enter it yourself",
+    "bridge": "Notification bridge",
+    "confirm": "Continue",
+    "errorInvalid": "This pairing link is not valid.",
+    "errorInsecure": "This build only accepts secure pairing links (wss://).",
+    "switched": "Connected to {{host}}.",
+    "updated": "Saved the new key and connected to {{host}}.",
+    "added": "Added {{host}} and connected."
+  },
   "sessions": {
     "untitled": "Untitled session",
     "messages": "Messages: {{count}}",

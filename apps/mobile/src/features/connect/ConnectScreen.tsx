@@ -10,10 +10,11 @@ import { loadSavedConnections } from '../../platform/savedConnections';
 import type { SavedConnection } from '../../platform/savedConnections';
 import { qrScanner } from '../../platform/qrScanner';
 import type { QrScanResult } from '../../platform/qrScanner';
-import { getSecureStore } from '../../platform/secureStore';
 import { readClipboardText } from '../terminal/clipboard';
-import { normalizePairingInput, parsePairingCode, PENDING_BRIDGE_SECRET_ID } from './pairing';
+import { normalizePairingInput, parsePairingCode } from './pairing';
 import type { PairingPayload } from './pairing';
+import { stashPendingBridge } from './pendingBridge';
+import { useHandOff } from '../pairLink/useHandOff';
 import { checkDaemonUrl, isApiKeyFormat, isCleartextUrl } from './validation';
 
 function savedActive(): SavedConnection | undefined {
@@ -63,14 +64,22 @@ export function ConnectScreen() {
     setErrorKey(null);
   };
 
-  const startConnect = (daemonUrl: string, apiKey: string) => {
+  const startConnect = (daemonUrl: string, apiKey: string, keyFromPayload = false) => {
     if (inFlight.current) return;
     inFlight.current = true;
     setBusy(true);
     setErrorKey(null);
     connect(daemonUrl, apiKey)
       .then(() => navigate('/sessions', { replace: true }))
-      .catch((error: unknown) => setErrorKey(messageKeyFor(error)))
+      .catch((error: unknown) => {
+        const key = messageKeyFor(error);
+        // A key the daemon rejected is useless; do not leave a link-supplied one in the field.
+        if (keyFromPayload && key === 'connect.errorKeyRejected' && keyInput.current) {
+          keyInput.current.value = '';
+          setHasKey(false);
+        }
+        setErrorKey(key);
+      })
       .finally(() => {
         inFlight.current = false;
         setBusy(false);
@@ -84,12 +93,7 @@ export function ConnectScreen() {
       keyInput.current.value = payload.key;
       setHasKey(true);
     }
-    if (payload.bridge !== undefined && payload.bridgeSecret !== undefined) {
-      const bridge = JSON.stringify({ bridge: payload.bridge, bridgeSecret: payload.bridgeSecret });
-      getSecureStore()
-        .setSecret(PENDING_BRIDGE_SECRET_ID, bridge)
-        .catch(() => undefined);
-    }
+    stashPendingBridge(payload);
     setPairing('');
     setPairingError(null);
     const urlCheck = checkDaemonUrl(payload.url, isDebugBuild());
@@ -97,9 +101,15 @@ export function ConnectScreen() {
     if (payload.key === undefined) {
       keyInput.current?.focus();
     } else if (urlCheck.ok) {
-      startConnect(urlCheck.url, payload.key);
+      startConnect(urlCheck.url, payload.key, true);
     }
   };
+
+  useHandOff(
+    (state) => state.forConnect,
+    (state) => state.clearForConnect(),
+    applyPayload,
+  );
 
   const onPairingChange = (event: ChangeEvent<HTMLInputElement>) => {
     const text = event.target.value;

@@ -55,6 +55,21 @@
     "errorKeyRejected": "Daemonul a respins această cheie API. Verifică cheia și încearcă din nou.",
     "errorUnreachable": "Nu s-a putut ajunge la un daemon droid la această adresă. Verifică adresa și că daemonul rulează."
   },
+  "pairLink": {
+    "title": "Te asociezi cu acest daemon?",
+    "message": "Un link din altă aplicație vrea să conecteze Droid Mobile la un daemon. Continuă doar dacă ai creat tu acest link.",
+    "daemon": "Daemon",
+    "key": "Cheie API",
+    "keyIncluded": "Inclusă în link (nu este afișată)",
+    "keyMissing": "Nu este inclusă, o vei introduce tu",
+    "bridge": "Bridge de notificări",
+    "confirm": "Continuă",
+    "errorInvalid": "Acest link de asociere nu este valid.",
+    "errorInsecure": "Această versiune acceptă doar linkuri de asociere securizate (wss://).",
+    "switched": "Conectat la {{host}}.",
+    "updated": "Cheia nouă a fost salvată și ești conectat la {{host}}.",
+    "added": "{{host}} a fost adăugat și ești conectat."
+  },
   "sessions": {
     "untitled": "Sesiune fără titlu",
     "messages": "Mesaje: {{count}}",

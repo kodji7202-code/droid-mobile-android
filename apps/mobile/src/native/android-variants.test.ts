@@ -102,11 +102,35 @@ describe('capacitor config variant selection', () => {
   });
 });
 
+/** Asserts the single droidmobile://pair VIEW filter on MainActivity and the singleTask launch mode. */
+function expectPairLinkFilter(manifest: string): void {
+  const viewFilters =
+    manifest.match(
+      /<intent-filter>(?:(?!<\/intent-filter>)[\s\S])*?android\.intent\.action\.VIEW[\s\S]*?<\/intent-filter>/g,
+    ) ?? [];
+  expect(viewFilters).toHaveLength(1);
+  const filter = viewFilters[0] ?? '';
+  expect(filter).toContain('android.intent.category.DEFAULT');
+  expect(filter).toContain('android.intent.category.BROWSABLE');
+  const dataTags = filter.match(/<data\b[^>]*>/g) ?? [];
+  expect(dataTags).toHaveLength(1);
+  expect(dataTags[0]).toMatch(/android:scheme="droidmobile"/);
+  expect(dataTags[0]).toMatch(/android:host="pair"/);
+  expect(manifest).toMatch(/android:launchMode="singleTask"/);
+  expect(manifest).toContain('com.google.mlkit.vision.DEPENDENCIES');
+  expect(manifest).toContain('barcode_ui');
+  expect(manifest).not.toContain('android.permission.CAMERA');
+}
+
 describe('android project source sets', () => {
   it('main manifest disables backup and never allows cleartext', () => {
     const manifest = read(MAIN_MANIFEST);
     expect(manifest).toContain('android:allowBackup="false"');
     expect(manifest).not.toContain('usesCleartextTraffic="true"');
+  });
+
+  it('main manifest registers the droidmobile://pair link and drops CAMERA', () => {
+    expectPairLinkFilter(read(MAIN_MANIFEST));
   });
 
   it('debug overlay enables cleartext only for the debug variant', () => {
@@ -168,6 +192,7 @@ describe.skipIf(findMergedManifests('debug').length === 0)('merged debug manifes
     expect(manifest).toContain('android:allowBackup="false"');
     expect(manifest).toContain('android:debuggable="true"');
     expect(manifest).toContain('package="com.droidmobile.client"');
+    expectPairLinkFilter(manifest);
   });
 });
 
@@ -180,6 +205,7 @@ describe.skipIf(findMergedManifests('release').length === 0)('merged release man
     expect(manifest).not.toContain('android:debuggable="true"');
     expect(manifest).toContain('android:allowBackup="false"');
     expect(manifest).toContain('package="com.droidmobile.client"');
+    expectPairLinkFilter(manifest);
   });
 });
 

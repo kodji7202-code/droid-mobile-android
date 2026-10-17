@@ -10,8 +10,11 @@ import { isDebugBuild } from '../../platform/buildFlavor';
 import type { SavedConnection } from '../../platform/savedConnections';
 import { isCleartextUrl } from '../connect/validation';
 import { messageKeyFor } from '../connect/errors';
+import { useHandOff } from '../pairLink/useHandOff';
 
-type Panel = { kind: 'add' } | { kind: 'edit'; id: string } | null;
+/** `fromLink` opens the add form with the address of a confirmed pairing link and activates the result. */
+type Panel =
+  { kind: 'add'; url?: string; fromLink?: boolean } | { kind: 'edit'; id: string } | null;
 
 function transportOf(url: string): 'ws' | 'wss' {
   return /^\s*wss:/i.test(url) ? 'wss' : 'ws';
@@ -43,6 +46,12 @@ export function ConnectionScreen() {
   const [revealed, setRevealed] = useState(false);
   const [revealError, setRevealError] = useState<string | null>(null);
   const hidden = lockEnabled && !revealed;
+
+  useHandOff(
+    (state) => state.forAddForm,
+    (state) => state.clearForAddForm(),
+    ({ url }) => setPanel({ kind: 'add', url, fromLink: true }),
+  );
 
   const active = saved.find((entry) => entry.id === activeId) ?? null;
   const editing = panel?.kind === 'edit' ? saved.find((entry) => entry.id === panel.id) : undefined;
@@ -226,11 +235,13 @@ export function ConnectionScreen() {
 
       {panel?.kind === 'add' ? (
         <ConnectionForm
-          key="add"
+          key={`add-${panel.url ?? ''}`}
           mode="add"
+          initial={panel.url === undefined ? undefined : { label: '', url: panel.url }}
           onCancel={() => setPanel(null)}
           onSubmit={async (values) => {
-            await addConnection(values);
+            const entry = await addConnection(values);
+            if (panel.fromLink) await switchTo(entry.id);
             setPanel(null);
           }}
         />

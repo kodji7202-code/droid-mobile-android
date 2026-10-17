@@ -11,6 +11,8 @@ import { useAppResume } from './useAppResume';
 import { useDaemonService } from './useDaemonService';
 import { useLocalNotifications } from './useLocalNotifications';
 import { startPushRegistry } from '../stores/push';
+import { PairLinkHost } from '../features/pairLink/PairLinkHost';
+import { usePairLinkListeners } from '../features/pairLink/usePairLinkListeners';
 
 /**
  * App root: global error boundary, theme and toast providers, and the router
@@ -20,6 +22,7 @@ import { startPushRegistry } from '../stores/push';
 export default function App() {
   useAppResume();
   useDaemonService();
+  usePairLinkListeners();
   useEffect(() => startPushRegistry(), []);
   const router = useMemo(() => {
     const routes = createAppRoutes();
@@ -36,6 +39,7 @@ export default function App() {
           <Suspense fallback={<Skeleton lines={3} />}>
             <LockGate>
               <RouterProvider router={router} />
+              <PairLinkHost navigate={(to) => void router.navigate(to)} />
             </LockGate>
           </Suspense>
         </ToastProvider>
