@@ -1,5 +1,6 @@
 package com.droidmobile.client
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -9,10 +10,17 @@ class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(DaemonServicePlugin::class.java)
         registerPlugin(AppNotificationsPlugin::class.java)
+        // The bridge captures the launch data while it is created inside super.onCreate.
+        LaunchLinks.dropDataIfReplay(intent, savedInstanceState != null)
         super.onCreate(savedInstanceState)
         // Channels exist from the first launch, before the WebView has translated their names.
         NotificationChannels.ensureAll(this)
         excludeFromAutofill()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(LaunchLinks.withoutData(intent))
     }
 
     // The API key and the bridge secret are typed into web inputs; a platform autofill service
