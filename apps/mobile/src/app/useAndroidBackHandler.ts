@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { dismissTopOverlay } from '../components/backDismiss';
-import { isCameraScanActive } from '../platform/qrScanner';
 
 /**
  * Android hardware/system back button handling for native builds: navigate
@@ -27,7 +26,6 @@ export function useAndroidBackHandler(
     let cancelled = false;
     let listener: { remove(): void } | undefined;
     void App.addListener('backButton', () => {
-      if (isCameraScanActive()) return;
       if (dismissTopOverlay()) return;
       if (isAtRootRef.current) {
         void App.exitApp();

@@ -1,153 +1,170 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createQrScanner, isCameraScanActive } from './qrScanner';
+import { GoogleBarcodeScannerModuleInstallState as State } from '@capacitor-mlkit/barcode-scanning';
+import { createQrScanner } from './qrScanner';
+
+type ProgressEvent = { state: number; progress?: number };
 
 function make(overrides: Record<string, unknown> = {}, native = true) {
-  type Handler = (event: { barcodes: { rawValue: string }[] }) => void;
-  const handlers: Record<string, Handler> = {};
+  let emit: (event: ProgressEvent) => void = () => undefined;
   const remove = vi.fn().mockResolvedValue(undefined);
-  const addListener = vi.fn((name: string, fn: Handler) => {
-    handlers[name] = fn;
+  const addListener = vi.fn((_name: string, fn: (event: ProgressEvent) => void) => {
+    emit = fn;
     return Promise.resolve({ remove });
   });
   const scanner = {
-    requestPermissions: vi.fn().mockResolvedValue({ camera: 'granted' }),
-    startScan: vi.fn().mockResolvedValue(undefined),
-    stopScan: vi.fn().mockResolvedValue(undefined),
+    scan: vi.fn().mockResolvedValue({ barcodes: [{ rawValue: 'code' }] }),
+    isGoogleBarcodeScannerModuleAvailable: vi.fn().mockResolvedValue({ available: true }),
+    installGoogleBarcodeScannerModule: vi.fn().mockResolvedValue(undefined),
     addListener,
     readBarcodesFromImage: vi.fn().mockResolvedValue({ barcodes: [{ rawValue: 'img' }] }),
     ...overrides,
   };
   const picker = { pickFiles: vi.fn().mockResolvedValue({ files: [{ path: '/cache/a.png' }] }) };
-  const back = { addListener };
-  return { scanner, picker, handlers, api: createQrScanner(scanner, picker, () => native, back) };
+  return {
+    scanner,
+    picker,
+    remove,
+    emit: (event: ProgressEvent) => emit(event),
+    api: createQrScanner(scanner, picker, () => native),
+  };
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-describe('qrScanner', () => {
+describe('qrScanner camera scan (Google Code Scanner)', () => {
   it('is unavailable outside the native app', async () => {
     const { api, scanner } = make({}, false);
     expect(await api.scanCamera()).toEqual({ status: 'unavailable' });
     expect(await api.scanImage()).toEqual({ status: 'unavailable' });
-    expect(scanner.requestPermissions).not.toHaveBeenCalled();
+    expect(scanner.scan).not.toHaveBeenCalled();
   });
 
-  it('starts the live preview after permission and resolves on the first QR', async () => {
-    const { api, scanner, handlers } = make();
-    const pending = api.scanCamera();
-    await tick();
-    expect(scanner.startScan).toHaveBeenCalledOnce();
-    expect(document.body.classList.contains('barcode-scanner-active')).toBe(true);
-    expect(isCameraScanActive()).toBe(true);
-    handlers.barcodesScanned({ barcodes: [{ rawValue: 'code' }] });
-    expect(await pending).toEqual({ status: 'ok', text: 'code' });
-    expect(scanner.stopScan).toHaveBeenCalled();
-    expect(document.body.classList.contains('barcode-scanner-active')).toBe(false);
-    await tick();
-    expect(isCameraScanActive()).toBe(false);
+  it('scans for QR codes only and returns the first text value', async () => {
+    const { api, scanner } = make();
+    expect(await api.scanCamera()).toEqual({ status: 'ok', text: 'code' });
+    expect(scanner.scan).toHaveBeenCalledWith({ formats: ['QR_CODE'] });
+    expect(scanner.installGoogleBarcodeScannerModule).not.toHaveBeenCalled();
   });
 
-  it('reports denied without opening the preview', async () => {
-    const { api, scanner } = make({
-      requestPermissions: vi.fn().mockResolvedValue({ camera: 'denied' }),
+  it('installs the missing module, reports progress 0, 50, 100 and then scans', async () => {
+    const { api, scanner, emit, remove } = make({
+      isGoogleBarcodeScannerModuleAvailable: vi.fn().mockResolvedValue({ available: false }),
     });
-    expect(await api.scanCamera()).toEqual({ status: 'denied' });
-    expect(scanner.startScan).not.toHaveBeenCalled();
+    const progress = vi.fn();
+    const pending = api.scanCamera(progress);
+    await tick();
+    expect(scanner.scan).not.toHaveBeenCalled();
+    emit({ state: State.DOWNLOADING, progress: 50 });
+    emit({ state: State.INSTALLING, progress: 100 });
+    emit({ state: State.COMPLETED });
+    expect(await pending).toEqual({ status: 'ok', text: 'code' });
+    expect(progress.mock.calls.map(([percent]) => percent)).toEqual([0, 50, 100]);
+    expect(scanner.scan).toHaveBeenCalledOnce();
+    expect(remove).toHaveBeenCalledOnce();
   });
 
-  it('cancels on the back button and on stopCamera', async () => {
-    const a = make();
-    const first = a.api.scanCamera();
-    await tick();
-    a.handlers.backButton({ barcodes: [] });
-    expect(await first).toEqual({ status: 'cancelled' });
+  it.each([State.FAILED, State.CANCELED])(
+    'reports moduleUnavailable when the install ends in state %s',
+    async (state) => {
+      const { api, scanner, emit } = make({
+        isGoogleBarcodeScannerModuleAvailable: vi.fn().mockResolvedValue({ available: false }),
+      });
+      const pending = api.scanCamera();
+      await tick();
+      emit({ state });
+      expect(await pending).toEqual({ status: 'moduleUnavailable' });
+      expect(scanner.scan).not.toHaveBeenCalled();
+    },
+  );
 
-    const b = make();
-    const second = b.api.scanCamera();
-    await tick();
-    await b.api.stopCamera();
-    expect(await second).toEqual({ status: 'cancelled' });
+  it('reports moduleUnavailable when the install request is rejected (no Play services)', async () => {
+    const { api, scanner, remove } = make({
+      isGoogleBarcodeScannerModuleAvailable: vi.fn().mockResolvedValue({ available: false }),
+      installGoogleBarcodeScannerModule: vi.fn().mockRejectedValue(new Error('API not available')),
+    });
+    expect(await api.scanCamera()).toEqual({ status: 'moduleUnavailable' });
+    expect(scanner.scan).not.toHaveBeenCalled();
+    expect(remove).toHaveBeenCalledOnce();
   });
 
-  it('rejects a barcode without a text value as none and stops the camera', async () => {
-    const { api, scanner, handlers } = make();
-    const pending = api.scanCamera();
-    await tick();
-    expect(() =>
-      handlers.barcodesScanned({ barcodes: [{} as { rawValue: string }] }),
-    ).not.toThrow();
-    expect(await pending).toEqual({ status: 'none' });
-    expect(scanner.stopScan).toHaveBeenCalled();
-    expect(document.body.classList.contains('barcode-scanner-active')).toBe(false);
+  it('reports moduleUnavailable when the availability check itself fails', async () => {
+    const { api } = make({
+      isGoogleBarcodeScannerModuleAvailable: vi.fn().mockRejectedValue(new Error('not available')),
+    });
+    expect(await api.scanCamera()).toEqual({ status: 'moduleUnavailable' });
   });
 
+  it('scans when the module turns out to be installed already', async () => {
+    const { api } = make({
+      isGoogleBarcodeScannerModuleAvailable: vi.fn().mockResolvedValue({ available: false }),
+      installGoogleBarcodeScannerModule: vi
+        .fn()
+        .mockRejectedValue(new Error('The Google Barcode Scanner Module is already installed.')),
+    });
+    expect(await api.scanCamera()).toEqual({ status: 'ok', text: 'code' });
+  });
+
+  it('treats the plugin cancel rejection and an empty result as cancelled', async () => {
+    expect(
+      await make({ scan: vi.fn().mockRejectedValue(new Error('scan canceled.')) }).api.scanCamera(),
+    ).toEqual({ status: 'cancelled' });
+    expect(
+      await make({ scan: vi.fn().mockResolvedValue({ barcodes: [] }) }).api.scanCamera(),
+    ).toEqual({ status: 'cancelled' });
+  });
+
+  it('reports none for a code without a text value and error for other failures', async () => {
+    expect(
+      await make({
+        scan: vi.fn().mockResolvedValue({ barcodes: [{} as { rawValue: string }] }),
+      }).api.scanCamera(),
+    ).toEqual({ status: 'none' });
+    expect(
+      await make({
+        scan: vi.fn().mockRejectedValue(new Error('The scan failed.')),
+      }).api.scanCamera(),
+    ).toEqual({ status: 'error' });
+  });
+
+  it('maps a scan rejected for the missing module to moduleUnavailable', async () => {
+    const { api } = make({
+      scan: vi
+        .fn()
+        .mockRejectedValue(new Error('The Google Barcode Scanner Module is not available.')),
+    });
+    expect(await api.scanCamera()).toEqual({ status: 'moduleUnavailable' });
+  });
+
+  it('allows only one scan for rapid taps and frees the slot afterwards', async () => {
+    let finishScan: (value: { barcodes: { rawValue: string }[] }) => void = () => undefined;
+    const { api, scanner } = make({
+      scan: vi.fn(() => new Promise((resolve) => (finishScan = resolve))),
+    });
+    const first = api.scanCamera();
+    expect(await api.scanCamera()).toEqual({ status: 'cancelled' });
+    await tick();
+    expect(scanner.scan).toHaveBeenCalledOnce();
+    finishScan({ barcodes: [{ rawValue: 'one' }] });
+    expect(await first).toEqual({ status: 'ok', text: 'one' });
+    const second = api.scanCamera();
+    await tick();
+    finishScan({ barcodes: [{ rawValue: 'two' }] });
+    expect(await second).toEqual({ status: 'ok', text: 'two' });
+  });
+
+  it('leaves no preview state in the document', async () => {
+    const { api } = make();
+    await api.scanCamera();
+    expect(document.body.className).toBe('');
+  });
+});
+
+describe('qrScanner image scan', () => {
   it('treats a non-string value like a missing one when decoding an image', async () => {
     const { api } = make({
       readBarcodesFromImage: vi.fn().mockResolvedValue({ barcodes: [{ rawValue: 42 }] }),
     });
     expect(await api.scanImage()).toEqual({ status: 'none' });
-  });
-
-  it('allows only one scan for rapid taps and requests permission once', async () => {
-    let grant: (value: { camera: string }) => void = () => undefined;
-    const { api, scanner, handlers } = make({
-      requestPermissions: vi.fn(() => new Promise((resolve) => (grant = resolve))),
-    });
-    const first = api.scanCamera();
-    const second = api.scanCamera();
-    expect(await second).toEqual({ status: 'cancelled' });
-    expect(scanner.requestPermissions).toHaveBeenCalledOnce();
-    grant({ camera: 'granted' });
-    await tick();
-    expect(scanner.startScan).toHaveBeenCalledOnce();
-    handlers.barcodesScanned({ barcodes: [{ rawValue: 'code' }] });
-    expect(await first).toEqual({ status: 'ok', text: 'code' });
-  });
-
-  it('does not let a finished scan clean up a newer scan', async () => {
-    type Handler = (event: { barcodes: { rawValue: string }[] }) => void;
-    const handlers: Record<string, Handler> = {};
-    const releases: (() => void)[] = [];
-    let first = true;
-    const addListener = vi.fn((name: string, fn: Handler) => {
-      handlers[name] = fn;
-      const slow = first && name === 'barcodesScanned';
-      if (slow) first = false;
-      const remove = slow
-        ? () => new Promise<void>((resolve) => releases.push(resolve))
-        : () => Promise.resolve();
-      return Promise.resolve({ remove });
-    });
-    const scanner = {
-      requestPermissions: vi.fn().mockResolvedValue({ camera: 'granted' }),
-      startScan: vi.fn().mockResolvedValue(undefined),
-      stopScan: vi.fn().mockResolvedValue(undefined),
-      addListener,
-      readBarcodesFromImage: vi.fn(),
-    };
-    const api = createQrScanner(scanner, { pickFiles: vi.fn() }, () => true, { addListener });
-
-    const one = api.scanCamera();
-    await tick();
-    handlers.barcodesScanned({ barcodes: [{ rawValue: 'one' }] });
-    await tick();
-    // The first scan is still removing its listener: its slot stays reserved.
-    scanner.stopScan.mockClear();
-    expect(await api.scanCamera()).toEqual({ status: 'cancelled' });
-    expect(scanner.startScan).toHaveBeenCalledTimes(1);
-    releases.forEach((release) => release());
-    expect(await one).toEqual({ status: 'ok', text: 'one' });
-    expect(scanner.stopScan).toHaveBeenCalledTimes(1);
-
-    const two = api.scanCamera();
-    await tick();
-    expect(scanner.startScan).toHaveBeenCalledTimes(2);
-    await api.stopCamera();
-    expect(await two).toEqual({ status: 'cancelled' });
-  });
-  it('reports an error when the preview cannot start', async () => {
-    const { api } = make({ startScan: vi.fn().mockRejectedValue(new Error('boom')) });
-    expect(await api.scanCamera()).toEqual({ status: 'error' });
   });
 
   it('decodes a picked image through a file URI', async () => {
@@ -174,8 +191,8 @@ describe('qrScanner', () => {
   it('treats a dismissed picker as cancelled', async () => {
     const { scanner } = make();
     const picker = { pickFiles: vi.fn().mockRejectedValue(new Error('pickFiles canceled.')) };
-    expect(
-      await createQrScanner(scanner, picker, () => true, { addListener: vi.fn() }).scanImage(),
-    ).toEqual({ status: 'cancelled' });
+    expect(await createQrScanner(scanner, picker, () => true).scanImage()).toEqual({
+      status: 'cancelled',
+    });
   });
 });

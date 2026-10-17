@@ -42,8 +42,10 @@ export function ConnectScreen() {
   const [hasKey, setHasKey] = useState(false);
   const [pairing, setPairing] = useState('');
   const [pairingError, setPairingError] = useState<'invalid' | 'clipboard' | null>(null);
-  const [scanNotice, setScanNotice] = useState<'unavailable' | 'denied' | 'failed' | null>(null);
-  const [scanning, setScanning] = useState(false);
+  const [scanNotice, setScanNotice] = useState<
+    'unavailable' | 'moduleUnavailable' | 'failed' | null
+  >(null);
+  const [installProgress, setInstallProgress] = useState<number | null>(null);
   const [errorKey, setErrorKey] = useState<ConnectErrorKey | null>(null);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
@@ -147,8 +149,8 @@ export function ConnectScreen() {
       case 'unavailable':
         setScanNotice('unavailable');
         return;
-      case 'denied':
-        setScanNotice('denied');
+      case 'moduleUnavailable':
+        setScanNotice('moduleUnavailable');
         return;
       case 'error':
         setScanNotice('failed');
@@ -163,8 +165,9 @@ export function ConnectScreen() {
     setPairingError(null);
     scan()
       .then(onScanResult, () => setScanNotice('failed'))
-      .finally(() => setScanning(false));
+      .finally(() => setInstallProgress(null));
   };
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (inFlight.current || !canSubmit) return;
@@ -257,18 +260,6 @@ export function ConnectScreen() {
           {busy ? t('connect.submitting') : t('connect.submit')}
         </button>
       </form>
-      {scanning ? (
-        <div className="qr-scan-overlay">
-          <button
-            type="button"
-            className="btn btn--secondary qr-scan-overlay__cancel"
-            data-testid="connect-scan-cancel"
-            onClick={() => void qrScanner.stopCamera()}
-          >
-            {t('connect.scanCancel')}
-          </button>
-        </div>
-      ) : null}
       <div className="connect-pairing">
         <div className="field">
           <label className="field__label" htmlFor="connect-pairing">
@@ -313,7 +304,7 @@ export function ConnectScreen() {
           type="button"
           className="btn btn--secondary"
           data-testid="connect-scan-qr"
-          onClick={() => onScan(() => qrScanner.scanCamera(() => setScanning(true)))}
+          onClick={() => onScan(() => qrScanner.scanCamera(setInstallProgress))}
         >
           {t('connect.scanQr')}
         </button>
@@ -325,10 +316,15 @@ export function ConnectScreen() {
         >
           {t('connect.scanImage')}
         </button>
+        {installProgress !== null ? (
+          <p className="field__description" data-testid="connect-scan-progress" role="status">
+            {t('connect.scanProgress', { percent: installProgress })}
+          </p>
+        ) : null}
         {scanNotice ? (
           <p className="field__description" data-testid="connect-scan-notice" role="status">
-            {scanNotice === 'denied'
-              ? t('connect.scanDenied')
+            {scanNotice === 'moduleUnavailable'
+              ? t('connect.scanModuleUnavailable')
               : scanNotice === 'failed'
                 ? t('connect.scanFailed')
                 : t('connect.scanUnavailable')}

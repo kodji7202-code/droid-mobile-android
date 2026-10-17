@@ -61,6 +61,8 @@ $manifest = (& $apkanalyzer manifest print $Apk) -join "`n"
 Check 'no usesCleartextTraffic=true' ($manifest -notmatch 'usesCleartextTraffic="true"')
 Check 'no debuggable=true' ($manifest -notmatch 'debuggable="true"')
 Check 'allowBackup=false' ($manifest -match 'allowBackup="false"')
+Check 'no CAMERA permission (Google Code Scanner needs none)' ($manifest -notmatch 'android\.permission\.CAMERA')
+Check 'Google Code Scanner module declared (barcode_ui)' ($manifest -match 'com\.google\.mlkit\.vision\.DEPENDENCIES' -and $manifest -match 'barcode_ui')
 Check 'no networkSecurityConfig permitting cleartext' ($manifest -notmatch 'cleartextTrafficPermitted="true"')
 $badging = (& "$bt\aapt2.exe" dump badging $Apk) -join "`n"
 $label = [regex]::Match($badging, "application-label:'([^']*)'").Groups[1].Value

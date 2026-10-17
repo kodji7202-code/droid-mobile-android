@@ -64,7 +64,6 @@ If you publish without `google-services.json` push is absent and the Firebase ro
 | `INTERNET`, `ACCESS_NETWORK_STATE`                        | Connect to the user's daemon and bridge.                                                                                                               |
 | `POST_NOTIFICATIONS`                                      | Approval requests and finished turns (asked after an explanation inside the app).                                                                      |
 | `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`      | Keeps the daemon connection alive while a turn is running or the user turned on **Stay connected**; has a visible notification with a **Stop** button. |
-| `CAMERA` (optional hardware)                              | Scan the pairing QR code. The app works without it (type the details or scan an image).                                                                |
 | `USE_BIOMETRIC`, `USE_FINGERPRINT`                        | Optional app lock, added by the biometric plugin.                                                                                                      |
 | `WAKE_LOCK`, `com.google.android.c2dm.permission.RECEIVE` | Added by Firebase Cloud Messaging for push delivery.                                                                                                   |
 

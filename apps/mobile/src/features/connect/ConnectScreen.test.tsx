@@ -19,7 +19,6 @@ vi.mock('../../platform/qrScanner', () => ({
     isSupported: () => true,
     scanCamera: vi.fn(),
     scanImage: vi.fn(),
-    stopCamera: vi.fn(),
   },
 }));
 
@@ -361,15 +360,85 @@ describe('ConnectScreen QR scanning', () => {
     expect(createDaemonConnection).not.toHaveBeenCalled();
   });
 
-  it('shows a permission message when the camera is denied and keeps manual entry usable', async () => {
-    vi.mocked(qrScanner.scanCamera).mockResolvedValue({ status: 'denied' });
+  it('names the alternatives when the Google scanner module is unavailable and keeps manual entry usable', async () => {
+    vi.mocked(qrScanner.scanCamera).mockResolvedValue({ status: 'moduleUnavailable' });
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-scan-qr'));
+    const notice = await screen.findByTestId('connect-scan-notice');
+    expect(notice).toHaveTextContent(en.connect.scanModuleUnavailable);
+    expect(notice).toHaveTextContent(en.connect.scanImage);
+    expect(notice).toHaveTextContent(en.connect.paste);
+    expect(notice).toHaveTextContent('droidmobile://');
+    expect(screen.getByTestId('connect-url-input')).toBeEnabled();
+    expect(screen.getByTestId('connect-key-input')).toBeEnabled();
+    expect(screen.getByTestId('connect-paste-pairing')).toBeEnabled();
+    expect(screen.queryByTestId('connect-scan-progress')).not.toBeInTheDocument();
+  });
+
+  it('shows a Romanian unavailable message that differs from the English one', async () => {
+    expect(ro.connect.scanModuleUnavailable).not.toBe(en.connect.scanModuleUnavailable);
+    await act(async () => {
+      await changeAppLanguage('ro');
+    });
+    vi.mocked(qrScanner.scanCamera).mockResolvedValue({ status: 'moduleUnavailable' });
     renderConnect();
     fireEvent.click(screen.getByTestId('connect-scan-qr'));
     expect(await screen.findByTestId('connect-scan-notice')).toHaveTextContent(
-      /camera permission is required/i,
+      ro.connect.scanModuleUnavailable,
     );
-    expect(screen.getByTestId('connect-url-input')).toBeEnabled();
-    expect(screen.getByTestId('connect-key-input')).toBeEnabled();
+    await act(async () => {
+      await changeAppLanguage('en');
+    });
+  });
+
+  it('shows install progress while the module installs and hides it afterwards', async () => {
+    let report: (percent: number) => void = () => undefined;
+    let finish: (result: QrScanResult) => void = () => undefined;
+    vi.mocked(qrScanner.scanCamera).mockImplementation((onProgress) => {
+      report = onProgress ?? report;
+      return new Promise<QrScanResult>((resolve) => (finish = resolve));
+    });
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-scan-qr'));
+    act(() => report(0));
+    expect(screen.getByTestId('connect-scan-progress')).toHaveTextContent('0%');
+    act(() => report(50));
+    expect(screen.getByTestId('connect-scan-progress')).toHaveTextContent('50%');
+    expect(screen.getByTestId('connect-url-input')).toBeVisible();
+    expect(screen.getByTestId('connect-key-input')).toBeVisible();
+    await act(async () => finish({ status: 'cancelled' }));
+    expect(screen.queryByTestId('connect-scan-progress')).not.toBeInTheDocument();
+    expect(document.body.className).toBe('');
+  });
+
+  it('fills the URL from a URL-only scan, focuses the key field and starts no connection', async () => {
+    vi.mocked(qrScanner.scanCamera).mockResolvedValue({
+      status: 'ok',
+      text: 'droidmobile://pair?v=1&url=ws%3A%2F%2F10.0.2.2%3A3101',
+    });
+    renderConnect();
+    fireEvent.click(screen.getByTestId('connect-scan-qr'));
+    await waitFor(() =>
+      expect(screen.getByTestId('connect-url-input')).toHaveValue('ws://10.0.2.2:3101'),
+    );
+    expect(screen.getByTestId('connect-key-input')).toHaveFocus();
+    expect(createDaemonConnection).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid scanned value with the localized message and changes no field', async () => {
+    vi.mocked(qrScanner.scanCamera).mockResolvedValue({
+      status: 'ok',
+      text: 'https://example.com',
+    });
+    renderConnect();
+    fireEvent.change(screen.getByTestId('connect-url-input'), { target: { value: 'ws://keep:1' } });
+    fireEvent.click(screen.getByTestId('connect-scan-qr'));
+    expect(await screen.findByTestId('connect-pairing-error')).toHaveTextContent(
+      /not a valid pairing code/i,
+    );
+    expect(screen.getByTestId('connect-url-input')).toHaveValue('ws://keep:1');
+    expect(screen.getByTestId('connect-key-input')).toHaveValue('');
+    expect(createDaemonConnection).not.toHaveBeenCalled();
   });
 
   it('connects from a live camera scan that carries a key', async () => {
@@ -389,10 +458,15 @@ describe('ConnectScreen QR scanning', () => {
   it('does nothing visible when the user cancels', async () => {
     vi.mocked(qrScanner.scanCamera).mockResolvedValue({ status: 'cancelled' });
     renderConnect();
+    fireEvent.change(screen.getByTestId('connect-url-input'), { target: { value: 'ws://keep:1' } });
     fireEvent.click(screen.getByTestId('connect-scan-qr'));
     await waitFor(() => expect(qrScanner.scanCamera).toHaveBeenCalled());
+    await act(async () => undefined);
     expect(screen.queryByTestId('connect-scan-notice')).not.toBeInTheDocument();
     expect(screen.queryByTestId('connect-pairing-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('connect-url-input')).toHaveValue('ws://keep:1');
+    expect(screen.getByTestId('connect-key-input')).toHaveValue('');
+    expect(createDaemonConnection).not.toHaveBeenCalled();
   });
 
   it('clears a rejected secret-bearing payload from the field and the DOM', () => {

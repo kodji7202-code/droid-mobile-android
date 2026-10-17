@@ -41,8 +41,9 @@ droidmobile://pair?v=1&url=wss://my-pc.tail1234.ts.net:8443
 
 On the phone, use one of the three paths on the Connect screen:
 
-- **Scan QR code** opens the camera (the app asks for the camera permission; if you refuse, type
-  the details instead).
+- **Scan QR code** opens the Google Code Scanner (part of Google Play services; the app needs no
+  camera permission). The first time, the scanner module may download, with a progress message. If
+  the module is not available on the phone, use **Scan from image**, **Paste** or type the details.
 - **Scan from image** reads a QR code from a picture or screenshot.
 - **Paste pairing code**: copy the text on the PC (for example into a note that syncs to the
   phone) and paste it into the field.
