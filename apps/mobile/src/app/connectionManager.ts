@@ -95,6 +95,11 @@ export interface ConnectionManagerDeps {
   checkUrl(
     rawUrl: string,
   ): { ok: true; url: string } | { ok: false; reason: 'malformed' | 'insecure' };
+  /**
+   * True while the app lock screen is up. Background-triggered attempts (resume, retry) must not
+   * read a key or open a socket until the user unlocked.
+   */
+  isLocked?(): boolean;
   onChange(state: ConnectionManagerState): void;
 }
 
@@ -456,11 +461,12 @@ export function createConnectionManager(deps: ConnectionManagerDeps): Connection
       // The shell stays usable while the daemon is down; keep trying in the
       // background unless the key itself was rejected (then a new key is
       // needed and hammering the daemon is pointless).
-      if (errorKindOf(error) !== 'auth') retry();
+      if (errorKindOf(error) !== 'auth' && state.connection === connection) connection.retryNow();
     });
   }
 
   function retry(): void {
+    if (deps.isLocked?.()) return;
     if (state.connection) {
       state.connection.retryNow();
       return;

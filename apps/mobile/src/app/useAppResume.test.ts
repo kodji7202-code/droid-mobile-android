@@ -1,5 +1,6 @@
 ﻿import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useConnectionStore } from '../stores/connection';
+import { useLockStore } from '../stores/lock';
 import { useSessionViewStore } from '../stores/sessionView';
 import { resumeApp } from './useAppResume';
 
@@ -11,6 +12,7 @@ describe('resumeApp', () => {
     retry.mockClear();
     refreshOnResume.mockClear();
     useSessionViewStore.setState({ refreshOnResume });
+    useLockStore.setState({ enabled: false, locked: false });
   });
 
   it('refreshes open sessions when the socket is ready', () => {
@@ -26,4 +28,15 @@ describe('resumeApp', () => {
     expect(retry).toHaveBeenCalledTimes(1);
     expect(refreshOnResume).not.toHaveBeenCalled();
   });
+
+  it.each(['ready', 'offline'] as const)(
+    'does nothing while the app lock is closed (status %s)',
+    (status) => {
+      useLockStore.setState({ enabled: true, locked: true });
+      useConnectionStore.setState({ status, retry });
+      resumeApp();
+      expect(retry).not.toHaveBeenCalled();
+      expect(refreshOnResume).not.toHaveBeenCalled();
+    },
+  );
 });

@@ -10,6 +10,7 @@ import { checkDaemonUrl } from '../features/connect/validation';
 import { logFailure } from '../diagnostics/failures';
 import { appLog } from '../diagnostics/logBuffer';
 import { useInteractionStore } from './interactions';
+import { useLockStore } from './lock';
 import { isDebugBuild } from '../platform/buildFlavor';
 import { getSecureStore } from '../platform/secureStore';
 import { releasePushRegistration } from './push';
@@ -94,6 +95,7 @@ export const useConnectionStore = create<ConnectionStore>((set) => {
     getSecureStore,
     releasePush: releasePushRegistration,
     checkUrl: (rawUrl) => checkDaemonUrl(rawUrl, isDebugBuild()),
+    isLocked: () => useLockStore.getState().locked,
     onChange: (state) => set(state),
   });
 

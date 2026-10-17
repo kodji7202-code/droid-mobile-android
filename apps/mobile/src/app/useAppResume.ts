@@ -2,10 +2,14 @@ import { useEffect } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { useConnectionStore } from '../stores/connection';
+import { useLockStore } from '../stores/lock';
 import { useSessionViewStore } from '../stores/sessionView';
 
 /** What to do when the app returns to the foreground. */
 export function resumeApp(): void {
+  // The biometric prompt is its own activity, so the app "resumes" when it closes, also when it
+  // was cancelled. Nothing may be read or dialled until the unlock succeeded.
+  if (useLockStore.getState().locked) return;
   const { status, retry } = useConnectionStore.getState();
   if (status === 'ready') void useSessionViewStore.getState().refreshOnResume();
   else retry();

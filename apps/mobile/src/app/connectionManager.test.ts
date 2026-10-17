@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ConnectionStatus, DaemonConnection, VersionMismatchWarning } from '@droidmobile/daemon-client';
+import type {
+  ConnectionStatus,
+  DaemonConnection,
+  VersionMismatchWarning,
+} from '@droidmobile/daemon-client';
 import { createConnectionManager, TransportPolicyError } from './connectionManager';
 import type { ConnectionManagerDeps, ConnectionManagerState } from './connectionManager';
 import type { SavedConnection } from '../platform/savedConnections';
@@ -107,9 +111,9 @@ describe('connectionManager.connect', () => {
     const { manager, createConnection } = harness({
       checkUrl: () => ({ ok: false, reason: 'insecure' }),
     });
-    await expect(manager.connect('ws://127.0.0.1:3105', 'fk-test-key-12345678')).rejects.toBeInstanceOf(
-      TransportPolicyError,
-    );
+    await expect(
+      manager.connect('ws://127.0.0.1:3105', 'fk-test-key-12345678'),
+    ).rejects.toBeInstanceOf(TransportPolicyError);
     expect(createConnection).not.toHaveBeenCalled();
     expect(manager.getState().connection).toBeNull();
   });
@@ -137,7 +141,9 @@ describe('connectionManager.connect', () => {
     const failure = Object.assign(new Error('no daemon'), { kind: 'connection' });
     const { manager, fake, states } = harness({ connectImpl: () => Promise.reject(failure) });
 
-    await expect(manager.connect('ws://127.0.0.1:3105', 'fk-test-key-12345678')).rejects.toBe(failure);
+    await expect(manager.connect('ws://127.0.0.1:3105', 'fk-test-key-12345678')).rejects.toBe(
+      failure,
+    );
     expect(manager.getState().connection).toBeNull();
     expect(manager.getState().status).toBe('offline');
     expect(manager.getState().lastErrorKind).toBe('connection');
@@ -187,7 +193,10 @@ describe('connectionManager.restore', () => {
     });
 
     await manager.restore();
-    expect(createConnection).toHaveBeenCalledWith({ url: SAVED.url, apiKey: 'fk-test-key-12345678' });
+    expect(createConnection).toHaveBeenCalledWith({
+      url: SAVED.url,
+      apiKey: 'fk-test-key-12345678',
+    });
     expect(manager.getState().connection).toBe(fake.connection);
     expect(manager.getState().activeConnectionId).toBe(SAVED.id);
 
@@ -232,6 +241,59 @@ describe('connectionManager.retry', () => {
   });
 });
 
+describe('connectionManager.retry while the app lock is closed', () => {
+  it('reads no key and opens no socket, then restores once the lock opens', async () => {
+    let locked = true;
+    const getSecret = vi.fn((id: string) =>
+      Promise.resolve(id === SAVED.id ? 'fk-test-key-12345678' : null),
+    );
+    const { deps, createConnection, fake } = harness({
+      saved: { activeId: SAVED.id, connections: [SAVED] },
+      key: 'fk-test-key-12345678',
+    });
+    const guarded = createConnectionManager({
+      ...deps,
+      isLocked: () => locked,
+      getSecureStore: () => ({ ...deps.getSecureStore(), getSecret }),
+    });
+
+    guarded.retry();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(getSecret).not.toHaveBeenCalled();
+    expect(createConnection).not.toHaveBeenCalled();
+    expect(fake.connectMock).not.toHaveBeenCalled();
+
+    locked = false;
+    guarded.retry();
+    await vi.waitFor(() => expect(createConnection).toHaveBeenCalledTimes(1));
+    expect(getSecret).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves an existing connection alone while locked', async () => {
+    let locked = false;
+    const { deps, fake } = harness();
+    const guarded = createConnectionManager({ ...deps, isLocked: () => locked });
+    await guarded.connect('ws://127.0.0.1:3105', 'fk-test-key-12345678');
+
+    locked = true;
+    guarded.retry();
+    expect(fake.retryNowMock).not.toHaveBeenCalled();
+  });
+
+  it('still retries in the background after a launch restore that ran during unlock', async () => {
+    const failure = Object.assign(new Error('offline'), { kind: 'connection' });
+    const { deps, fake } = harness({
+      saved: { activeId: SAVED.id, connections: [SAVED] },
+      key: 'fk-test-key-12345678',
+      connectImpl: () => Promise.reject(failure),
+    });
+    const guarded = createConnectionManager({ ...deps, isLocked: () => true });
+
+    await guarded.restore();
+    await vi.waitFor(() => expect(fake.retryNowMock).toHaveBeenCalled());
+  });
+});
+
 describe('connectionManager state', () => {
   it('bumps readyEpoch on every transition into ready, including reconnects', async () => {
     const { manager, fake } = harness();
@@ -250,7 +312,10 @@ describe('connectionManager state', () => {
     const { manager, fake } = harness();
     await manager.connect('ws://127.0.0.1:3105', 'fk-test-key-12345678');
 
-    fake.emitWarning({ localFactoryProtocolVersion: '1.201.1', peerFactoryProtocolVersion: '1.244.0' });
+    fake.emitWarning({
+      localFactoryProtocolVersion: '1.201.1',
+      peerFactoryProtocolVersion: '1.244.0',
+    });
     expect(manager.getState().versionWarning?.peerFactoryProtocolVersion).toBe('1.244.0');
 
     manager.clearVersionWarning();
