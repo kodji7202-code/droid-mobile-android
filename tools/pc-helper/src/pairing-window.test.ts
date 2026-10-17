@@ -47,10 +47,13 @@ function makeScratch(): Scratch {
   };
 }
 
+// The ACL is read through .NET rather than Get-Acl: on hosted runners PSModulePath inherits
+// PowerShell 7 module folders, which makes Windows PowerShell 5.1 autoload an incompatible
+// Microsoft.PowerShell.Security and Get-Acl fail.
 // Records every call and keeps a copy of the page plus the directory ACL while the page exists.
 function openerStub(s: Scratch): string {
   const acl = join(s.dir, 'acl.json');
-  return `{ param($p) Add-Content -LiteralPath '${s.opens}' -Value $p; Copy-Item -LiteralPath $p -Destination '${s.copy}'; $a = Get-Acl -LiteralPath (Split-Path $p); $o = [ordered]@{ protected = $a.AreAccessRulesProtected; users = @($a.Access | ForEach-Object { $_.IdentityReference.Value }); me = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name }; $o | ConvertTo-Json -Compress | Set-Content -LiteralPath '${acl}' }`;
+  return `{ param($p) Add-Content -LiteralPath '${s.opens}' -Value $p; Copy-Item -LiteralPath $p -Destination '${s.copy}'; $a = (New-Object System.IO.DirectoryInfo (Split-Path $p)).GetAccessControl(); $o = [ordered]@{ protected = $a.AreAccessRulesProtected; users = @($a.Access | ForEach-Object { $_.IdentityReference.Value }); me = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name }; $o | ConvertTo-Json -Compress | Set-Content -LiteralPath '${acl}' }`;
 }
 
 function pageRows(html: string): string[] {
@@ -128,6 +131,7 @@ describe('New-PairingCode QR page (VAL-PAIR-023..026)', () => {
       '\r\n',
     );
     expect(r.code).toBe(0);
+    expect(existsSync(join(s.dir, 'acl.json')), r.out).toBe(true);
     const acl = JSON.parse(
       readFileSync(join(s.dir, 'acl.json'), 'utf8').replace(/^\uFEFF/, ''),
     ) as {
